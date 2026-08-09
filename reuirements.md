@@ -3,14 +3,15 @@
 ## General
 
 - A generalized, reusable flashcard library to learn new words. However the card component should be completely agnostic about the source of its content.
-- cards are based on json objects
+- cards are based on JSON objects
 
 This is a draft structure:
 interface Flashcard {
-  key: string;              // Slug from origin word and optionally slug from translation, e.g. "laufen" or maybe a combination like laufen-go or laufen-run
+  key: string;              // Stable unique card identifier, e.g. "laufen1", "laufen2"  
   word: string;
-  translation: string;
   transcription?: string;
+  translation: string;
+  context?: string,         // an example of usage
   category?: string;        // e.g. "Verb", "Nomen"
   tglinks?: string[];       // e.g. ["funnygerman/123", "korotko_de/12"]
   lastUpdate?: string;      // ISO-Date of last update
@@ -24,8 +25,9 @@ interface Flashcard {
   };
 }
 
-Review block is designed for later versions. It's not provided but will be mainted by library.
+Review block is designed for later versions. It's not provided but will be maintained by library.
 
+For each source word, meanings are assigned sequential numeric identifiers starting at 1. Once assigned, a key must never be changed or reused for a different meaning.
 
 ## Content Formatting
 - there should be no content formatting
@@ -34,7 +36,7 @@ Review block is designed for later versions. It's not provided but will be maint
 ## Appearance and Layout
 
 - **Strictly minimal layout** — only the card itself is on the screen. No persistent headers/source subtitles layered over the interface.
-- **Wider than it is tall** — always 4:3 aspect ratio, so it doesn't feel vertically "crushed" in portrait mode on mobile devices.
+- **Wider than it is tall** — always 4:3 aspect ratio by default, so it doesn't feel vertically "crushed" in portrait mode on mobile devices.
 - Size is calculated **explicitly via JS in pixels**, not relying on CSS `aspect-ratio`:
   - More reliable across browsers, guaranteed not to overflow the screen.
   - `maxWidth = 90% of screen width`
@@ -44,6 +46,8 @@ Review block is designed for later versions. It's not provided but will be maint
 - **Dot indicators** — placed under the card as a separate block, underneath the card, not overlaying the card
 - **Title card on very first start** — shown only once (initally session flag, in later implementations flag in `localStorage`), displaying the deck title/cover without gesture explanations. Acts as a presentation title slide.
 - **Info icon ⓘ** — permanently available, placed outside of card, on its top right corner, not overlaying the card. On click, it shows deck info and explains gestures (swipe/click/arrows).
+- Front side contains word and transcription if provided.
+- Back side contains translation and context if provided.
 
 ## Navigation and Interaction
 
@@ -117,4 +121,4 @@ new FlashcardDeck('#container', DECK_DATA.cards, {
 - **Save progress in `localStorage`** — the deck remembers which cards were easy and which were hard between visits.
 - **Visited decks history** — a separate catalog page showing all decks the user has ever opened in this browser.
 - **Global Personal Dictionary** — saving cards from different decks into a shared `localStorage` pool.
-   - **Handling Duplicates:** Use a composite key for deduplication: `slug(front) + slug(back)` instead of just `front`. This ensures that the same word with different meanings across multiple decks (e.g., "Zelle" meaning "biological cell" vs "table cell") won't overwrite each other.
+   - **Handling Duplicates:** Use the card's stable key (e.g. slug(word) + index: laufen1, laufen2, etc.) for deduplication. This ensures that the same word with different meanings across multiple decks (e.g., "Zelle" meaning "biological cell" vs "table cell") won't overwrite each other.
