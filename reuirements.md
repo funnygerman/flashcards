@@ -1,124 +1,268 @@
-# Flashcards requirements
+# Flashcards Requirements
 
 ## General
 
-- A generalized, reusable flashcard library to learn new words. However the card component should be completely agnostic about the source of its content.
-- cards are based on JSON objects
+* A generalized, reusable flashcard library for learning new words.
+* The card component must be completely agnostic about the source of its content.
+* Cards are based on plain JSON-compatible objects.
+* A **logical card represents one word with one specific meaning**.
+* The same logical card can be used by multiple decks without duplicating the card content.
 
-This is a draft structure:
+### Flashcard structure
+
+```ts
 interface Flashcard {
-  key: string;              // Stable unique card identifier, e.g. "laufen1", "laufen2"  
+  key: string;              // Stable unique card identifier
   word: string;
   transcription?: string;
   translation: string;
-  context?: string,         // an example of usage
+  context?: string;         // Example sentence or usage context
   category?: string;        // e.g. "Verb", "Nomen"
-  tglinks?: string[];       // e.g. ["funnygerman/123", "korotko_de/12"]
-  lastUpdate?: string;      // ISO-Date of last update
+  lastUpdate?: string;      // ISO date of last content update
 
   review?: {
-    lastReviewed: string;   // ISO-Date
-    nextDue: string;        // ISO-Date
-    interval: number;       // days to repeat
+    lastReviewed: string;   // ISO date
+    nextDue: string;        // ISO date
+    interval: number;       // Days until next review
     easeFactor: number;     // Start: 2.5
     repetitions: number;
   };
 }
+```
 
-Review block is designed for later versions. It's not provided but will be maintained by library.
+The `review` block is designed for later versions. It is not provided as part of the source card data initially and will be maintained by the library.
 
-For each source word, meanings are assigned sequential numeric identifiers starting at 1. Once assigned, a key must never be changed or reused for a different meaning.
+### Card identity
+
+* Each distinct word + meaning combination is a separate logical card.
+* The card `key` is a stable identifier and must not be changed or reused for a different logical card.
+* Card keys should be human-readable where practical.
+* For the current German/English vocabulary, a key may be based on the word and meaning, e.g.:
+
+  * `laufen-to-run`
+  * `laufen-to-operate`
+  * `zelle-cell`
+  * `zelle-compartment`
+* The exact key-generation convention is a data-management concern and is not part of the flashcard component's responsibilities.
+
+## Card Storage and Decks
+
+* Each logical card is stored separately.
+* The card's filename is its stable key.
+* Example:
+
+```text
+cards/
+├── laufen-to-run.js
+├── laufen-to-operate.js
+├── zelle-cell.js
+└── zelle-compartment.js
+```
+
+* Each card file exports one flashcard object as an ES module:
+
+```javascript
+export default {
+  key: "laufen-to-run",
+  word: "laufen",
+  translation: "to run"
+};
+```
+
+* Decks do **not** duplicate card objects. A deck contains references to card keys.
+
+Example:
+
+```javascript
+const DECK_DATA = {
+  deckTitle: "Everyday German",
+  cards: [
+    "laufen-to-run",
+    "gehen-to-go",
+    "zelle-cell"
+  ]
+};
+```
+
+* The same card can be referenced by multiple decks.
+* The flashcard library/application resolves card keys to card objects before displaying them.
+* Card loading should support dynamic loading so that a deck or future personal dictionary does not require manually importing every card file.
+
+For example:
+
+```javascript
+const module = await import(`./cards/${key}.js`);
+const card = module.default;
+```
+
+* The card component itself should receive resolved `Flashcard` objects. It should not be responsible for loading card files.
 
 ## Content Formatting
-- there should be no content formatting
-- HTML characters in the input (`&`, `<`, `>`) are strictly escaped before rendering so the content doesn't break the layout.
+
+* Card content is plain text; no HTML formatting is supported.
+* Card data must never be interpreted as HTML.
+* HTML-sensitive characters such as `&`, `<`, and `>` must be safely escaped or rendered as text so that card content cannot break the layout or be interpreted as markup.
 
 ## Appearance and Layout
 
-- **Strictly minimal layout** — only the card itself is on the screen. No persistent headers/source subtitles layered over the interface.
-- **Wider than it is tall** — always 4:3 aspect ratio by default, so it doesn't feel vertically "crushed" in portrait mode on mobile devices.
-- Size is calculated **explicitly via JS in pixels**, not relying on CSS `aspect-ratio`:
-  - More reliable across browsers, guaranteed not to overflow the screen.
-  - `maxWidth = 90% of screen width`
-  - `maxHeight = 75% of screen height in portrait mode, 88% in landscape` (height is the bottleneck in landscape, hence the softer limit).
-  - An additional **hard cap of 480px width** — without this, cards become unjustifiably huge on large desktop monitors.
-- **Font size inside the card is tied to the actual card width** (via a CSS variable set by JS), NOT to `vw` (viewport width). Otherwise, font sizes fluctuate between portrait and landscape orientations even if the card size remains the same.
-- **Dot indicators** — placed under the card as a separate block, underneath the card, not overlaying the card
-- **Title card on very first start** — shown only once (initally session flag, in later implementations flag in `localStorage`), displaying the deck title/cover without gesture explanations. Acts as a presentation title slide.
-- **Info icon ⓘ** — permanently available, placed outside of card, on its top right corner, not overlaying the card. On click, it shows deck info and explains gestures (swipe/click/arrows).
-- Front side contains word and transcription if provided.
-- Back side contains translation and context if provided.
+* **Strictly minimal layout** — only the card itself is on the screen. No persistent headers/source subtitles layered over the interface.
+* **Wider than it is tall** — 4:3 aspect ratio by default.
+* Size is calculated explicitly via JavaScript in pixels, not relying on CSS `aspect-ratio`.
+
+  * `maxWidth = 90% of viewport width`
+  * `maxHeight = 75% of viewport height` in portrait
+  * `maxHeight = 88% of viewport height` in landscape
+  * hard maximum width of `480px`
+* Font size inside the card is tied to the actual card width via a CSS variable set by JavaScript, not to `vw`.
+* **Dot indicators** are placed below the card as a separate block and never overlay the card.
+* **Title card on very first start**:
+
+  * shown only once per deck/session;
+  * initially controlled by a session flag, with `localStorage` planned for later implementations;
+  * displays the deck title/cover;
+  * does not contain gesture explanations;
+  * acts as a presentation title slide.
+* **Info icon ⓘ**:
+
+  * permanently available;
+  * positioned outside the card at its top-right;
+  * opens deck information and explains available gestures/interactions.
+* **Front side** contains:
+
+  * `word`
+  * `transcription`, if provided
+* **Back side** contains:
+
+  * `translation`
+  * `context`, if provided
 
 ## Navigation and Interaction
 
-- **Touch Swipe (Mobile)** — implemented as a "photo gallery slider": the entire row of cards (`track`) moves with the user's finger in real-time. The adjacent card gradually appears from the edge.
-- **Edge resistance** — swiping on the first/last card applies "friction" (coefficient 0.35), signaling the end of the deck, similar to native mobile galleries.
-- **Swipe threshold** — 18% of the card's width; if swiped less, the card smoothly snaps back to the center.
-- **Click/Tap on the card** — flips between front and back (`front` ↔ `back` + `context`).
-- **Desktop / Mouse interaction**:
-  - **No mouse dragging** — dragging via mouse has been explicitly removed so users can freely highlight and select text inside the cards (e.g., to copy into a dictionary).
-  - **Visual Arrows** — two additional UI arrow buttons (Left / Right) are added to the layout (outside the card) to allow mouse users to navigate back and forth easily.
-- **Keyboard** — Left/Right (←/→) arrows navigate between cards; Enter/Space on a focused card flips it.
+### Touch Swipe
 
-For later versions:
-- Swipe up or key up on desktop for words that are easy
-- swipe down or key down on desktop for words that are still hard
+* On touch devices, navigation behaves like a photo-gallery slider.
+* The entire row of cards (`track`) moves with the user's finger in real time.
+* The adjacent card gradually appears from the edge during the swipe.
+* **Edge resistance:** swiping beyond the first/last card applies friction with coefficient `0.35`.
+* **Swipe threshold:** `18%` of the card width.
+* If the swipe does not reach the threshold, the track smoothly snaps back to the current card.
+* A completed swipe navigates to the next/previous card and must not also trigger a card flip.
 
-## Library Architecture from previous implemenation
+### Card Tap
 
-A single, reusable JS class, avoiding HTML copy-pasting for every deck:
+* Tapping/clicking the card flips between front and back.
+* A tap is distinguished from a swipe by the amount of pointer/touch movement.
+
+### Desktop / Mouse
+
+* Mouse dragging is not supported.
+* Users must be able to select and copy card text freely.
+* Two visual arrow buttons (Left / Right) are displayed outside the card for mouse-based navigation.
+
+### Keyboard
+
+* Left/Right arrow keys navigate between cards.
+* Enter/Space on a focused card flips it.
+* Space must not cause unwanted page scrolling while being used to flip a card.
+
+### Later versions
+
+* Swipe up / Up key for cards that are easy.
+* Swipe down / Down key for cards that are still difficult.
+
+## Library Architecture
+
+A single reusable JavaScript class should be used, avoiding HTML copy-pasting for every deck:
 
 ```js
-new FlashcardDeck('#container', DECK_DATA.cards, {
+new FlashcardDeck('#container', DECK_CARDS, {
   accentColor: '#4a6fa5',
   aspectRatio: [4, 3],
   // ...
 });
 ```
 
-- The class injects its own styles into `<head>` once (using a `stylesInjected` flag), and builds all HTML inside the provided container.
-- Public method `goTo(index)` for programmatic navigation.
-- Private methods are prefixed with `_` (e.g., `_buildDOM`, `_sizeCard`, `_bindEvents`).
-- CSS classes are prefixed with `fc-` to prevent conflicts with the rest of the page.
-- The container takes up the full screen (`100dvh`) — designed for dedicated deck pages (e.g., hosted on GitHub Pages), rather than being embedded into long text articles.
+The library receives resolved `Flashcard` objects. Loading card files and resolving deck references may be handled by the surrounding application/data layer.
+
+* The class injects its styles into `<head>` once using a `stylesInjected` flag.
+* It builds all required HTML inside the provided container.
+* Public method: `goTo(index)` for programmatic navigation.
+* Private methods are prefixed with `_`, e.g. `_buildDOM`, `_sizeCard`, `_bindEvents`.
+* CSS classes are prefixed with `fc-` to prevent conflicts with the surrounding page.
+* The container occupies the full screen (`100dvh`).
+* The library is designed primarily for dedicated deck pages, such as pages hosted on GitHub Pages, rather than being embedded into long articles.
 
 ## Accessibility (a11y)
 
-- `tabindex="0"`, `role="button"`, and `aria-label` applied to every card.
-- **Screen Reader Support on Flip**: When a card is flipped, JS toggles the `aria-expanded="true/false"` attribute. The container holding the back content includes `aria-live="polite"` so screen readers automatically announce the translation/explanation upon flipping.
-- Keyboard navigation (Enter/Space to flip, arrows to paginate).
-- `e.preventDefault()` on the Space key to prevent unwanted page scrolling.
+* Every card is keyboard-focusable using `tabindex="0"`.
+* Every card has an appropriate accessible role and `aria-label`.
+* Keyboard navigation is supported:
+
+  * Enter/Space → flip
+  * Left/Right → navigate
+* When a card is flipped, the newly revealed back content should be announced to screen readers using an appropriate live-region mechanism.
+* The implementation should avoid announcing the entire card unnecessarily when only the back content has changed.
+* `e.preventDefault()` is used for Space where necessary to prevent unwanted page scrolling.
 
 ## Deployment & Data Storage
 
-- **Storage Format (Avoiding CORS issues):** Decks should NOT be stored as `.json` files. If a user opens the HTML file locally (`file://`), browsers will block `fetch('deck.json')` due to CORS policies.
-  - **Solution:** Store data in separate `.js` files assigned to a global variable.
-    ```javascript
-    // deck-german.js
-    const DECK_DATA = {
-      deckTitle: "German Words",
-      cards: [ ... ]
-    };
-    ```
-  - In `index.html`, load the library, then the data, then initialize:
-    ```html
-    <script src="flashcards.js"></script>
-    <script src="deck-german.js"></script>
-    <script>
-      const deck = new FlashcardDeck('#app', DECK_DATA.cards); 
-    </script>
-    ```
-- **Android `content://` URI issue:** Opening local HTML files via Android file managers often uses `content://` instead of `file://`, breaking relative paths. Using the multi-file setup (described above) requires testing via a real local server (like `python -m http.server`) or direct hosting (GitHub Pages) over HTTPS.
-- **Claude AI Artifacts limitations:** Artifacts run inside iframes with strict CSPs and cannot execute `fetch()` to external APIs. Keep this in mind for any companion tools (like AI content generators).
+### Static card/deck files
+
+* Card and deck data should not rely on `fetch()` of JSON files.
+* The architecture should work with static hosting such as GitHub Pages.
+* Card files use ES modules and can be loaded dynamically using `import()`.
+* Deck files contain deck metadata and card-key references rather than duplicated card objects.
+
+Example:
+
+```text
+project/
+├── flashcards.js
+├── cards/
+│   ├── laufen-to-run.js
+│   ├── laufen-to-operate.js
+│   └── zelle-cell.js
+├── decks/
+│   ├── everyday-german.js
+│   └── business-german.js
+└── index.html
+```
+
+### Local file / Android considerations
+
+* Opening local HTML through `file://` or Android `content://` URIs can restrict module loading and relative resource access.
+* The multi-file setup should therefore be tested through a real local HTTP server, e.g. `python -m http.server`, or through HTTPS hosting such as GitHub Pages.
+* Claude AI Artifacts run inside iframes with restrictive CSPs. The implementation should not depend on arbitrary external `fetch()` calls or external APIs.
 
 ## Ordering
-- **Shuffle cards** on every visit to the deck.
-- In later versions order regarding review block if exists or randomly if not.
 
-## Backlog (Future Features)
+* Cards are shuffled on every new visit/session to a deck.
+* The shuffled order remains stable for the duration of that session.
+* In later versions, ordering can take the `review` block into account; cards without review data can be randomized.
 
-- **"Know / Don't know" (Session level)** — basic tier: within a single session, a "Don't know" card is queued to reappear later in the deck (no persistence between visits).
-- **Save progress in `localStorage`** — the deck remembers which cards were easy and which were hard between visits.
-- **Visited decks history** — a separate catalog page showing all decks the user has ever opened in this browser.
-- **Global Personal Dictionary** — saving cards from different decks into a shared `localStorage` pool.
-   - **Handling Duplicates:** Use the card's stable key (e.g. slug(word) + index: laufen1, laufen2, etc.) for deduplication. This ensures that the same word with different meanings across multiple decks (e.g., "Zelle" meaning "biological cell" vs "table cell") won't overwrite each other.
+## Backlog / Future Features
+
+### Session-level learning
+
+* **"Know / Don't know"**:
+
+  * "Don't know" cards are queued to reappear later in the same session.
+  * No persistence between visits in the basic version.
+
+### Persistent progress
+
+* Save learning progress in `localStorage`.
+* The deck remembers which cards were easy or difficult between visits.
+* Review data is maintained by the library rather than by the source card files.
+
+### Visited decks
+
+* A separate catalog page showing all decks the user has opened in the current browser.
+
+### Global Personal Dictionary
+
+* Users can save cards from different decks into a shared personal collection stored in `localStorage`.
+* The personal collection stores **card keys**, not duplicated card objects.
+* When the user opens the personal dictionary, the application resolves all stored card keys to their card files and creates a flashcard session from them.
+* The personal dictionary can therefore contain cards from many different decks without duplicating card content.
+* The same logical card can appear in multiple decks and in the personal dictionary.
