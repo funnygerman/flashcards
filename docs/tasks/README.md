@@ -24,7 +24,7 @@ Acceptance criteria (Given / When / Then) · Test plan · Out of scope
 
 | Milestone | Tasks | Outcome |
 |---|---|---|
-| **M0** foundations | [T-00](T-00-scaffold.md) | Workspace, build, tests, CI |
+| **M0** foundations | [T-00](T-00-scaffold.md) · [T-00b](T-00b-pages-deploy.md) | Workspace, build, tests, CI, live Pages deployment |
 | **M1** library | [T-01](T-01-types-and-config.md) · [T-02](T-02-sizing-engine.md) · [T-03](T-03-dom-skeleton.md) · [T-04](T-04-card-rendering.md) · [T-05](T-05-flip.md) · [T-06](T-06-gesture-engine.md) · [T-07](T-07-chrome.md) · [T-08](T-08-accessibility.md) · [T-09](T-09-title-and-info.md) · [T-10](T-10-public-api.md) | `FlashcardDeck`, published |
 | **M2** data layer | [T-20](T-20-content-pipeline.md) · [T-21](T-21-resolver.md) · [T-22](T-22-progress-store.md) | Content pipeline, resolver, progress store |
 | **M3** release 1.0 | [T-30](T-30-app-shell.md) · [T-31](T-31-deck-page.md) · [T-33](T-33-deploy.md) | Deck page, deployed |
@@ -49,6 +49,11 @@ Critical path to release 1.0: `T-00 → T-01 → T-03 → T-05/T-06 → T-10 →
 T-02, the T-20/T-21 data track, T-22, and T-30 all run parallel to that path. Only T-22 and T-32 are
 1.1-exclusive, which is what makes shipping the deck page first an ordering choice rather than a scope cut
 (see [D3](../decisions/D3-release-split.md)).
+
+**T-00b** runs off to the side of that path entirely: it depends only on T-00 and stands up the GitHub Pages
+workflow that T-33 later hardens into its release-1.0 form. Every push to `main` deploys whatever currently
+exists in `app/`, so the project is visible on a real device from right after T-00 onward — see
+[D5](../decisions/D5-continuous-pages-deployment.md).
 
 ## Requirement coverage
 
@@ -82,3 +87,7 @@ Every requirement ID belongs to exactly one task, or is explicitly deferred to t
 | T-32 | `APP-1.5`, `9.1`–`9.10`, `10.1` |
 | T-33 | `APP-17.5` |
 | roadmap | `APP-1.6`, `10.2`, `10.3`, `12.1`–`12.5`, `13.1`, `13.2`, `14.1`, `14.3`, `18.1`–`18.3` |
+
+T-00b claims no requirement ID of its own: it delivers an early, partial version of the deployment `APP-17.5`
+describes, but `T-33` is what meets every one of that requirement's acceptance criteria and so keeps sole
+ownership in this table (see [D5](../decisions/D5-continuous-pages-deployment.md)).

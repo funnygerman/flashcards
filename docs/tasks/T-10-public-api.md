@@ -46,8 +46,12 @@ else.
 12. **Given** the package, **then** it targets the browsers in `LIB-9.1`, needs no backend and no
     authentication (`LIB-9.2`, `LIB-9.3`), and its own chrome uses logical CSS properties with the documented
     RTL arrow-key limitation (`LIB-9.6`).
-13. **Given** the repository, **then** a demo page mounts the library from source with a sample deck, and the
-    library README documents the full API.
+13. **Given** the repository, **then** a demo page at `library/demo/index.html` mounts the library from source
+    with a sample deck, and the library README documents the full API. This is a library-only showcase — no
+    routing, no content pipeline, no app — distinct from the application's demo deck (`APP-16.4`, T-20).
+14. **Given** the continuous Pages deployment from [T-00b](T-00b-pages-deploy.md), **then** its `_site/`
+    assembly step is extended to publish `library/demo/` alongside `app/`, so the library is visible on a real
+    device from this task onward, well before the application's deck page (T-31) exists.
 
 ## Test plan
 
