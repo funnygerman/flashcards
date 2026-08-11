@@ -38,9 +38,12 @@ interface InfoConfig  { heading?: string; body?: string }
 
 ## Test plan
 
-jsdom for index-invariance with and without a title screen, dismissal by each input, and the absence of any
-storage access (assert `localStorage` and `sessionStorage` are untouched). Playwright for the panel's focus
-trap, `Esc` handling, and the device-dependent interaction list.
+**Automated (Vitest + jsdom).** Index-invariance with and without a title screen; dismissal by each input;
+the absence of any storage access, asserted with throwing storage stubs; the panel's focus trap by tabbing to
+its boundaries; and `Esc`, close-control, and click-outside handling.
+
+**Manual.** Open the panel on a phone and on a desktop browser and confirm the generated interaction list
+describes the interactions actually available there (`LIB-4.28`).
 
 ## Out of scope
 

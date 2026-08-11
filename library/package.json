@@ -1,0 +1,22 @@
+{
+  "name": "@flashcards/library",
+  "version": "0.0.0",
+  "description": "Reusable FlashcardDeck presentation library",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./flashcards.css": "./dist/flashcards.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  }
+}

@@ -51,10 +51,14 @@ else.
 
 ## Test plan
 
-Vitest with fake timers for the 400 ms rule and the once-per-card rule; a throwing-callback test asserting
-subsequent navigation still works. Playwright for the swipe-through case with real timing. A storage-access
-test that stubs `localStorage`/`sessionStorage` with throwing proxies and asserts the library never touches
-them. An API-surface snapshot test that fails when a new public member appears.
+**Automated (Vitest).** Fake timers cover the 400 ms rule, the once-per-card rule, and the swipe-through case
+— advancing time between simulated navigations and asserting `onCardShown` fires only for cards that settled.
+A throwing-callback test asserts subsequent navigation still works. A storage-access test stubs
+`localStorage`/`sessionStorage` with throwing proxies and asserts the library never touches them. An
+API-surface snapshot test fails when a new public member appears.
+
+**Manual.** Swipe quickly through the demo deck on a phone and confirm the reported card count matches what
+you actually looked at — fake timers prove the rule, not that the real timing feels right.
 
 ## Out of scope
 

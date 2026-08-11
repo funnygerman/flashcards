@@ -386,10 +386,12 @@ bundler. The application resolves the library through an import map in `index.ht
 **APP-17.2** Workspace layout: npm workspaces, `library/` and `app/`. The application depends on
 `@flashcards/library` via the workspace link; the library is not published externally in 1.x.
 
-**APP-17.3** Testing: Vitest with jsdom for the content pipeline, resolver, and progress store; Playwright for
-a deck-page smoke test. Library-side testing is specified in `LIB` tasks.
+**APP-17.3** Testing: Vitest with jsdom for the content pipeline, resolver, and progress store. Library-side
+testing is specified in `LIB` tasks. No browser automation is installed; jsdom has no layout or CSS engine, so
+requirements that depend on rendered geometry, real pointer input, or computed style are verified manually on
+a real device, and each task spec lists its own manual checks. The decision is reviewed once at `T-06`.
 
-**APP-17.4** CI runs build, lint, unit tests, and Playwright tests on every push.
+**APP-17.4** CI runs build, lint, and unit tests on every push.
 
 **APP-17.5** Deployment: a GitHub Actions workflow builds the library, then the content, then the application,
 and publishes to GitHub Pages. The base path is configurable for project pages.

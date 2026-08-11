@@ -36,9 +36,21 @@ No public API change. Attributes and focus behaviour become part of the observab
 
 ## Test plan
 
-Playwright with `@axe-core/playwright` for a zero-violations baseline, plus explicit tests for: live-region
-content after a flip (asserting the announced string is the revealed side alone), focus following navigation,
-the two-deck keyboard isolation case, and the info panel focus trap. jsdom covers label formatting.
+**Automated (Vitest + jsdom).** Everything here is attribute- and focus-state-based, which jsdom does cover:
+roles and `aria-roledescription`; label formatting and its update on flip and navigation; live-region content
+after a flip, asserting the announced string is the revealed side alone; `document.activeElement` following
+navigation; the two-deck keyboard isolation case; and the info panel's focus trap by tabbing to the boundaries.
+
+**Manual, on a real device.** jsdom has no CSS engine and cannot run an accessibility audit:
+
+- focus ring is clearly visible on card, arrows, dots, and `ⓘ` in both a light and a dark application theme
+  (`LIB-8.7`)
+- a screen reader announces only the revealed side on flip, not the whole card (`LIB-8.3`) — VoiceOver on iOS
+  is the primary target, since the deck is phone-first
+- run the browser devtools accessibility audit on the demo page and record the result in the PR
+
+If browser automation is added at `T-06`, an `axe` zero-violations baseline belongs here and replaces the
+manual audit.
 
 ## Out of scope
 

@@ -34,8 +34,12 @@ getState(): { index: number; side: Side; count: number };
 
 ## Test plan
 
-jsdom for indicator mode switching either side of `dotLimit`, the one-card and zero-card cases, clamping, and
-`getState`. Playwright for arrow clicks and keyboard navigation against a real rendered deck.
+**Automated (Vitest + jsdom).** Indicator mode switching either side of `dotLimit`; the one-card and
+zero-card cases; disabled arrows at each end; clamping; `getState`; and arrow clicks and `←`/`→` keys
+dispatched as events.
+
+**Manual.** Confirm on a real screen that indicators sit below the card and never overlap it (`LIB-4.15`) —
+that is a layout property, which jsdom cannot see.
 
 ## Out of scope
 

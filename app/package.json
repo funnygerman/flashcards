@@ -1,0 +1,15 @@
+{
+  "name": "@flashcards/app",
+  "version": "0.0.0",
+  "description": "Flashcard learning application",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@flashcards/library": "*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rm -rf dist"
+  }
+}
