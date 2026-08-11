@@ -3,9 +3,10 @@
 The reusable `FlashcardDeck` presentation component. Specification:
 [`docs/library/requirements.md`](../docs/library/requirements.md) (`LIB-*` requirement IDs).
 
-**Status: scaffold only.** The public surface arrives across
-[T-01 … T-10](../docs/tasks/README.md); today this package exports a version constant so the build and test
-harnesses have something real to work on.
+**Status: types and configuration only** ([T-01](../docs/tasks/T-01-types-and-config.md)). The package exports
+`Flashcard`, `DeckOptions`, `ResolvedOptions`, `TitleConfig`, `InfoConfig`, `Side`, `Grade`, and
+`resolveOptions`. No DOM, no rendering, no `FlashcardDeck` class yet — those arrive across
+[T-02 … T-10](../docs/tasks/README.md).
 
 ## Design constraints
 
