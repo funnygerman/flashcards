@@ -43,3 +43,11 @@ confirm it matches what `npm run dev` shows locally at that point in the project
 
 The content pipeline; the release-1.0 "renders a card" smoke check; any base-path handling beyond the
 relative paths already in place. All three fold into T-33 once T-31 exists.
+
+## Follow-up: library demo page (T-10)
+
+T-10 adds a library-only demo page at `library/demo/index.html` (its AC13, AC14) — a real `FlashcardDeck`
+mounted with a sample deck, no app or content pipeline involved. When T-10 lands, extend this workflow's
+`_site/` assembly step to copy `library/demo/` alongside `app/` (and `library/dist/`, which it already needs),
+so the library itself is visible on a real device from T-10 onward, well before T-31's deck page exists. No
+other part of this workflow changes.
