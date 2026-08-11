@@ -34,9 +34,13 @@ Route `#/deck/<deck-id>` → `loadDeck` → shuffle → `new FlashcardDeck(conta
 
 ## Test plan
 
-Vitest for the seeded shuffle: same seed reproduces the order, different seeds diverge, and every card appears
-exactly once. Playwright end-to-end: load the demo deck, assert a card is visible, swipe, flip, reload and
-assert order stability, then assert that `localStorage` is still empty after a full session.
+**Automated (Vitest).** The seeded shuffle: the same seed reproduces the order, different seeds diverge, and
+every card appears exactly once. Route-to-load wiring and the loading/error/not-found states are covered in
+jsdom with a stubbed `fetch`. A test asserts that a full simulated session leaves `localStorage` untouched
+(`APP-1.7`).
+
+**Manual, on a real device.** Load the demo deck on a phone and a desktop browser: a card renders, swiping and
+flipping work, reloading the tab preserves the order, and opening a new tab reshuffles.
 
 ## Out of scope
 

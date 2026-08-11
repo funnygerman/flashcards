@@ -52,10 +52,26 @@ export function reduceGesture(state: GestureState, event: GestureEvent, ctx: Ges
 
 ## Test plan
 
-Vitest drives `reduceGesture` through recorded event sequences: threshold boundaries either side of the commit
-point, axis-lock cases including a diagonal drag, edge resistance arithmetic, and a tap. Playwright covers the
-real thing on a touch-emulated device: gallery tracking, snap-back, grade gestures, and the scroll-vs-grade
-case using a deliberately long card.
+**Automated (Vitest).** `reduceGesture` is pure, so the whole decision surface is table-tested without a
+browser: threshold boundaries either side of the commit point on both axes, axis-lock cases including a
+diagonal drag and an attempt to change axis mid-gesture, edge-resistance arithmetic, and a tap. This is the
+bulk of the risk in this task, and it is fully covered.
+
+**Manual, on a real device.** The DOM binding — that real `PointerEvent`s reach the reducer and the track
+moves — has no automated coverage, because jsdom has no layout:
+
+- drag horizontally on a phone → the track follows the finger and the neighbour appears (`LIB-5.2`)
+- release below and above the threshold → snap-back versus advance (`LIB-5.6`)
+- swipe up and down → grade fires once each (`LIB-5.8`)
+- on a deliberately long card, drag vertically → the text scrolls and no grade fires; at the scroll boundary,
+  a further drag grades (`LIB-5.10`)
+
+## Testing-posture review
+
+**This task is the review point for the no-browser-automation decision** (`T-00`, "Testing posture"). Before
+starting, judge from real experience whether the manual checks above have been holding up. If they have not,
+add browser automation here rather than later — the gesture binding is the most expensive thing in the project
+to verify by hand, and the first thing to regress silently.
 
 ## Out of scope
 

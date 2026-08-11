@@ -31,9 +31,10 @@ install → build library → build content → build app → upload Pages artif
 
 ## Test plan
 
-The workflow itself is the test; a post-deploy Playwright smoke run against the published URL asserts a card
-renders. Base-path handling is verified by building with a sub-path configured and serving the output from a
-matching directory locally.
+The workflow itself is the test. After deploying, a `curl` check asserts the published URL returns 200 and
+serves the expected `data/` files, and the page is opened by hand once to confirm a card renders. Base-path
+handling is verified by building with a sub-path configured and serving the output from a matching directory
+locally.
 
 ## Out of scope
 

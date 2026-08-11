@@ -23,7 +23,6 @@ Commands, at the repository root:
 |---|---|
 | `npm run build` | builds library, then app |
 | `npm run test` | Vitest across both workspaces |
-| `npm run test:e2e` | Playwright |
 | `npm run lint` | ESLint + `tsc --noEmit` |
 | `npm run dev` | `tsc --watch` plus a static server |
 
@@ -34,14 +33,23 @@ Commands, at the repository root:
 2. **Given** the built output, **when** `app/index.html` is served over HTTP, **then** the import map resolves
    `@flashcards/library` and the page loads with no console errors.
 3. **Given** the repository, **when** `npm run lint` runs, **then** it exits zero.
-4. **Given** a push, **when** CI runs, **then** build, lint, unit tests, and Playwright all execute.
+4. **Given** a push, **when** CI runs, **then** build, lint, and unit tests all execute.
 5. **Given** `app/index.html` opened via `file://`, **then** failing is acceptable and documented
    (`APP-17.6`).
 
 ## Test plan
 
-One placeholder Vitest test per workspace and one Playwright test that loads the page, purely to prove the
-harnesses run in CI.
+One placeholder Vitest test per workspace, purely to prove the harness runs in CI.
+
+## Testing posture
+
+Vitest with jsdom is the only automated test tooling. No browser automation is installed.
+
+jsdom has no layout engine — elements have no size, `getBoundingClientRect()` returns zeros, and there is no
+CSS engine — so a known set of requirements is **verified manually on a real device** rather than by the
+suite. Each affected task lists its own manual checks. The decision is reviewed once at
+[T-06](T-06-gesture-engine.md), when the gesture binding exists and there is real experience to judge from;
+adding browser automation later is a single devDependency.
 
 ## Out of scope
 

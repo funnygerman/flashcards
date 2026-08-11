@@ -45,10 +45,14 @@ onGrade:     (i, g) => store.recordGrade(cards[i].id, g)
 
 ## Test plan
 
-Vitest for the index-to-identifier mapping and the ordering options. Playwright end-to-end: study a demo deck,
-grade two cards, navigate to the collection, assert the seen cards are present with the right grades; then
-delete a card from the fixture content, rebuild, and assert the missing-card count is reported while the rest
-still resolve.
+**Automated (Vitest).** The index-to-identifier mapping, the ordering options, and the full record-then-review
+cycle driven through the library's callbacks directly: fire `onCardShown` and `onGrade`, then assert the
+collection resolves with the right grades. The stale-identifier path is covered by resolving against a card
+set with an entry removed, asserting the count is reported and the rest still resolve.
+
+**Manual, on a real device.** Study the demo deck, grade a few cards by swiping, open `#/dictionary`, and
+confirm the cards you saw are there with the grades you gave them. Then reload to confirm the progress
+survived.
 
 ## Out of scope
 

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Generated runtime content (APP-6.7): built by npm run build:content in T-20,
+# produced in CI before deployment, never committed.
+data/
+
+.DS_Store

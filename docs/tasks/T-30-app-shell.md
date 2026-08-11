@@ -40,9 +40,12 @@ export function startRouter(routes: Route[]): void;
 
 ## Test plan
 
-Vitest for route parsing including malformed hashes. Playwright for navigation between routes, the not-found
-view, and a teardown test that navigates away and back ten times while asserting a single mounted deck. A
-network-assertion test in Playwright fails the build if any request leaves the origin.
+**Automated (Vitest + jsdom).** Route parsing including malformed hashes; navigation between routes and the
+not-found view; and a teardown test that navigates away and back ten times, asserting one mounted deck and
+that `addEventListener`/`removeEventListener` calls balance.
+
+**Manual / review.** No-telemetry (`APP-17.7`) is enforced by review and by the absence of any network code
+outside content fetching — grep for `fetch(` and confirm every call targets a same-origin `data/` path.
 
 ## Out of scope
 

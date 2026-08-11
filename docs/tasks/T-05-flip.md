@@ -30,9 +30,18 @@ Internal: `_flip(index)`. Emits `onFlip` (wired in T-10).
 
 ## Test plan
 
-Playwright for the pointer rules — a real drag-select release asserting no flip, a quick tap asserting a flip,
-a slow press asserting no flip — plus keyboard cases and a `prefers-reduced-motion` emulation run. jsdom
-covers per-card flip-state persistence across navigation.
+**Automated (Vitest + jsdom).** The commit rule of `LIB-5.13` is extracted as a pure predicate
+`shouldCommitFlip({ distance, duration, selectionCollapsed })` and table-tested either side of each boundary:
+7.9 px and 8.1 px, 499 ms and 501 ms, collapsed and non-collapsed selection. Per-card flip-state persistence
+across navigation, and keyboard flips including `preventDefault` on `Space`, are covered in jsdom.
+
+**Manual, on a real device.** jsdom stubs `getSelection()` and has no CSS engine, so these are checked by hand
+and recorded in the PR:
+
+- drag across a card to select text, release → text stays selected, card does not flip (`LIB-5.13`)
+- long-press selection on a phone → no flip (`LIB-5.15`)
+- flip animation reads as a `rotateY` turn, and is instant with reduced motion enabled in OS settings
+  (`LIB-4.35`, `LIB-4.36`)
 
 ## Out of scope
 
