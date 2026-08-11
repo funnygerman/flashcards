@@ -1,11 +1,16 @@
 # T-33 — GitHub Pages deployment
 
-**Milestone:** M3 · **Depends on:** T-31 · **Blocks:** —
+**Milestone:** M3 · **Depends on:** T-31, T-00b · **Blocks:** —
 **Requirements covered:** `APP-17.5`
 
 ## Goal
 
 Publish the application to GitHub Pages from CI, with the content build as part of the pipeline.
+
+[T-00b](T-00b-pages-deploy.md) already stands up `.github/workflows/deploy.yml` and deploys `app/` on every
+push to `main`, starting right after T-00 ([D5](../decisions/D5-continuous-pages-deployment.md)). This task
+edits that same workflow in place rather than replacing it — adding the content build, the base-path handling,
+and the release-1.0 smoke check below, none of which T-00b attempts.
 
 ## Public contract
 

@@ -1,0 +1,78 @@
+name: Deploy to GitHub Pages
+
+# T-00b: publishes whatever currently exists in app/ (plus library/dist) on
+# every push to main, well before the deck page (T-31) exists. T-33 extends
+# this same workflow with the content pipeline and the release-1.0 smoke
+# check once T-31 lands. See docs/decisions/D5-continuous-pages-deployment.md.
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+      - run: npm run lint
+      - run: npm test
+
+      # Mirrors the layout scripts/dev-server.mjs already serves locally
+      # (repository root, app at /app/) so app/index.html's import map
+      # resolves ../library/dist/... with no changes.
+      - name: Assemble Pages site
+        run: |
+          set -euo pipefail
+          rm -rf _site
+          mkdir -p _site/app _site/library
+          cp -r app/index.html app/dist _site/app/
+          cp -r library/dist _site/library/
+          cat > _site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta http-equiv="refresh" content="0; url=./app/" />
+              <title>Flashcards</title>
+            </head>
+            <body>
+              <p>Redirecting to <a href="./app/">the app</a>…</p>
+            </body>
+          </html>
+          HTML
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

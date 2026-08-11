@@ -11,6 +11,7 @@ consequences, and what was rejected — so that a future reader can tell an inte
 | [D2b](D2b-single-storage-key.md) | All user progress lives under one `localStorage` key | `APP-8.*` |
 | [D3](D3-release-split.md) | Release 1.0 is the deck page; the collection follows in 1.1 | `APP-1.4`–`APP-1.7` |
 | [D4](D4-typescript-no-bundler.md) | TypeScript compiled by `tsc`, no bundler | `APP-17.1`–`APP-17.2` |
+| [D5](D5-continuous-pages-deployment.md) | Deploy to GitHub Pages continuously, starting before release 1.0 | `APP-17.5` |
 
 ## Superseded by these decisions
 
