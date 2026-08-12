@@ -63,6 +63,13 @@ export const STYLES = `
   perspective: 1200px;
 }
 
+/* LIB-8.7: cards are tabindex="0" (T-08's roving focus); the ring must be
+   visible, never just the browser default. */
+.fc-card:focus-visible {
+  outline: 2px solid var(--fc-accent);
+  outline-offset: 2px;
+}
+
 /* LIB-4.29, LIB-4.30, LIB-4.35: both faces sit stacked on top of each other
    (inset: 0 inside the now-relative .fc-card) and only one faces the viewer
    at a time — .fc-face--back starts pre-rotated away, and .fc-card--flipped
@@ -139,15 +146,26 @@ export const STYLES = `
   min-block-size: 1.5rem;
 }
 
+/* LIB-8.4: a real <button>, so the box-model/border/background reset below
+   undoes the browser's default button chrome down to the same plain dot. */
 .fc-indicator-dot {
   inline-size: 0.5rem;
   block-size: 0.5rem;
+  padding: 0;
+  border: none;
   border-radius: 50%;
   background: var(--fc-card-border);
+  cursor: pointer;
 }
 
 .fc-indicator-dot--active {
   background: var(--fc-accent);
+}
+
+/* LIB-8.7 */
+.fc-indicator-dot:focus-visible {
+  outline: 2px solid var(--fc-accent);
+  outline-offset: 2px;
 }
 
 .fc-indicator-counter {
@@ -213,5 +231,21 @@ export const STYLES = `
 .fc-arrow:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* LIB-8.3: the flip live region — visually hidden but still reachable by
+   assistive tech, via the standard clip-to-1px technique rather than
+   display:none/visibility:hidden, which would pull it out of the
+   accessibility tree along with the viewport. */
+.fc-sr-only {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
 `.trim();

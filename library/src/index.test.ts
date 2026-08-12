@@ -553,3 +553,228 @@ describe("destroy() teardown of pointer listeners", () => {
     expect(() => tap(card)).not.toThrow();
   });
 });
+
+function cards(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll(".fc-card"));
+}
+
+describe("container role and roledescription (LIB-8.1)", () => {
+  it("gives the deck root role=group and aria-roledescription='flashcard deck'", () => {
+    const { container } = mount(CARDS);
+    const root = container.querySelector(".fc-root") as HTMLElement;
+
+    expect(root.getAttribute("role")).toBe("group");
+    expect(root.getAttribute("aria-roledescription")).toBe("flashcard deck");
+  });
+});
+
+describe("card roles, labels, and roving tabindex (LIB-8.2)", () => {
+  it("gives each card role=button and an accessible label, tabindex=0 only on the current card", () => {
+    const { container } = mount(CARDS);
+    const [first, second, third] = cards(container);
+
+    expect(first!.getAttribute("role")).toBe("button");
+    expect(first!.getAttribute("aria-label")).toBe("Card 1 of 3, front");
+    expect(first!.getAttribute("tabindex")).toBe("0");
+
+    expect(second!.getAttribute("tabindex")).toBe("-1");
+    expect(third!.getAttribute("tabindex")).toBe("-1");
+  });
+
+  it("updates the label and moves tabindex=0 when navigation changes the current card", () => {
+    const { deck, container } = mount(CARDS);
+
+    deck.goTo(1);
+
+    const [first, second] = cards(container);
+    expect(first!.getAttribute("tabindex")).toBe("-1");
+    expect(second!.getAttribute("tabindex")).toBe("0");
+    expect(second!.getAttribute("aria-label")).toBe("Card 2 of 3, front");
+  });
+
+  it("updates the label when a flip changes the side", () => {
+    const { container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    tap(card);
+
+    expect(card.getAttribute("aria-label")).toBe("Card 1 of 3, back");
+  });
+});
+
+describe("flip live region (LIB-8.3)", () => {
+  function liveRegion(container: HTMLElement): HTMLElement {
+    return container.querySelector('[aria-live="polite"]') as HTMLElement;
+  }
+
+  it("is visually hidden and present from the start", () => {
+    const { container } = mount(CARDS);
+    const region = liveRegion(container);
+
+    expect(region).not.toBeNull();
+    expect(region.className).toBe("fc-sr-only");
+  });
+
+  it("announces only the newly revealed side's text on flip", () => {
+    const { container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    tap(card);
+
+    expect(liveRegion(container).textContent).toBe(CARDS[0]!.back.text);
+  });
+
+  it("announces the front's text again when flipped back", () => {
+    const { container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    tap(card);
+    tap(card);
+
+    expect(liveRegion(container).textContent).toBe(CARDS[0]!.front.text);
+  });
+
+  it("never includes details or unrelated card content", () => {
+    const detailedCards: Flashcard[] = [
+      { front: { text: "front", details: "front details" }, back: { text: "back", details: "back details" } },
+    ];
+    const { container } = mount(detailedCards);
+    const card = cards(container)[0]!;
+
+    tap(card);
+
+    expect(liveRegion(container).textContent).toBe("back");
+  });
+});
+
+describe("arrow and dot accessible names (LIB-8.4)", () => {
+  it("names the arrows 'Previous card' and 'Next card'", () => {
+    const { container } = mount(CARDS);
+    const { prev, next } = arrows(container);
+
+    expect(prev.getAttribute("aria-label")).toBe("Previous card");
+    expect(next.getAttribute("aria-label")).toBe("Next card");
+  });
+
+  it("names each dot 'Go to card N' and navigates to it on activation", () => {
+    const { deck, container } = mount(CARDS);
+    const dots = Array.from(container.querySelectorAll(".fc-indicator-dot")) as HTMLButtonElement[];
+
+    expect(dots.map((d) => d.getAttribute("aria-label"))).toEqual(["Go to card 1", "Go to card 2", "Go to card 3"]);
+
+    dots[2]!.click();
+
+    expect(deck.getState().index).toBe(2);
+  });
+});
+
+describe("focus follows navigation (LIB-8.6)", () => {
+  it("moves focus to the newly current card after an arrow click", () => {
+    const { container } = mount(CARDS);
+    const { next } = arrows(container);
+
+    next.click();
+
+    expect(document.activeElement).toBe(cards(container)[1]);
+  });
+
+  it("moves focus to the newly current card after an ArrowRight/ArrowLeft key", () => {
+    const { container } = mount(CARDS);
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(document.activeElement).toBe(cards(container)[1]);
+  });
+
+  it("moves focus to the newly current card after goTo()", () => {
+    const { deck, container } = mount(CARDS);
+
+    deck.goTo(2);
+
+    expect(document.activeElement).toBe(cards(container)[2]);
+  });
+
+  it("moves focus to the newly current card after a dot click", () => {
+    const { container } = mount(CARDS);
+    const dots = container.querySelectorAll(".fc-indicator-dot");
+
+    (dots[2] as HTMLButtonElement).click();
+
+    expect(document.activeElement).toBe(cards(container)[2]);
+  });
+});
+
+describe("keyboard grading (LIB-5.21)", () => {
+  it("grades the focused card easy on ArrowUp and hard on ArrowDown", () => {
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+
+    card.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+    card.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+
+    expect(onGrade).toHaveBeenNthCalledWith(1, 0, "easy");
+    expect(onGrade).toHaveBeenNthCalledWith(2, 0, "hard");
+  });
+
+  it("grades the current card at its current index after navigation", () => {
+    const onGrade = vi.fn();
+    const { deck, container } = mount(CARDS, { onGrade });
+
+    deck.goTo(1);
+    const card = cards(container)[1]!;
+    card.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+    expect(onGrade).toHaveBeenCalledWith(1, "easy");
+  });
+
+  it("prevents the page from scrolling on ArrowUp/ArrowDown", () => {
+    const { container } = mount(CARDS);
+    const card = cards(container)[0]!;
+    const event = new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+
+    card.dispatchEvent(event);
+
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does nothing when ArrowUp/ArrowDown fires without a focused card (e.g. from an arrow button)", () => {
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const { next } = arrows(container);
+
+    next.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+    expect(onGrade).not.toHaveBeenCalled();
+  });
+});
+
+describe("two-deck keyboard isolation (LIB-5.23)", () => {
+  it("only grades the deck whose card received the ArrowUp/ArrowDown key", () => {
+    document.body.innerHTML = '<div id="a"></div><div id="b"></div>';
+    const onGradeA = vi.fn();
+    const onGradeB = vi.fn();
+    const deckA = new FlashcardDeck("#a", CARDS, { onGrade: onGradeA });
+    new FlashcardDeck("#b", CARDS, { onGrade: onGradeB });
+
+    const cardA = document.querySelector("#a .fc-card") as HTMLElement;
+    cardA.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+
+    expect(onGradeA).toHaveBeenCalledWith(0, "easy");
+    expect(onGradeB).not.toHaveBeenCalled();
+    expect(deckA.getState().index).toBe(0);
+  });
+
+  it("only navigates the deck whose container received ArrowRight", () => {
+    document.body.innerHTML = '<div id="a"></div><div id="b"></div>';
+    const deckA = new FlashcardDeck("#a", CARDS);
+    const deckB = new FlashcardDeck("#b", CARDS);
+    const containerA = document.querySelector("#a") as HTMLElement;
+
+    containerA.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(deckA.getState().index).toBe(1);
+    expect(deckB.getState().index).toBe(0);
+  });
+});

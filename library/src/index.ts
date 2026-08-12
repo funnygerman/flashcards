@@ -6,16 +6,21 @@
  * `FlashcardDeck` class: its DOM skeleton, style injection, and teardown.
  * T-07 adds `goTo`, `getState`, and the arrow/indicator chrome. T-04 adds
  * `_renderCard`, filling each `.fc-card` with its plain-text faces. T-05
- * (this task) adds `_flip` and its pointer/keyboard commit paths. The rest
+ * adds `_flip` and its pointer/keyboard commit paths. T-08 adds the ARIA
+ * roles/labels, the flip live region, focus-follows-navigation, and the
+ * keyboard grade path (`_grade`) that T-06 will reuse for swipes. The rest
  * of the surface arrives with:
- *   T-06, T-08, T-09  gestures, a11y, title/info
- *   T-10  the onCardShown / onFlip / onGrade callbacks and final packaging
+ *   T-06, T-09  gestures, title/info
+ *   T-10  the onCardShown / onFlip callbacks, wiring T-06's gestures into
+ *         `_flip`/`_grade`, and final packaging
  *
  * See docs/tasks/README.md.
  */
 
+import { applyCardA11y, PREV_ARROW_LABEL, NEXT_ARROW_LABEL, revealedSideText } from "./a11y.js";
 import { resolveOptions } from "./config.js";
 import { shouldCommitFlip } from "./flip.js";
+import { gradeForDirection } from "./grade.js";
 import { renderIndicators } from "./indicators.js";
 import { _renderCard } from "./rendering.js";
 import { STYLES } from "./styles.js";
@@ -63,10 +68,10 @@ function resolveTarget(target: string | Element): Element {
  * `keydown` handler for `←`/`→` — see docs/tasks/T-07-chrome.md.
  *
  * Each listener the deck binds is removed in `destroy()`. Later tasks
- * (T-02's viewport resize handler, T-06's pointer listeners, T-08's
- * `↑`/`↓` grading on the same container `keydown` handler, and any timers
- * or animation frames they schedule) must track what they add and extend
- * `destroy()` to remove it, keeping LIB-6.5 satisfied as the deck grows. */
+ * (T-02's viewport resize handler, T-06's pointer listeners, and any
+ * timers or animation frames they schedule) must track what they add and
+ * extend `destroy()` to remove it, keeping LIB-6.5 satisfied as the deck
+ * grows. */
 export class FlashcardDeck {
   private readonly _container: Element;
   private readonly _options: ResolvedOptions;
@@ -78,6 +83,8 @@ export class FlashcardDeck {
   private readonly _prevArrow: HTMLButtonElement;
   private readonly _nextArrow: HTMLButtonElement;
   private readonly _infoButton: HTMLButtonElement;
+  // LIB-8.3: visually hidden (`.fc-sr-only`), `aria-live="polite"`.
+  private readonly _liveRegion: HTMLDivElement;
 
   /** LIB-6.4: current position. */
   private _index = 0;
@@ -107,6 +114,13 @@ export class FlashcardDeck {
       // LIB-5.22: Space must not scroll the page when used to flip a card.
       if (key === " ") keyboardEvent.preventDefault();
       this._flip(this._index);
+    } else if (key === "ArrowUp" || key === "ArrowDown") {
+      // LIB-5.21: ↑/↓ grade the focused card — only when a card, not an
+      // arrow or the info button, is what's actually focused.
+      const cardEl = (keyboardEvent.target as Element | null)?.closest(".fc-card");
+      if (!cardEl) return;
+      keyboardEvent.preventDefault();
+      this._grade(key === "ArrowUp" ? "up" : "down");
     }
   };
 
@@ -154,6 +168,9 @@ export class FlashcardDeck {
 
     this._root = document.createElement("div");
     this._root.className = "fc-root";
+    // LIB-8.1: the deck is a single composite widget, not a generic <div>.
+    this._root.setAttribute("role", "group");
+    this._root.setAttribute("aria-roledescription", "flashcard deck");
     if (this._options.accentColor !== undefined) {
       this._root.style.setProperty("--fc-accent", this._options.accentColor);
     }
@@ -178,16 +195,33 @@ export class FlashcardDeck {
     this._prevArrow = document.createElement("button");
     this._prevArrow.type = "button";
     this._prevArrow.className = "fc-arrow fc-arrow--prev";
+    // LIB-8.4: the arrows carry no visible text, so this is their only name.
+    this._prevArrow.setAttribute("aria-label", PREV_ARROW_LABEL);
 
     this._nextArrow = document.createElement("button");
     this._nextArrow.type = "button";
     this._nextArrow.className = "fc-arrow fc-arrow--next";
+    this._nextArrow.setAttribute("aria-label", NEXT_ARROW_LABEL);
 
     this._infoButton = document.createElement("button");
     this._infoButton.type = "button";
     this._infoButton.className = "fc-info";
 
-    this._root.append(this._track, this._indicators, this._prevArrow, this._nextArrow, this._infoButton);
+    // LIB-8.3: holds only the just-revealed side's text between flips —
+    // never appended to, always replaced (see `_flip`).
+    this._liveRegion = document.createElement("div");
+    this._liveRegion.className = "fc-sr-only";
+    this._liveRegion.setAttribute("aria-live", "polite");
+    this._liveRegion.setAttribute("aria-atomic", "true");
+
+    this._root.append(
+      this._track,
+      this._indicators,
+      this._prevArrow,
+      this._nextArrow,
+      this._infoButton,
+      this._liveRegion,
+    );
     this._container.replaceChildren(this._root);
 
     // LIB-5.18, LIB-5.19, LIB-5.23: arrow clicks and the container's own
@@ -215,9 +249,12 @@ export class FlashcardDeck {
     return { index: this._index, side: this._sides[this._index] ?? "front", count: this._cards.length };
   }
 
-  /** The single seam every navigation path — arrows, keys, `goTo`, and
-   * eventually T-06's committed gestures — funnels through, so index state
-   * and chrome updates never drift out of sync between callers. */
+  /** The single seam every navigation path — arrows, keys, `goTo`, dot
+   * activation, and eventually T-06's committed gestures — funnels
+   * through, so index state and chrome updates never drift out of sync
+   * between callers. LIB-8.6: also moves focus to the newly current card,
+   * so keyboard and screen-reader users stay oriented regardless of how
+   * navigation was triggered. */
   private _setIndex(index: number, options: { animate?: boolean } = {}): void {
     const count = this._cards.length;
     if (count === 0) return;
@@ -225,13 +262,15 @@ export class FlashcardDeck {
     this._index = Math.min(Math.max(index, 0), count - 1);
     this._track.classList.toggle("fc-track--animate", options.animate ?? false);
     this._updateChrome();
+    (this._track.children[this._index] as HTMLElement | undefined)?.focus();
   }
 
   /** LIB-5.12, LIB-5.14: toggles `index`'s face and reflects it on the DOM
    * via `.fc-card--flipped` (the flip transition itself lives in the
-   * stylesheet). `onFlip` (LIB-6.10) and the live-region announcement
-   * (LIB-8.3) are wired by T-10 and T-08 respectively — this only owns the
-   * flip and its per-card state. */
+   * stylesheet). LIB-8.2, LIB-8.3: refreshes that card's accessible label
+   * (the side just changed) and announces the newly revealed side's text
+   * alone through the live region. `onFlip` (LIB-6.10) is wired by T-10 —
+   * this only owns the flip itself and its accessible reflection. */
   private _flip(index: number): void {
     const currentSide = this._sides[index];
     if (currentSide === undefined) return;
@@ -239,16 +278,41 @@ export class FlashcardDeck {
     const nextSide: Side = currentSide === "front" ? "back" : "front";
     this._sides[index] = nextSide;
     this._track.children[index]?.classList.toggle("fc-card--flipped", nextSide === "back");
+    this._updateCardA11y();
+    this._liveRegion.textContent = revealedSideText(this._cards[index]!, nextSide);
+  }
+
+  /** LIB-5.8, LIB-5.21: the keyboard equivalent of a committed vertical
+   * grading gesture. T-06's swipe engine has not landed yet, so this is
+   * the only caller today; it exists as its own method, named for reuse,
+   * so T-06 calls it again from a committed swipe instead of duplicating
+   * the direction-to-grade mapping and the callback invocation. */
+  private _grade(direction: "up" | "down"): void {
+    this._options.onGrade?.(this._index, gradeForDirection(direction));
   }
 
   /** LIB-4.15–LIB-4.18, LIB-5.4: rebuilds the indicators for the current
    * index/count and disables whichever arrow (or both) has nowhere to go —
-   * navigation never wraps. */
+   * navigation never wraps. Also refreshes every card's ARIA role, label,
+   * and roving `tabindex` (LIB-8.2) for the new index. */
   private _updateChrome(): void {
     const count = this._cards.length;
     this._prevArrow.disabled = count === 0 || this._index <= 0;
     this._nextArrow.disabled = count === 0 || this._index >= count - 1;
-    renderIndicators(this._indicators, count, this._index, this._options.dotLimit);
+    renderIndicators(this._indicators, count, this._index, this._options.dotLimit, (i) =>
+      this._setIndex(i, { animate: true }),
+    );
+    this._updateCardA11y();
+  }
+
+  /** LIB-8.2: applies role, accessible label, and roving `tabindex` to
+   * every card for the current index/sides. Cheap enough to call in full
+   * on every navigation and flip, same as `renderIndicators`. */
+  private _updateCardA11y(): void {
+    const count = this._cards.length;
+    Array.from(this._track.children).forEach((cardEl, i) => {
+      applyCardA11y(cardEl, i, count, this._sides[i] ?? "front", i === this._index);
+    });
   }
 
   /** LIB-6.5: removes every listener the library added, cancels pending
