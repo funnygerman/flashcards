@@ -214,6 +214,41 @@ function arrows(container: HTMLElement): { prev: HTMLButtonElement; next: HTMLBu
   };
 }
 
+describe("card content rendering (T-04 wiring)", () => {
+  it("fills each .fc-card with its own front/back text via _renderCard", () => {
+    document.body.innerHTML = '<div id="app"></div>';
+
+    new FlashcardDeck("#app", CARDS);
+
+    const cardEls = document.querySelectorAll("#app .fc-card");
+    expect(cardEls).toHaveLength(CARDS.length);
+    cardEls.forEach((cardEl, i) => {
+      expect(cardEl.querySelector(".fc-face--front .fc-text")?.textContent).toBe(CARDS[i]!.front.text);
+      expect(cardEl.querySelector(".fc-face--back .fc-text")?.textContent).toBe(CARDS[i]!.back.text);
+    });
+  });
+
+  it("publishes the resolved textScale/detailsScale as --fc-text-scale/--fc-details-scale on .fc-root (LIB-4.12)", () => {
+    document.body.innerHTML = '<div id="app"></div>';
+
+    new FlashcardDeck("#app", CARDS, { textScale: 0.12, detailsScale: 0.03 });
+
+    const root = document.querySelector("#app > .fc-root") as HTMLElement;
+    expect(root.style.getPropertyValue("--fc-text-scale")).toBe("0.12");
+    expect(root.style.getPropertyValue("--fc-details-scale")).toBe("0.03");
+  });
+
+  it("uses the documented defaults for --fc-text-scale/--fc-details-scale when unconfigured", () => {
+    document.body.innerHTML = '<div id="app"></div>';
+
+    new FlashcardDeck("#app", CARDS);
+
+    const root = document.querySelector("#app > .fc-root") as HTMLElement;
+    expect(root.style.getPropertyValue("--fc-text-scale")).toBe("0.085");
+    expect(root.style.getPropertyValue("--fc-details-scale")).toBe("0.05");
+  });
+});
+
 describe("indicator mode (LIB-4.15–LIB-4.18)", () => {
   it("shows dots for n <= dotLimit and switches to a counter above it", () => {
     const dotCards = Array.from({ length: 12 }, (_, i) => ({ front: { text: `${i}` }, back: { text: `${i}` } }));

@@ -45,9 +45,12 @@ describe("stylesheet theming (LIB-4.32, LIB-4.33, LIB-4.34)", () => {
 
     // Every declared custom property's own value is a literal colour (not
     // itself a var() reference) — .fc-root is where colours are defined.
+    // `.fc-root` also carries T-04's non-colour typography scale factors
+    // (LIB-4.12), which this colour invariant doesn't apply to.
     const colorLiteral = /^(#[0-9a-fA-F]{3,8}|rgb\(|rgba\(|hsl\(|hsla\()/;
+    const nonColorProperties = new Set(["--fc-text-scale", "--fc-details-scale"]);
     for (const [name, value] of Object.entries(props)) {
-      if (name === "--fc-accent") continue; // may be overridden per-instance, but still has a literal default
+      if (name === "--fc-accent" || nonColorProperties.has(name)) continue; // --fc-accent may be overridden per-instance, but still has a literal default
       expect(colorLiteral.test(value)).toBe(true);
     }
     expect(colorLiteral.test(props["--fc-accent"]!)).toBe(true);
