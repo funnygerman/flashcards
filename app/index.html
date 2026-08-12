@@ -28,10 +28,19 @@
       }
 
       /* APP-7.7: the application owns page layout; the library fills the
-         container it is given (LIB-7.10). */
+         container it is given (LIB-7.10). Only this top-level container
+         uses a viewport-relative unit — nested wrappers fill it by
+         percentage so the invariant holds no matter how deep a view nests
+         its own DOM. */
       #app {
         height: 100dvh;
         font-family: system-ui, sans-serif;
+      }
+
+      .app-view,
+      .deck-view,
+      .library-mount {
+        height: 100%;
       }
     </style>
   </head>

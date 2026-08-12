@@ -1,17 +1,21 @@
 /**
- * Application entry point.
+ * Application entry point (T-30).
  *
- * Scaffolding only (T-00): this exists to prove the import map resolves
- * `@flashcards/library` in a real browser with no bundler involved.
- *
- * The shell and hash router arrive in T-30, the deck page in T-31.
+ * Wires the three routes the shell knows about. `#/deck/:id` and
+ * `#/dictionary` get their real content in T-31 and T-32 (release 1.1); both
+ * mount placeholders here. `"*"` is the required not-found fallback
+ * (APP-7.6).
  */
+import { startRouter } from "./router.js";
+import type { Route } from "./router.js";
+import { mountDeckView } from "./views/deckView.js";
+import { mountDictionaryView } from "./views/dictionaryView.js";
+import { mountNotFoundView } from "./views/notFoundView.js";
 
-import { VERSION } from "@flashcards/library";
+const routes: Route[] = [
+  { path: "/deck/:id", mount: mountDeckView },
+  { path: "/dictionary", mount: mountDictionaryView },
+  { path: "*", mount: mountNotFoundView },
+];
 
-const container = document.querySelector("#app");
-
-if (container) {
-  container.setAttribute("data-library-version", VERSION);
-  container.textContent = `Scaffold ready — library ${VERSION}. See docs/tasks/README.md.`;
-}
+startRouter(routes);

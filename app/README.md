@@ -3,8 +3,9 @@
 The learning application built on the library. Specification:
 [`docs/app/requirements.md`](../docs/app/requirements.md) (`APP-*` requirement IDs).
 
-**Status: scaffold only.** The shell and router arrive in
-[T-30](../docs/tasks/T-30-app-shell.md), the deck page in [T-31](../docs/tasks/T-31-deck-page.md).
+**Status: shell and hash router only** ([T-30](../docs/tasks/T-30-app-shell.md)). `#/deck/<id>` and
+`#/dictionary` mount placeholder views; real content arrives in
+[T-31](../docs/tasks/T-31-deck-page.md) and T-32.
 
 ## Running it
 
