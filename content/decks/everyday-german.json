@@ -1,0 +1,27 @@
+{
+  "id": "everyday-german",
+  "title": "Everyday German",
+  "description": "A demo deck of everyday German vocabulary and phrases (APP-16.4).",
+  "cards": [
+    "guten-morgen-good-morning",
+    "danke-thank-you",
+    "bitte-please",
+    "auf-wiedersehen-goodbye",
+    "sein-to-be",
+    "haben-to-have",
+    "gehen-to-go",
+    "laufen-to-run",
+    "laufen-to-operate",
+    "haus-house",
+    "wasser-water",
+    "brot-bread",
+    "buch-book",
+    "zelle-cell",
+    "hund-dog",
+    "katze-cat",
+    "gut-good",
+    "schlecht-bad",
+    "schnell-fast",
+    "langsam-slow"
+  ]
+}

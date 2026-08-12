@@ -1,0 +1,10 @@
+[
+  { "id": "wasser-water", "front": { "text": "das Wasser" }, "back": { "text": "water" }, "category": "noun" },
+  { "id": "brot-bread", "front": { "text": "das Brot" }, "back": { "text": "bread" }, "category": "noun" },
+  { "id": "buch-book", "front": { "text": "das Buch" }, "back": { "text": "book" }, "category": "noun" },
+  { "id": "hund-dog", "front": { "text": "der Hund" }, "back": { "text": "dog" }, "category": "noun" },
+  { "id": "katze-cat", "front": { "text": "die Katze" }, "back": { "text": "cat" }, "category": "noun" },
+  { "id": "schnell-fast", "front": { "text": "schnell" }, "back": { "text": "fast, quick" }, "category": "adjective" },
+  { "id": "langsam-slow", "front": { "text": "langsam" }, "back": { "text": "slow" }, "category": "adjective" },
+  { "id": "gut-good", "front": { "text": "gut" }, "back": { "text": "good" }, "category": "adjective" }
+]
