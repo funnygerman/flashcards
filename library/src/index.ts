@@ -8,11 +8,13 @@
  * `_renderCard`, filling each `.fc-card` with its plain-text faces. T-05
  * adds `_flip` and its pointer/keyboard commit paths. T-08 adds the ARIA
  * roles/labels, the flip live region, focus-follows-navigation, and the
- * keyboard grade path (`_grade`) that T-06 will reuse for swipes. The rest
- * of the surface arrives with:
- *   T-06, T-09  gestures, title/info
- *   T-10  the onCardShown / onFlip callbacks, wiring T-06's gestures into
- *         `_flip`/`_grade`, and final packaging
+ * keyboard grade path (`_grade`) that T-06 reuses for swipes. T-06 adds the
+ * pointer-driven gesture engine (`gesture.ts`'s `reduceGesture`): horizontal
+ * drag-to-navigate, vertical drag-to-grade, and the wiring that keeps a
+ * committed drag from also firing T-05's tap-flip. The rest of the surface
+ * arrives with:
+ *   T-09   title/info
+ *   T-10   the onCardShown / onFlip callbacks and final packaging
  *
  * See docs/tasks/README.md.
  */
@@ -20,11 +22,13 @@
 import { applyCardA11y, PREV_ARROW_LABEL, NEXT_ARROW_LABEL, revealedSideText } from "./a11y.js";
 import { resolveOptions } from "./config.js";
 import { shouldCommitFlip } from "./flip.js";
+import { IDLE_GESTURE_STATE, reduceGesture } from "./gesture.js";
+import type { GestureContext, GestureState } from "./gesture.js";
 import { gradeForDirection } from "./grade.js";
 import { renderIndicators } from "./indicators.js";
 import { _renderCard } from "./rendering.js";
 import { STYLES } from "./styles.js";
-import type { DeckOptions, Flashcard, ResolvedOptions, Side } from "./types.js";
+import type { DeckOptions, Flashcard, Grade, ResolvedOptions, Side } from "./types.js";
 
 export type * from "./types.js";
 export { resolveOptions } from "./config.js";
@@ -68,8 +72,8 @@ function resolveTarget(target: string | Element): Element {
  * `keydown` handler for `←`/`→` — see docs/tasks/T-07-chrome.md.
  *
  * Each listener the deck binds is removed in `destroy()`. Later tasks
- * (T-02's viewport resize handler, T-06's pointer listeners, and any
- * timers or animation frames they schedule) must track what they add and
+ * (T-02's still-unwired viewport resize handler, and any timers or
+ * animation frames a future task schedules) must track what they add and
  * extend `destroy()` to remove it, keeping LIB-6.5 satisfied as the deck
  * grows. */
 export class FlashcardDeck {
@@ -96,6 +100,14 @@ export class FlashcardDeck {
   // commit as a flip on release; cleared on pointerup and pointercancel.
   private _pendingFlip: { index: number; x: number; y: number; t: number } | null = null;
 
+  // T-06: the pure gesture engine's own state for the in-flight pointer
+  // sequence, plus the DOM it was measured against — `null` outside a
+  // gesture (idle, or a mouse pointer, which never feeds this engine at
+  // all; see `_handlePointerDown`, LIB-5.16).
+  private _gestureState: GestureState = IDLE_GESTURE_STATE;
+  private _gestureCardEl: Element | null = null;
+  private _gestureContentEl: HTMLElement | null = null;
+
   private _destroyed = false;
 
   // LIB-5.18, LIB-5.19: arrow clicks and ←/→ both funnel through `_setIndex`.
@@ -120,7 +132,7 @@ export class FlashcardDeck {
       const cardEl = (keyboardEvent.target as Element | null)?.closest(".fc-card");
       if (!cardEl) return;
       keyboardEvent.preventDefault();
-      this._grade(key === "ArrowUp" ? "up" : "down");
+      this._grade(gradeForDirection(key === "ArrowUp" ? "up" : "down"));
     }
   };
 
@@ -130,21 +142,68 @@ export class FlashcardDeck {
   // not drive navigation — dragging across the track to select text, or a
   // touch long-press selection, both leave `window.getSelection()`
   // non-collapsed at release, so `shouldCommitFlip` alone keeps the flip
-  // from firing. T-06's swipe/grade gestures are a separate, later concern.
+  // from firing. T-06's gesture engine is the other way a pointer sequence
+  // can cancel this: see the `_pendingFlip = null` in `_handlePointerMove`.
   private readonly _handlePointerDown: EventListener = (event) => {
     const pointerEvent = event as PointerEvent;
     const cardEl = (pointerEvent.target as Element | null)?.closest(".fc-card") ?? null;
     const index = cardEl ? Array.from(this._track.children).indexOf(cardEl) : -1;
     this._pendingFlip =
       index === -1 ? null : { index, x: pointerEvent.clientX, y: pointerEvent.clientY, t: pointerEvent.timeStamp };
+
+    this._gestureState = IDLE_GESTURE_STATE;
+    this._gestureCardEl = null;
+    this._gestureContentEl = null;
+    // LIB-5.16: a mouse drag never drives navigation or grading — only
+    // touch/pen pointers feed the gesture engine at all. Mouse pointer
+    // sequences fall through to the tap-flip path above exactly as they did
+    // before this task, so free text selection (LIB-5.17) is untouched: this
+    // branch never runs for them, and nothing here calls `preventDefault`.
+    if (cardEl && pointerEvent.pointerType !== "mouse") {
+      this._gestureCardEl = cardEl;
+      this._gestureContentEl = (pointerEvent.target as Element | null)?.closest<HTMLElement>(".fc-face-content") ?? null;
+      const [state] = reduceGesture(
+        IDLE_GESTURE_STATE,
+        { type: "down", x: pointerEvent.clientX, y: pointerEvent.clientY, t: pointerEvent.timeStamp },
+        this._gestureContext(),
+      );
+      this._gestureState = state;
+    }
+  };
+
+  // LIB-5.2, LIB-5.9, LIB-5.10: feeds every move into `reduceGesture` and
+  // applies whatever it decides — real-time track/card following while an
+  // axis is locked, nothing while still deciding (including while a
+  // scrollable content area is left to handle the movement itself).
+  private readonly _handlePointerMove: EventListener = (event) => {
+    if (this._gestureState.phase === "idle") return;
+
+    const pointerEvent = event as PointerEvent;
+    const [state, outcome] = reduceGesture(
+      this._gestureState,
+      { type: "move", x: pointerEvent.clientX, y: pointerEvent.clientY, t: pointerEvent.timeStamp },
+      this._gestureContext(),
+    );
+    this._gestureState = state;
+
+    if (outcome.kind !== "dragging") return;
+
+    // LIB-5.7: a real, axis-locked drag is underway — the tap-flip path
+    // above must not also fire when this same pointer sequence releases.
+    this._pendingFlip = null;
+
+    if (outcome.axis === "x") this._applyTrackDragOffset(outcome.offset);
+    else this._applyCardDragOffset(outcome.offset);
   };
 
   private readonly _handlePointerUp: EventListener = (event) => {
+    const pointerEvent = event as PointerEvent;
+    this._commitGesture(pointerEvent);
+
     const pending = this._pendingFlip;
     this._pendingFlip = null;
     if (!pending) return;
 
-    const pointerEvent = event as PointerEvent;
     const distance = Math.hypot(pointerEvent.clientX - pending.x, pointerEvent.clientY - pending.y);
     const duration = pointerEvent.timeStamp - pending.t;
     const selection = window.getSelection();
@@ -156,6 +215,7 @@ export class FlashcardDeck {
 
   private readonly _handlePointerCancel: EventListener = (): void => {
     this._pendingFlip = null;
+    this._abandonGesture();
   };
 
   constructor(target: string | Element, cards: readonly Flashcard[], options: DeckOptions = {}) {
@@ -231,6 +291,7 @@ export class FlashcardDeck {
     this._nextArrow.addEventListener("click", this._handleNextClick);
     this._container.addEventListener("keydown", this._handleKeydown);
     this._track.addEventListener("pointerdown", this._handlePointerDown);
+    this._track.addEventListener("pointermove", this._handlePointerMove);
     this._track.addEventListener("pointerup", this._handlePointerUp);
     this._track.addEventListener("pointercancel", this._handlePointerCancel);
 
@@ -250,7 +311,7 @@ export class FlashcardDeck {
   }
 
   /** The single seam every navigation path — arrows, keys, `goTo`, dot
-   * activation, and eventually T-06's committed gestures — funnels
+   * activation, and T-06's committed horizontal gestures — funnels
    * through, so index state and chrome updates never drift out of sync
    * between callers. LIB-8.6: also moves focus to the newly current card,
    * so keyboard and screen-reader users stay oriented regardless of how
@@ -260,7 +321,7 @@ export class FlashcardDeck {
     if (count === 0) return;
 
     this._index = Math.min(Math.max(index, 0), count - 1);
-    this._track.classList.toggle("fc-track--animate", options.animate ?? false);
+    this._settleTrack(options.animate ?? false);
     this._updateChrome();
     (this._track.children[this._index] as HTMLElement | undefined)?.focus();
   }
@@ -282,13 +343,140 @@ export class FlashcardDeck {
     this._liveRegion.textContent = revealedSideText(this._cards[index]!, nextSide);
   }
 
-  /** LIB-5.8, LIB-5.21: the keyboard equivalent of a committed vertical
-   * grading gesture. T-06's swipe engine has not landed yet, so this is
-   * the only caller today; it exists as its own method, named for reuse,
-   * so T-06 calls it again from a committed swipe instead of duplicating
-   * the direction-to-grade mapping and the callback invocation. */
-  private _grade(direction: "up" | "down"): void {
-    this._options.onGrade?.(this._index, gradeForDirection(direction));
+  /** LIB-5.8, LIB-5.21: emits `onGrade` for the current card. Both callers —
+   * the keyboard handler above and `_commitGesture` below — compute the
+   * `Grade` themselves via `gradeForDirection`, so the up/down-to-grade
+   * mapping lives in exactly one place (`grade.ts`) rather than being
+   * duplicated here. */
+  private _grade(grade: Grade): void {
+    this._options.onGrade?.(this._index, grade);
+  }
+
+  /** T-06: measured fresh for every `reduceGesture` call (see `gesture.ts`'s
+   * own doc comment for why) from whichever card the current pointer
+   * sequence started on. `getBoundingClientRect` reads whatever the browser
+   * actually laid out — 0 before first layout, or in jsdom — rather than
+   * assuming a specific CSS sizing scheme, so the thresholds below are
+   * correct regardless of how a card ends up sized. */
+  private _gestureContext(): GestureContext {
+    const cardEl = this._gestureCardEl as HTMLElement | null;
+    const rect = cardEl?.getBoundingClientRect();
+    const contentEl = this._gestureContentEl;
+
+    return {
+      cardWidth: rect?.width ?? 0,
+      cardHeight: rect?.height ?? 0,
+      friction: this._options.friction,
+      swipeThreshold: this._options.swipeThreshold,
+      gradeThreshold: this._options.gradeThreshold,
+      hasPrev: this._index > 0,
+      hasNext: this._index < this._cards.length - 1,
+      // LIB-5.10: `dy > 0` is a downward drag, which would reveal content
+      // above — possible only if the content isn't already scrolled to its
+      // top; `dy < 0` is upward, possible only if it isn't at its bottom.
+      verticalScrollBlocksGesture: (dy: number): boolean => {
+        if (!contentEl || contentEl.scrollHeight <= contentEl.clientHeight) return false;
+        if (dy > 0) return contentEl.scrollTop > 0;
+        if (dy < 0) return contentEl.scrollTop + contentEl.clientHeight < contentEl.scrollHeight;
+        return false;
+      },
+    };
+  }
+
+  /** T-06: the card width the current gesture (or, absent one, the current
+   * index) is measured against — see `_gestureContext`'s doc comment. */
+  private _trackCardWidth(): number {
+    const cardEl = (this._gestureCardEl ?? this._track.children[this._index]) as HTMLElement | undefined;
+    return cardEl?.getBoundingClientRect().width ?? 0;
+  }
+
+  /** LIB-5.2: positions the track at the current index, plus `offsetPx` for
+   * a live horizontal drag (0 at rest). Assumes every card occupies an equal
+   * slot — true of the stylesheet's `.fc-card` sizing (T-06; see
+   * `styles.ts`) — so `index * cardWidth` is the resting position for any
+   * card, not just the one just measured. */
+  private _applyTrackTransform(offsetPx: number): void {
+    const cardWidth = this._trackCardWidth();
+    this._track.style.transform = `translateX(${-(this._index * cardWidth) + offsetPx}px)`;
+  }
+
+  /** Settles the track at its resting position for the current index —
+   * after a commit (`_setIndex`), a horizontal `snapBack`, or an abandoned
+   * gesture. `animate` toggles the 250ms settle transition (`LIB-4.35`). */
+  private _settleTrack(animate: boolean): void {
+    this._track.classList.toggle("fc-track--animate", animate);
+    this._applyTrackTransform(0);
+  }
+
+  /** LIB-5.2: moves the whole track with the pointer in real time while a
+   * horizontal drag is in progress — no transition, so it tracks exactly,
+   * not with a 250ms lag. */
+  private _applyTrackDragOffset(offsetPx: number): void {
+    this._track.classList.remove("fc-track--animate");
+    this._applyTrackTransform(offsetPx);
+  }
+
+  /** The vertical counterpart of `_applyTrackDragOffset`: while a grade
+   * gesture is in progress, only the one card being dragged moves, and the
+   * rest of the track (including the flip transform on `.fc-face`, a
+   * separate element) is untouched. */
+  private _applyCardDragOffset(offsetPx: number): void {
+    const cardEl = this._gestureCardEl as HTMLElement | null;
+    if (!cardEl) return;
+    cardEl.classList.remove("fc-card--settling");
+    cardEl.style.transform = `translateY(${offsetPx}px)`;
+  }
+
+  /** Springs the in-gesture card back to its resting position — after a
+   * vertical `snapBack`, a `grade` commit, or an abandoned gesture — with
+   * the 250ms settle transition (`LIB-4.35`). */
+  private _settleCard(): void {
+    const cardEl = this._gestureCardEl as HTMLElement | null;
+    if (!cardEl) return;
+    cardEl.classList.add("fc-card--settling");
+    cardEl.style.transform = "";
+  }
+
+  /** LIB-5.6, LIB-5.8, LIB-5.11: reduces the release itself and applies
+   * whatever `reduceGesture` decides — navigate (via `_setIndex`, the same
+   * seam every other navigation path uses), grade, or a snap-back on either
+   * axis. A no-op when no gesture was in progress (e.g. a mouse pointer,
+   * which never starts one — `LIB-5.16`). */
+  private _commitGesture(pointerEvent: PointerEvent): void {
+    if (this._gestureState.phase === "idle") return;
+    const axis = this._gestureState.phase === "dragging" ? this._gestureState.axis : null;
+
+    const [state, outcome] = reduceGesture(
+      this._gestureState,
+      { type: "up", x: pointerEvent.clientX, y: pointerEvent.clientY, t: pointerEvent.timeStamp },
+      this._gestureContext(),
+    );
+    this._gestureState = state;
+
+    if (outcome.kind === "navigate") {
+      this._setIndex(this._index + outcome.direction, { animate: true });
+    } else if (outcome.kind === "grade") {
+      this._grade(outcome.grade);
+      this._settleCard();
+    } else if (outcome.kind === "snapBack") {
+      if (axis === "y") this._settleCard();
+      else this._settleTrack(true);
+    }
+
+    this._gestureCardEl = null;
+    this._gestureContentEl = null;
+  }
+
+  /** A `pointercancel` mid-gesture leaves nothing visually mid-drag —
+   * settles whichever axis, if any, was locked. */
+  private _abandonGesture(): void {
+    if (this._gestureState.phase === "dragging") {
+      if (this._gestureState.axis === "x") this._settleTrack(true);
+      else this._settleCard();
+    }
+    this._gestureState = IDLE_GESTURE_STATE;
+    this._gestureCardEl = null;
+    this._gestureContentEl = null;
   }
 
   /** LIB-4.15–LIB-4.18, LIB-5.4: rebuilds the indicators for the current
@@ -326,6 +514,7 @@ export class FlashcardDeck {
     this._nextArrow.removeEventListener("click", this._handleNextClick);
     this._container.removeEventListener("keydown", this._handleKeydown);
     this._track.removeEventListener("pointerdown", this._handlePointerDown);
+    this._track.removeEventListener("pointermove", this._handlePointerMove);
     this._track.removeEventListener("pointerup", this._handlePointerUp);
     this._track.removeEventListener("pointercancel", this._handlePointerCancel);
 

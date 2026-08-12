@@ -54,13 +54,22 @@ export const STYLES = `
 
 .fc-card {
   position: relative;
-  flex: none;
+  /* LIB-5.2: every card takes the same full slot in the track, so paging by
+     exactly one card-width brings the neighbour fully into view regardless
+     of that card's own content length. (inline-size falls back to 100%
+     until something publishes --fc-card-w — T-02's still-unwired viewport
+     sizing pass, see the T-06 commit notes.) */
+  flex: 0 0 auto;
+  inline-size: var(--fc-card-w, 100%);
   background: var(--fc-card-bg);
   border: 1px solid var(--fc-card-border);
   border-radius: 0.75rem;
   box-shadow: 0 0.25rem 1rem var(--fc-shadow-color);
   /* LIB-4.35: the depth the two faces rotate through. */
   perspective: 1200px;
+  /* LIB-5.10: the gesture engine owns every drag that starts on the card
+     itself — the browser must not also try to pan/scroll it natively. */
+  touch-action: none;
 }
 
 /* LIB-8.7: cards are tabindex="0" (T-08's roving focus); the ring must be
@@ -108,11 +117,16 @@ export const STYLES = `
 }
 
 /* LIB-4.14: the scrollable remainder of the face, once shrinking (via
-   --fc-shrink, set in bounded steps by _renderCard) still isn't enough. */
+   --fc-shrink, set in bounded steps by _renderCard) still isn't enough.
+   LIB-5.10: pan-y re-opens native vertical scrolling inside this element
+   only, against the .fc-card ancestor's touch-action: none, so a drag that
+   the gesture engine has left alone (content still scrollable, not yet at
+   its boundary) scrolls exactly as it would outside the deck. */
 .fc-face-content {
   flex: 1 1 auto;
   min-block-size: 0;
   overflow-y: auto;
+  touch-action: pan-y;
 }
 
 .fc-text,
@@ -185,12 +199,21 @@ export const STYLES = `
   transition: transform 250ms ease;
 }
 
+/* LIB-4.35: the same 250ms snap/settle motion as .fc-track--animate, for
+   the per-card vertical offset a grade gesture applies directly to
+   .fc-card — applied only once the pointer is up, never while the finger
+   is still moving the card in real time. */
+.fc-card--settling {
+  transition: transform 250ms ease;
+}
+
 /* LIB-4.36: flips and navigation apply instantly, with no transition, when
    the user has asked the OS for reduced motion. Everything else (colours,
    focus rings, etc.) is unaffected. */
 @media (prefers-reduced-motion: reduce) {
   .fc-face,
-  .fc-track--animate {
+  .fc-track--animate,
+  .fc-card--settling {
     transition: none;
   }
 }
