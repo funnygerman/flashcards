@@ -3,10 +3,12 @@
 The reusable `FlashcardDeck` presentation component. Specification:
 [`docs/library/requirements.md`](../docs/library/requirements.md) (`LIB-*` requirement IDs).
 
-**Status: types and configuration only** ([T-01](../docs/tasks/T-01-types-and-config.md)). The package exports
-`Flashcard`, `DeckOptions`, `ResolvedOptions`, `TitleConfig`, `InfoConfig`, `Side`, `Grade`, and
-`resolveOptions`. No DOM, no rendering, no `FlashcardDeck` class yet — those arrive across
-[T-02 … T-10](../docs/tasks/README.md).
+**Status: DOM skeleton only** ([T-01](../docs/tasks/T-01-types-and-config.md),
+[T-03](../docs/tasks/T-03-dom-skeleton.md)). The package exports `Flashcard`, `DeckOptions`, `ResolvedOptions`,
+`TitleConfig`, `InfoConfig`, `Side`, `Grade`, `resolveOptions`, and now the `FlashcardDeck` class. Construction
+builds the documented DOM shape, injects styles once, and `destroy()` tears it down; cards render blank with
+no interaction, no sizing, and no `goTo`/`getState` yet — those arrive across
+[T-02, T-04 … T-10](../docs/tasks/README.md).
 
 ## Design constraints
 
