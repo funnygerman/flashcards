@@ -14,9 +14,12 @@
  * committed drag from also firing T-05's tap-flip. T-09 adds the optional
  * title-screen overlay and the always-available info panel (`panels.ts`),
  * including the focus trap and ⓘ-return-on-close T-08 left as a documented
- * gap (`LIB-8.8`) until this panel existed. The rest of the surface arrives
- * with:
- *   T-10   the onCardShown / onFlip callbacks and final packaging
+ * gap (`LIB-8.8`) until this panel existed. T-10 closes out M1: it wires
+ * `onCardShown`/`onFlip`/`onGrade` (config.ts already resolved the three
+ * since T-01), wires T-02's `_sizeCard`/`_observeViewportSize` into the
+ * constructor/`destroy()` — the one gap T-06's integration pass explicitly
+ * left open — and locks the public surface down to exactly what's documented
+ * in `library/README.md`.
  *
  * See docs/tasks/README.md.
  */
@@ -30,16 +33,20 @@ import { gradeForDirection } from "./grade.js";
 import { renderIndicators } from "./indicators.js";
 import { createInfoPanel, createTitleScreen, detectTouchCapability, focusableElements } from "./panels.js";
 import { _renderCard } from "./rendering.js";
+import { _observeViewportSize, _sizeCard } from "./sizing.js";
+import type { ViewportSizeObserver } from "./sizing.js";
 import { STYLES } from "./styles.js";
 import type { DeckOptions, Flashcard, Grade, ResolvedOptions, Side } from "./types.js";
 
+// LIB-6.6, LIB-6.13: the only runtime export. `resolveOptions`,
+// `computeCardSize`, and the T-00 `VERSION` scaffolding constant were
+// deliberately dropped here — none of them is part of the documented public
+// surface (`library/README.md`), and each stays reachable internally through
+// its own module. Types are a separate story: `export type *` below has no
+// runtime footprint, so it can re-export everything a consumer needs to
+// annotate a constructor call (`Flashcard`, `DeckOptions`, `Side`, `Grade`,
+// …) without adding to the *runtime* surface this task locks down.
 export type * from "./types.js";
-export { resolveOptions } from "./config.js";
-export { computeCardSize } from "./sizing.js";
-export type { CardSize, SizingOptions } from "./sizing.js";
-
-/** Package version, exported so the scaffold has an observable surface. */
-export const VERSION = "0.0.0";
 
 const STYLE_ATTR = "data-fc-styles";
 
@@ -74,10 +81,9 @@ function resolveTarget(target: string | Element): Element {
  * the arrow buttons, the below-card indicators, and the container's
  * `keydown` handler for `←`/`→` — see docs/tasks/T-07-chrome.md.
  *
- * Each listener the deck binds is removed in `destroy()`. Later tasks
- * (T-02's still-unwired viewport resize handler, and any timers or
- * animation frames a future task schedules) must track what they add and
- * extend `destroy()` to remove it, keeping LIB-6.5 satisfied as the deck
+ * Each listener the deck binds is removed in `destroy()`; T-10 extends the
+ * same teardown to dispose T-02's viewport-size observer and cancel the
+ * pending `onCardShown` settle timer, keeping LIB-6.5 satisfied as the deck
  * grows. */
 export class FlashcardDeck {
   private readonly _container: Element;
@@ -128,6 +134,21 @@ export class FlashcardDeck {
   private _gestureContentEl: HTMLElement | null = null;
 
   private _destroyed = false;
+
+  // T-02, LIB-4.5, LIB-4.10, LIB-4.11, LIB-4.13: keeps `--fc-card-w` current
+  // as the viewport changes. Started in the constructor, disposed in
+  // `destroy()`.
+  private readonly _viewportSizeObserver: ViewportSizeObserver;
+
+  // LIB-6.8, LIB-6.9: cards already reported never re-fire `onCardShown`, for
+  // the life of the instance. `_cardShownTimer`/`_cardShownIndex` track the
+  // single in-flight 400ms settle timer — only the current card can ever be
+  // mid-settle, so one timer is always enough; `_setIndex` cancels/restarts
+  // it on every navigation (`_scheduleCardShown`), and a flip before it fires
+  // reports immediately instead of waiting (`_reportCardShown`).
+  private readonly _shownIndices = new Set<number>();
+  private _cardShownTimer: ReturnType<typeof setTimeout> | null = null;
+  private _cardShownIndex: number | null = null;
 
   // LIB-5.18, LIB-5.19: arrow clicks and ←/→ both funnel through `_setIndex`.
   private readonly _handlePrevClick = (): void => this._setIndex(this._index - 1, { animate: true });
@@ -294,6 +315,13 @@ export class FlashcardDeck {
     this._root.style.setProperty("--fc-text-scale", String(this._options.textScale));
     this._root.style.setProperty("--fc-details-scale", String(this._options.detailsScale));
 
+    // LIB-4.5, LIB-4.10, LIB-4.11, LIB-4.13: size synchronously from the
+    // real viewport first — so `--fc-card-w` is correct before first paint,
+    // not just after the observer's own first animation frame — then start
+    // the observer for every viewport change after that.
+    _sizeCard(this._root, this._options);
+    this._viewportSizeObserver = _observeViewportSize(this._root, () => this._options);
+
     this._track = document.createElement("div");
     this._track.className = "fc-track";
     cards.forEach((card) => {
@@ -382,6 +410,10 @@ export class FlashcardDeck {
     this._titleEl?.focus();
 
     this._updateChrome();
+    // LIB-6.8: card 0 is already "current" the instant the deck is
+    // constructed — `_setIndex` never runs for it, so this is scheduled
+    // separately here rather than only from `_setIndex`.
+    this._scheduleCardShown(this._index);
   }
 
   /** LIB-6.3: navigate to `index`, clamped to the deck's valid range. A
@@ -410,14 +442,20 @@ export class FlashcardDeck {
     this._settleTrack(options.animate ?? false);
     this._updateChrome();
     (this._track.children[this._index] as HTMLElement | undefined)?.focus();
+    // LIB-6.8: (re)starts the 400ms settle timer for whichever card is now
+    // current — cancelling whatever was pending for the card just left, so
+    // swiping through several cards inside 400ms never fires for the ones
+    // that were only ever passed through.
+    this._scheduleCardShown(this._index);
   }
 
   /** LIB-5.12, LIB-5.14: toggles `index`'s face and reflects it on the DOM
    * via `.fc-card--flipped` (the flip transition itself lives in the
    * stylesheet). LIB-8.2, LIB-8.3: refreshes that card's accessible label
    * (the side just changed) and announces the newly revealed side's text
-   * alone through the live region. `onFlip` (LIB-6.10) is wired by T-10 —
-   * this only owns the flip itself and its accessible reflection. */
+   * alone through the live region. LIB-6.8: a flip before the 400ms settle
+   * timer elapses reports `onCardShown` immediately rather than waiting.
+   * LIB-6.10: `onFlip` fires with the side now visible on every flip. */
   private _flip(index: number): void {
     const currentSide = this._sides[index];
     if (currentSide === undefined) return;
@@ -427,15 +465,64 @@ export class FlashcardDeck {
     this._track.children[index]?.classList.toggle("fc-card--flipped", nextSide === "back");
     this._updateCardA11y();
     this._liveRegion.textContent = revealedSideText(this._cards[index]!, nextSide);
+    this._reportCardShown(index);
+    this._invokeCallback(() => this._options.onFlip?.(index, nextSide));
   }
 
-  /** LIB-5.8, LIB-5.21: emits `onGrade` for the current card. Both callers —
-   * the keyboard handler above and `_commitGesture` below — compute the
-   * `Grade` themselves via `gradeForDirection`, so the up/down-to-grade
-   * mapping lives in exactly one place (`grade.ts`) rather than being
-   * duplicated here. */
+  /** LIB-5.8, LIB-5.21, LIB-6.11: emits `onGrade` for the current card. Both
+   * callers — the keyboard handler above and `_commitGesture` below —
+   * compute the `Grade` themselves via `gradeForDirection`, so the up/down-
+   * to-grade mapping lives in exactly one place (`grade.ts`) rather than
+   * being duplicated here. */
   private _grade(grade: Grade): void {
-    this._options.onGrade?.(this._index, grade);
+    this._invokeCallback(() => this._options.onGrade?.(this._index, grade));
+  }
+
+  /** LIB-6.8: (re)starts the 400ms settle timer for `index` — cancelling
+   * whatever was pending for a previous index first, so only one timer is
+   * ever in flight. A no-op for an empty deck or a card already reported
+   * (LIB-6.9), so a rebuilt timer is never scheduled for nothing. */
+  private _scheduleCardShown(index: number): void {
+    this._clearCardShownTimer();
+    if (this._cards.length === 0 || this._shownIndices.has(index)) return;
+
+    this._cardShownIndex = index;
+    this._cardShownTimer = setTimeout(() => {
+      this._cardShownTimer = null;
+      this._reportCardShown(index);
+    }, 400);
+  }
+
+  /** LIB-6.8, LIB-6.9: reports `index` as shown — cancelling its pending
+   * settle timer first, if this is the card it belongs to (the early-flip
+   * path) — and never fires twice for the same index in this instance's
+   * life. */
+  private _reportCardShown(index: number): void {
+    if (this._cardShownIndex === index) this._clearCardShownTimer();
+    if (this._shownIndices.has(index)) return;
+
+    this._shownIndices.add(index);
+    this._invokeCallback(() => this._options.onCardShown?.(index));
+  }
+
+  private _clearCardShownTimer(): void {
+    if (this._cardShownTimer !== null) {
+      clearTimeout(this._cardShownTimer);
+      this._cardShownTimer = null;
+    }
+    this._cardShownIndex = null;
+  }
+
+  /** LIB-6.12: every callback invocation funnels through here so a throwing
+   * host callback can never corrupt the deck's own state or stop later
+   * navigation/flips/grades from working — whatever this wraps has already
+   * finished updating `this` by the time it's called. */
+  private _invokeCallback(invoke: () => void): void {
+    try {
+      invoke();
+    } catch (error) {
+      console.error("@flashcards/library: a callback threw an error.", error);
+    }
   }
 
   /** LIB-4.21: removes the title overlay and clears `_titleEl` so it can
@@ -659,6 +746,9 @@ export class FlashcardDeck {
   destroy(): void {
     if (this._destroyed) return;
     this._destroyed = true;
+
+    this._viewportSizeObserver.dispose();
+    this._clearCardShownTimer();
 
     this._prevArrow.removeEventListener("click", this._handlePrevClick);
     this._nextArrow.removeEventListener("click", this._handleNextClick);

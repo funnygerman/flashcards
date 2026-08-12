@@ -1,9 +1,11 @@
 name: Deploy to GitHub Pages
 
 # T-00b: publishes whatever currently exists in app/ (plus library/dist) on
-# every push to main, well before the deck page (T-31) exists. T-33 extends
-# this same workflow with the content pipeline and the release-1.0 smoke
-# check once T-31 lands. See docs/decisions/D5-continuous-pages-deployment.md.
+# every push to main, well before the deck page (T-31) exists. T-10 extends
+# the assembly step to also publish library/demo/, a library-only showcase
+# page. T-33 extends this same workflow with the content pipeline and the
+# release-1.0 smoke check once T-31 lands. See
+# docs/decisions/D5-continuous-pages-deployment.md.
 
 on:
   push:
@@ -38,14 +40,16 @@ jobs:
 
       # Mirrors the layout scripts/dev-server.mjs already serves locally
       # (repository root, app at /app/) so app/index.html's import map
-      # resolves ../library/dist/... with no changes.
+      # resolves ../library/dist/... with no changes. library/demo/ (T-10)
+      # rides along the same way, resolving its own ../dist/... import map
+      # entry against library/dist/ once both land under _site/library/.
       - name: Assemble Pages site
         run: |
           set -euo pipefail
           rm -rf _site
           mkdir -p _site/app _site/library
           cp -r app/index.html app/dist _site/app/
-          cp -r library/dist _site/library/
+          cp -r library/dist library/demo _site/library/
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <html lang="en">
