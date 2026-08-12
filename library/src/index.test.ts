@@ -32,7 +32,10 @@ describe("FlashcardDeck DOM structure (LIB-7.2, LIB-7.9)", () => {
     expect(container.querySelector("#sibling")).toBeNull();
     expect(document.querySelector("#outside")?.textContent).toBe("outside");
 
-    const track = root!.querySelector(":scope > .fc-track");
+    const viewport = root!.querySelector(":scope > .fc-viewport");
+    expect(viewport).not.toBeNull();
+
+    const track = viewport!.querySelector(":scope > .fc-track");
     expect(track).not.toBeNull();
     expect(track!.children).toHaveLength(CARDS.length);
     for (const card of Array.from(track!.children)) {

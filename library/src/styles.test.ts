@@ -88,6 +88,25 @@ describe("stylesheet structure (LIB-9.6)", () => {
   });
 });
 
+describe("card and track sizing (LIB-4.5, LIB-5.2)", () => {
+  it("sizes .fc-card's block-size from --fc-card-h, not left to stretch to its flex container", () => {
+    const match = /\.fc-card\s*{([^}]*)}/.exec(STYLES);
+    expect(match?.[1]).toMatch(/block-size:\s*var\(--fc-card-h/);
+  });
+
+  it("clips .fc-viewport to a single card's width so neighbours are hidden until a drag reveals them", () => {
+    const match = /\.fc-viewport\s*{([^}]*)}/.exec(STYLES);
+    expect(match?.[1]).toMatch(/inline-size:\s*var\(--fc-card-w/);
+    expect(match?.[1]).toMatch(/overflow:\s*hidden/);
+  });
+
+  it("never constrains .fc-track's own width, so the reel stays as wide as every card and .fc-viewport does the clipping", () => {
+    const match = /\.fc-track\s*{([^}]*)}/.exec(STYLES);
+    expect(match?.[1]).not.toMatch(/inline-size/);
+    expect(match?.[1]).not.toMatch(/overflow/);
+  });
+});
+
 describe("flip animation (LIB-4.35, LIB-4.36)", () => {
   it("animates .fc-face as a rotateY transform over 300ms", () => {
     const match = /\.fc-face\s*{([^}]*)}/.exec(STYLES);

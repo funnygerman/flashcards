@@ -54,8 +54,10 @@ function _readViewport(): { width: number; height: number } {
 }
 
 /** LIB-4.5, LIB-4.11, LIB-4.13: apply the computed size to `container` by
- * publishing `--fc-card-w` in pixels — never `vw` — so font sizes derived
- * from it (T-04) never depend on the viewport directly. */
+ * publishing `--fc-card-w`/`--fc-card-h` in pixels — never `vw` — so font
+ * sizes derived from the width (T-04) never depend on the viewport directly,
+ * and the card's own block-size (styles.ts) reflects the same explicitly
+ * computed aspect ratio rather than the height CSS happens to stretch it to. */
 export function _sizeCard(
   container: HTMLElement,
   options: SizingOptions,
@@ -63,6 +65,7 @@ export function _sizeCard(
 ): CardSize {
   const size = computeCardSize(viewport, options);
   container.style.setProperty("--fc-card-w", `${size.width}px`);
+  container.style.setProperty("--fc-card-h", `${size.height}px`);
   return size;
 }
 

@@ -91,6 +91,14 @@ export class FlashcardDeck {
   private readonly _cards: readonly Flashcard[];
 
   private readonly _root: HTMLDivElement;
+  // LIB-5.2: `_viewport` is the fixed one-card-wide clipping window
+  // (`overflow: hidden`, sized from `--fc-card-w`); `_track` is the sliding
+  // reel inside it that actually holds every `.fc-card` and receives the
+  // paging `translateX`. Splitting the two is required, not stylistic — a
+  // `transform` moves an element's own box, clip region included, so a
+  // single element can't both clip to one card's width and slide its
+  // contents within that same fixed window.
+  private readonly _viewport: HTMLDivElement;
   private readonly _track: HTMLDivElement;
   private readonly _indicators: HTMLDivElement;
   private readonly _prevArrow: HTMLButtonElement;
@@ -322,6 +330,9 @@ export class FlashcardDeck {
     _sizeCard(this._root, this._options);
     this._viewportSizeObserver = _observeViewportSize(this._root, () => this._options);
 
+    this._viewport = document.createElement("div");
+    this._viewport.className = "fc-viewport";
+
     this._track = document.createElement("div");
     this._track.className = "fc-track";
     cards.forEach((card) => {
@@ -330,6 +341,7 @@ export class FlashcardDeck {
       _renderCard(card, cardEl, this._options);
       this._track.append(cardEl);
     });
+    this._viewport.append(this._track);
 
     this._indicators = document.createElement("div");
     this._indicators.className = "fc-indicators";
@@ -374,7 +386,7 @@ export class FlashcardDeck {
     this._infoCloseButton = closeButton;
 
     this._root.append(
-      this._track,
+      this._viewport,
       this._indicators,
       this._prevArrow,
       this._nextArrow,
@@ -441,7 +453,11 @@ export class FlashcardDeck {
     this._index = Math.min(Math.max(index, 0), count - 1);
     this._settleTrack(options.animate ?? false);
     this._updateChrome();
-    (this._track.children[this._index] as HTMLElement | undefined)?.focus();
+    // LIB-5.2: preventScroll, because `.fc-viewport`'s overflow: hidden makes
+    // it a native scroll container — without this, focusing a card outside
+    // the visible window triggers the browser's own scroll-into-view on top
+    // of `_settleTrack`'s manual translateX, doubling the offset.
+    (this._track.children[this._index] as HTMLElement | undefined)?.focus({ preventScroll: true });
     // LIB-6.8: (re)starts the 400ms settle timer for whichever card is now
     // current — cancelling whatever was pending for the card just left, so
     // swiping through several cards inside 400ms never fires for the ones

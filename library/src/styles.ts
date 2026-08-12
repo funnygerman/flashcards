@@ -45,12 +45,32 @@ export const STYLES = `
   box-sizing: border-box;
 }
 
+/* LIB-5.2: the visible window is exactly one card wide at rest — a native
+   photo-gallery slider, not a full-width strip — so the neighbour is clipped
+   by overflow: hidden until a drag progressively reveals it. A transform
+   moves an element's whole box, clip region included, so the clipping and
+   the sliding can't be the same element: .fc-viewport owns the fixed size
+   and the clip, .fc-track (below) is the reel inside it that actually
+   carries the paging translateX. align-items: center keeps a
+   shorter-than-viewport card vertically centered instead of stretching to
+   fill the viewport's own flex-filled height (LIB-4.5: the card's
+   block-size comes from the JS-computed --fc-card-h, not its container). */
+.fc-viewport {
+  display: flex;
+  align-items: center;
+  flex: 1 1 auto;
+  inline-size: var(--fc-card-w, 100%);
+  max-inline-size: 100%;
+  overflow: hidden;
+}
+
+/* The sliding reel: naturally as wide as every card laid side by side
+   (flex: 0 0 auto stops it — and each .fc-card below — from shrinking to
+   fit .fc-viewport), clipped to one card's width by the parent above. */
 .fc-track {
   position: relative;
   display: flex;
-  flex: 1 1 auto;
-  width: 100%;
-  overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .fc-card {
@@ -62,6 +82,10 @@ export const STYLES = `
      sizing pass, see the T-06 commit notes.) */
   flex: 0 0 auto;
   inline-size: var(--fc-card-w, 100%);
+  /* LIB-4.5, LIB-4.6: the card's own aspect ratio, from the JS-computed
+     --fc-card-h — not CSS aspect-ratio, and not left to stretch to whatever
+     height its flex container happens to have. */
+  block-size: var(--fc-card-h, auto);
   background: var(--fc-card-bg);
   border: 1px solid var(--fc-card-border);
   border-radius: 0.75rem;
