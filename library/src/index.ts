@@ -5,15 +5,17 @@
  * added the sizing engine's pure `computeCardSize`. T-03 added the
  * `FlashcardDeck` class: its DOM skeleton, style injection, and teardown.
  * T-07 adds `goTo`, `getState`, and the arrow/indicator chrome. T-04 adds
- * `_renderCard`, filling each `.fc-card` with its plain-text faces. The rest
+ * `_renderCard`, filling each `.fc-card` with its plain-text faces. T-05
+ * (this task) adds `_flip` and its pointer/keyboard commit paths. The rest
  * of the surface arrives with:
- *   T-05, T-06, T-08, T-09  flip, gestures, a11y, title/info
+ *   T-06, T-08, T-09  gestures, a11y, title/info
  *   T-10  the onCardShown / onFlip / onGrade callbacks and final packaging
  *
  * See docs/tasks/README.md.
  */
 
 import { resolveOptions } from "./config.js";
+import { shouldCommitFlip } from "./flip.js";
 import { renderIndicators } from "./indicators.js";
 import { _renderCard } from "./rendering.js";
 import { STYLES } from "./styles.js";
@@ -77,10 +79,15 @@ export class FlashcardDeck {
   private readonly _nextArrow: HTMLButtonElement;
   private readonly _infoButton: HTMLButtonElement;
 
-  /** LIB-6.4: current position and visible side. `_side` is a placeholder
-   * until T-05 lands per-card flip state — it stays "front" for now. */
+  /** LIB-6.4: current position. */
   private _index = 0;
-  private _side: Side = "front";
+  // LIB-5.14: one entry per card, so flip state persists independently as
+  // the user navigates away from a card and back.
+  private readonly _sides: Side[];
+
+  // LIB-5.13, LIB-5.15: the in-flight press this pointer sequence might
+  // commit as a flip on release; cleared on pointerup and pointercancel.
+  private _pendingFlip: { index: number; x: number; y: number; t: number } | null = null;
 
   private _destroyed = false;
 
@@ -92,15 +99,56 @@ export class FlashcardDeck {
   // doesn't know "keydown" — hence the explicit `EventListener` type and the
   // cast below rather than a `(event: KeyboardEvent) => void` parameter.
   private readonly _handleKeydown: EventListener = (event) => {
-    const key = (event as KeyboardEvent).key;
+    const keyboardEvent = event as KeyboardEvent;
+    const key = keyboardEvent.key;
     if (key === "ArrowLeft") this._setIndex(this._index - 1, { animate: true });
     else if (key === "ArrowRight") this._setIndex(this._index + 1, { animate: true });
+    else if (key === "Enter" || key === " ") {
+      // LIB-5.22: Space must not scroll the page when used to flip a card.
+      if (key === " ") keyboardEvent.preventDefault();
+      this._flip(this._index);
+    }
+  };
+
+  // LIB-5.12, LIB-5.13, LIB-5.15: tap/click flip commit. Bound to `_track`
+  // (not per-card) so one pair of listeners covers every card; the pressed
+  // card is found via `closest(".fc-card")` on the event target. This does
+  // not drive navigation — dragging across the track to select text, or a
+  // touch long-press selection, both leave `window.getSelection()`
+  // non-collapsed at release, so `shouldCommitFlip` alone keeps the flip
+  // from firing. T-06's swipe/grade gestures are a separate, later concern.
+  private readonly _handlePointerDown: EventListener = (event) => {
+    const pointerEvent = event as PointerEvent;
+    const cardEl = (pointerEvent.target as Element | null)?.closest(".fc-card") ?? null;
+    const index = cardEl ? Array.from(this._track.children).indexOf(cardEl) : -1;
+    this._pendingFlip =
+      index === -1 ? null : { index, x: pointerEvent.clientX, y: pointerEvent.clientY, t: pointerEvent.timeStamp };
+  };
+
+  private readonly _handlePointerUp: EventListener = (event) => {
+    const pending = this._pendingFlip;
+    this._pendingFlip = null;
+    if (!pending) return;
+
+    const pointerEvent = event as PointerEvent;
+    const distance = Math.hypot(pointerEvent.clientX - pending.x, pointerEvent.clientY - pending.y);
+    const duration = pointerEvent.timeStamp - pending.t;
+    const selection = window.getSelection();
+
+    if (shouldCommitFlip({ distance, duration, selectionCollapsed: selection === null || selection.isCollapsed })) {
+      this._flip(pending.index);
+    }
+  };
+
+  private readonly _handlePointerCancel: EventListener = (): void => {
+    this._pendingFlip = null;
   };
 
   constructor(target: string | Element, cards: readonly Flashcard[], options: DeckOptions = {}) {
     this._container = resolveTarget(target);
     this._options = resolveOptions(options);
     this._cards = cards;
+    this._sides = cards.map(() => "front");
 
     if (this._options.injectStyles) injectStylesOnce();
 
@@ -148,6 +196,9 @@ export class FlashcardDeck {
     this._prevArrow.addEventListener("click", this._handlePrevClick);
     this._nextArrow.addEventListener("click", this._handleNextClick);
     this._container.addEventListener("keydown", this._handleKeydown);
+    this._track.addEventListener("pointerdown", this._handlePointerDown);
+    this._track.addEventListener("pointerup", this._handlePointerUp);
+    this._track.addEventListener("pointercancel", this._handlePointerCancel);
 
     this._updateChrome();
   }
@@ -161,7 +212,7 @@ export class FlashcardDeck {
   /** LIB-6.4: current index, visible side, and card count, for hosts that
    * prefer polling to callbacks. */
   getState(): { index: number; side: Side; count: number } {
-    return { index: this._index, side: this._side, count: this._cards.length };
+    return { index: this._index, side: this._sides[this._index] ?? "front", count: this._cards.length };
   }
 
   /** The single seam every navigation path — arrows, keys, `goTo`, and
@@ -174,6 +225,20 @@ export class FlashcardDeck {
     this._index = Math.min(Math.max(index, 0), count - 1);
     this._track.classList.toggle("fc-track--animate", options.animate ?? false);
     this._updateChrome();
+  }
+
+  /** LIB-5.12, LIB-5.14: toggles `index`'s face and reflects it on the DOM
+   * via `.fc-card--flipped` (the flip transition itself lives in the
+   * stylesheet). `onFlip` (LIB-6.10) and the live-region announcement
+   * (LIB-8.3) are wired by T-10 and T-08 respectively — this only owns the
+   * flip and its per-card state. */
+  private _flip(index: number): void {
+    const currentSide = this._sides[index];
+    if (currentSide === undefined) return;
+
+    const nextSide: Side = currentSide === "front" ? "back" : "front";
+    this._sides[index] = nextSide;
+    this._track.children[index]?.classList.toggle("fc-card--flipped", nextSide === "back");
   }
 
   /** LIB-4.15–LIB-4.18, LIB-5.4: rebuilds the indicators for the current
@@ -196,6 +261,9 @@ export class FlashcardDeck {
     this._prevArrow.removeEventListener("click", this._handlePrevClick);
     this._nextArrow.removeEventListener("click", this._handleNextClick);
     this._container.removeEventListener("keydown", this._handleKeydown);
+    this._track.removeEventListener("pointerdown", this._handlePointerDown);
+    this._track.removeEventListener("pointerup", this._handlePointerUp);
+    this._track.removeEventListener("pointercancel", this._handlePointerCancel);
 
     this._container.replaceChildren();
   }

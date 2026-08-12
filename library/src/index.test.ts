@@ -408,3 +408,148 @@ describe("getState (LIB-6.4)", () => {
     expect(deck.getState()).toEqual({ index: 0, side: "front", count: 0 });
   });
 });
+
+function tap(card: Element, at: { x: number; y: number } = { x: 0, y: 0 }): void {
+  card.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: at.x, clientY: at.y }));
+  card.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: at.x, clientY: at.y }));
+}
+
+describe("tap/click flip (LIB-5.12, LIB-5.13)", () => {
+  it("flips the tapped card to back, and back to front on a second tap", () => {
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+
+    tap(card);
+    expect(deck.getState().side).toBe("back");
+    expect(card.classList.contains("fc-card--flipped")).toBe(true);
+
+    tap(card);
+    expect(deck.getState().side).toBe("front");
+    expect(card.classList.contains("fc-card--flipped")).toBe(false);
+  });
+
+  it("flips when the press originates on nested card content, not just the card element itself", () => {
+    const { deck, container } = mount(CARDS);
+    const text = container.querySelector(".fc-face--front .fc-text") as HTMLElement;
+
+    tap(text);
+
+    expect(deck.getState().side).toBe("back");
+  });
+
+  it("does not flip when release has moved >= 8px from the press point (a drag-to-select)", () => {
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+
+    card.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0 }));
+    card.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 20, clientY: 0 }));
+
+    expect(deck.getState().side).toBe("front");
+  });
+
+  it("does not flip when the current selection is not collapsed", () => {
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+    const getSelectionSpy = vi
+      .spyOn(window, "getSelection")
+      .mockReturnValue({ isCollapsed: false } as unknown as Selection);
+
+    tap(card);
+
+    expect(deck.getState().side).toBe("front");
+    getSelectionSpy.mockRestore();
+  });
+
+  it("cancels a pending flip on pointercancel (e.g. a long-press text selection)", () => {
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+
+    card.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0 }));
+    card.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
+    card.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, clientX: 0, clientY: 0 }));
+
+    expect(deck.getState().side).toBe("front");
+  });
+
+  it("ignores a pointerup with no matching pointerdown on the track", () => {
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+
+    expect(() => card.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }))).not.toThrow();
+    expect(deck.getState().side).toBe("front");
+  });
+});
+
+describe("per-card flip persistence (LIB-5.14)", () => {
+  it("keeps each card's flip state independent across navigation", () => {
+    const { deck, container } = mount(CARDS);
+    const cards = () => Array.from(container.querySelectorAll(".fc-card"));
+
+    tap(cards()[0] as HTMLElement);
+    expect(deck.getState()).toMatchObject({ index: 0, side: "back" });
+
+    deck.goTo(1);
+    expect(deck.getState()).toMatchObject({ index: 1, side: "front" });
+
+    deck.goTo(2);
+    tap(cards()[2] as HTMLElement);
+    expect(deck.getState()).toMatchObject({ index: 2, side: "back" });
+
+    deck.goTo(0);
+    expect(deck.getState()).toMatchObject({ index: 0, side: "back" });
+
+    deck.goTo(1);
+    expect(deck.getState()).toMatchObject({ index: 1, side: "front" });
+  });
+});
+
+describe("keyboard flip (LIB-5.20, LIB-5.22)", () => {
+  it("flips the current card on Enter", () => {
+    const { deck, container } = mount(CARDS);
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(deck.getState().side).toBe("back");
+  });
+
+  it("flips the current card on Space and calls preventDefault so the page does not scroll", () => {
+    const { deck, container } = mount(CARDS);
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+
+    container.dispatchEvent(event);
+
+    expect(deck.getState().side).toBe("back");
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not call preventDefault for Enter", () => {
+    const { container } = mount(CARDS);
+    const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+
+    container.dispatchEvent(event);
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+  });
+
+  it("flips the card currently navigated to, not always the first card", () => {
+    const { deck, container } = mount(CARDS);
+
+    deck.goTo(1);
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(deck.getState()).toMatchObject({ index: 1, side: "back" });
+  });
+});
+
+describe("destroy() teardown of pointer listeners", () => {
+  it("removes the track's pointer listeners so a tap after destroy does nothing", () => {
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+
+    deck.destroy();
+
+    expect(() => tap(card)).not.toThrow();
+  });
+});

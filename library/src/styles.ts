@@ -53,22 +53,42 @@ export const STYLES = `
 }
 
 .fc-card {
+  position: relative;
   flex: none;
   background: var(--fc-card-bg);
   border: 1px solid var(--fc-card-border);
   border-radius: 0.75rem;
   box-shadow: 0 0.25rem 1rem var(--fc-shadow-color);
+  /* LIB-4.35: the depth the two faces rotate through. */
+  perspective: 1200px;
 }
 
-/* LIB-4.29, LIB-4.30: each face is its own full-size box inside .fc-card;
-   which one is visible, and any transition between them, is T-05's concern. */
+/* LIB-4.29, LIB-4.30, LIB-4.35: both faces sit stacked on top of each other
+   (inset: 0 inside the now-relative .fc-card) and only one faces the viewer
+   at a time — .fc-face--back starts pre-rotated away, and .fc-card--flipped
+   (set by T-05's _flip) rotates both faces another 180deg over 300ms. */
 .fc-face {
+  position: absolute;
+  inset: 0;
   display: flex;
   flex-direction: column;
-  inline-size: 100%;
-  block-size: 100%;
   padding: 1rem;
   overflow: hidden;
+  backface-visibility: hidden;
+  transform: rotateY(0deg);
+  transition: transform 300ms;
+}
+
+.fc-face--back {
+  transform: rotateY(180deg);
+}
+
+.fc-card--flipped .fc-face--front {
+  transform: rotateY(180deg);
+}
+
+.fc-card--flipped .fc-face--back {
+  transform: rotateY(360deg);
 }
 
 .fc-category {
@@ -145,6 +165,16 @@ export const STYLES = `
 
 .fc-track--animate {
   transition: transform 250ms ease;
+}
+
+/* LIB-4.36: flips and navigation apply instantly, with no transition, when
+   the user has asked the OS for reduced motion. Everything else (colours,
+   focus rings, etc.) is unaffected. */
+@media (prefers-reduced-motion: reduce) {
+  .fc-face,
+  .fc-track--animate {
+    transition: none;
+  }
 }
 
 .fc-arrow,
