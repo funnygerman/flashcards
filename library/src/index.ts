@@ -287,6 +287,18 @@ export class FlashcardDeck {
     this._abandonGesture();
   };
 
+  // LIB-5.23: keeps focus somewhere inside the deck on any pointer press
+  // within it. Unconditional and run on pointerdown (before the browser's
+  // own default focus assignment for this same event): pressing on a card,
+  // arrow, or other real control still ends with focus on that control,
+  // since the browser's default action targets whatever was actually
+  // pressed and runs after every handler for this event, including this
+  // one — this only matters as a fallback for the parts of the deck that
+  // aren't independently focusable.
+  private readonly _handleRootPointerDown: EventListener = (): void => {
+    this._root.focus({ preventScroll: true });
+  };
+
   // LIB-4.21: tap/click dismissal — bound directly to the title element
   // itself, since (unlike the arrows/info button) it isn't wired through the
   // container's keydown handler for pointer input.
@@ -313,6 +325,15 @@ export class FlashcardDeck {
     // LIB-8.1: the deck is a single composite widget, not a generic <div>.
     this._root.setAttribute("role", "group");
     this._root.setAttribute("aria-roledescription", "flashcard deck");
+    // LIB-5.23: a fallback focus target, script-focusable but not a Tab stop
+    // of its own (the deck already has real ones: cards, arrows, dots, info).
+    // Pointing a click at any non-focusable part of the deck — the padding
+    // around the card, the empty space above/below it — would otherwise blur
+    // whatever card was focused with nothing inside the deck to catch it,
+    // silently moving focus to <body> and, since the keydown listener below
+    // is deliberately container-scoped rather than global, taking ←/→
+    // navigation down with it. See `_handleRootPointerDown`.
+    this._root.tabIndex = -1;
     if (this._options.accentColor !== undefined) {
       this._root.style.setProperty("--fc-accent", this._options.accentColor);
     }
@@ -410,6 +431,7 @@ export class FlashcardDeck {
     this._prevArrow.addEventListener("click", this._handlePrevClick);
     this._nextArrow.addEventListener("click", this._handleNextClick);
     this._container.addEventListener("keydown", this._handleKeydown);
+    this._root.addEventListener("pointerdown", this._handleRootPointerDown);
     this._track.addEventListener("pointerdown", this._handlePointerDown);
     this._track.addEventListener("pointermove", this._handlePointerMove);
     this._track.addEventListener("pointerup", this._handlePointerUp);
@@ -768,6 +790,7 @@ export class FlashcardDeck {
     this._prevArrow.removeEventListener("click", this._handlePrevClick);
     this._nextArrow.removeEventListener("click", this._handleNextClick);
     this._container.removeEventListener("keydown", this._handleKeydown);
+    this._root.removeEventListener("pointerdown", this._handleRootPointerDown);
     this._track.removeEventListener("pointerdown", this._handlePointerDown);
     this._track.removeEventListener("pointermove", this._handlePointerMove);
     this._track.removeEventListener("pointerup", this._handlePointerUp);

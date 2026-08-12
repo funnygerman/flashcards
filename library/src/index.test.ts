@@ -348,6 +348,40 @@ describe("keyboard navigation (LIB-5.19, LIB-5.23)", () => {
   });
 });
 
+describe("focus recovery on pointerdown (LIB-5.23)", () => {
+  // Clicking any part of the deck that isn't itself focusable (the padding
+  // around the card, the empty space .fc-viewport centers a shorter card
+  // in) used to blur whatever card was focused with nothing inside the deck
+  // to catch it, silently moving focus to <body> — outside the container
+  // the keydown listener above is deliberately scoped to — and taking ←/→
+  // navigation down with it until a card or arrow was clicked again.
+  it(".fc-root is a script-focusable fallback target, not part of the tab order", () => {
+    const { container } = mount(CARDS);
+    const root = container.querySelector(".fc-root") as HTMLElement;
+
+    expect(root.tabIndex).toBe(-1);
+  });
+
+  it("moves focus to .fc-root on a pointerdown that doesn't land on a more specific focusable target", () => {
+    const { container } = mount(CARDS);
+    const root = container.querySelector(".fc-root") as HTMLElement;
+
+    root.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+
+    expect(document.activeElement).toBe(root);
+  });
+
+  it("keeps ←/→ navigation working after a pointerdown outside any card", () => {
+    const { deck, container } = mount(CARDS);
+    const root = container.querySelector(".fc-root") as HTMLElement;
+
+    root.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(deck.getState().index).toBe(1);
+  });
+});
+
 describe("goTo (LIB-6.3)", () => {
   it("clamps a negative index to 0", () => {
     const { deck } = mount(CARDS);

@@ -308,7 +308,12 @@ however short, to never visibly select text.*
 **LIB-5.22** `Space` must not scroll the page when used to flip a card; the handler calls `preventDefault()`.
 
 **LIB-5.23** Keyboard listeners are bound to the deck container, never to `document`. Two decks on one page
-therefore never compete for arrow keys — the focused deck responds.
+therefore never compete for arrow keys — the focused deck responds. Because of this, focus must never be
+allowed to leave the container entirely while the user is still interacting with it: `.fc-root` is itself a
+script-focusable fallback target (`tabindex="-1"`, not part of the normal tab order) that a pointerdown on any
+part of the deck not otherwise focusable — the padding around the card, the space `.fc-viewport` centers a
+shorter card in — moves focus to, so a click there does not silently blur to `<body>` and disable ←/→ along
+with it.
 
 ---
 
