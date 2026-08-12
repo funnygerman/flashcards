@@ -52,4 +52,15 @@ export default tseslint.config(
       globals: { process: "readonly", console: "readonly" },
     },
   },
+
+  {
+    /* T-10: the library's plain-JS demo page (library/demo/index.html) runs
+       in the browser only — no TS project backs it (unlike app/src and
+       library/src, where the DOM lib already covers these), so its globals
+       are declared the same way as the Node ones above. */
+    files: ["library/demo/**/*.js"],
+    languageOptions: {
+      globals: { document: "readonly", window: "readonly", console: "readonly" },
+    },
+  },
 );
