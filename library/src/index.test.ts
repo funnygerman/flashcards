@@ -751,8 +751,15 @@ describe("gesture engine: vertical grading (LIB-5.8, LIB-5.9, LIB-5.11)", () => 
   });
 });
 
-describe("gesture engine: desktop mouse (LIB-5.16, LIB-5.17)", () => {
-  it("does not navigate on a mouse drag past the swipe threshold", () => {
+describe("gesture engine: mouse (LIB-5.1)", () => {
+  // Mouse used to be excluded from the gesture engine entirely (formerly
+  // LIB-5.16/5.17: mouse never navigates, so text stays freely selectable).
+  // That traded away too much — a failed swipe attempt with a mouse fell
+  // through to the browser and visibly selected the card's text instead of
+  // doing nothing useful. .fc-card now disables selection outright (see
+  // styles.ts), so there's no text-selection benefit left to preserve, and
+  // mouse now drives the exact same gesture engine touch and pen do.
+  it("navigates on a mouse drag past the swipe threshold", () => {
     const restore = stubCardRect(200, 300);
     const { deck, container } = mount(CARDS);
     const card = cards(container)[0]!;
@@ -767,11 +774,11 @@ describe("gesture engine: desktop mouse (LIB-5.16, LIB-5.17)", () => {
       "mouse",
     );
 
-    expect(deck.getState().index).toBe(0);
+    expect(deck.getState().index).toBe(1);
     restore();
   });
 
-  it("does not grade on a mouse drag past the grade threshold", () => {
+  it("grades on a mouse drag past the grade threshold", () => {
     const restore = stubCardRect(200, 300);
     const onGrade = vi.fn();
     const { container } = mount(CARDS, { onGrade });
@@ -787,7 +794,7 @@ describe("gesture engine: desktop mouse (LIB-5.16, LIB-5.17)", () => {
       "mouse",
     );
 
-    expect(onGrade).not.toHaveBeenCalled();
+    expect(onGrade).toHaveBeenCalledExactlyOnceWith(0, "easy");
     restore();
   });
 

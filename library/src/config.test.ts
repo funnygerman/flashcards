@@ -10,10 +10,10 @@ describe("resolveOptions defaults (LIB-4.7, LIB-4.12, LIB-4.16, LIB-5.5, LIB-5.6
   it("fills in every documented default when given no options", () => {
     expect(resolveOptions()).toEqual({
       aspectRatio: [4, 3],
-      widthRatio: 0.9,
+      widthRatio: 0.75,
       portraitHeightRatio: 0.75,
       landscapeHeightRatio: 0.88,
-      maxWidthPx: 480,
+      maxWidthPx: 900,
       textScale: 0.085,
       detailsScale: 0.05,
       dotLimit: 12,
@@ -110,8 +110,8 @@ describe("resolveOptions invalid input (LIB-6.15)", () => {
     { name: "negative dotLimit", input: { dotLimit: -1 }, field: "dotLimit", expected: 12 },
     { name: "non-integer dotLimit", input: { dotLimit: 3.5 }, field: "dotLimit", expected: 12 },
     { name: "friction of the wrong type", input: { friction: "x" as unknown as number }, field: "friction", expected: 0.35 },
-    { name: "zero maxWidthPx", input: { maxWidthPx: 0 }, field: "maxWidthPx", expected: 480 },
-    { name: "negative widthRatio", input: { widthRatio: -0.5 }, field: "widthRatio", expected: 0.9 },
+    { name: "zero maxWidthPx", input: { maxWidthPx: 0 }, field: "maxWidthPx", expected: 900 },
+    { name: "negative widthRatio", input: { widthRatio: -0.5 }, field: "widthRatio", expected: 0.75 },
     { name: "NaN textScale", input: { textScale: Number.NaN }, field: "textScale", expected: 0.085 },
     { name: "showCategory of the wrong type", input: { showCategory: "yes" as unknown as boolean }, field: "showCategory", expected: false },
     { name: "injectStyles of the wrong type", input: { injectStyles: 1 as unknown as boolean }, field: "injectStyles", expected: true },

@@ -47,8 +47,11 @@ export function reduceGesture(state: GestureState, event: GestureEvent, ctx: Ges
 9. **Given** a card whose content area is scrollable and not at the relevant scroll boundary, **when** the
    user drags vertically, **then** no grade gesture starts and the content scrolls; `touch-action` is `none`
    on the card and `pan-y` on a scrollable content area (`LIB-5.10`).
-10. **Given** a mouse drag on desktop, **then** it does not navigate, and text selection works normally
-    (`LIB-5.16`, `LIB-5.17`).
+10. ~~**Given** a mouse drag on desktop, **then** it does not navigate, and text selection works normally
+    (`LIB-5.16`, `LIB-5.17`).~~ Superseded after this task: a mouse drag that fell through to the browser
+    untouched visibly selected the card's text instead of doing nothing, which read as broken. `LIB-5.16` and
+    `LIB-5.17` now read the other way — mouse drives the same gesture engine touch and pen do, and card text is
+    not selectable at all (`user-select: none`).
 
 ## Test plan
 
