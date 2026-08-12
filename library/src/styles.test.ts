@@ -87,3 +87,24 @@ describe("stylesheet structure (LIB-9.6)", () => {
     expect(STYLES).not.toMatch(/[^-](left|right|top|bottom)\s*:/);
   });
 });
+
+describe("flip animation (LIB-4.35, LIB-4.36)", () => {
+  it("animates .fc-face as a rotateY transform over 300ms", () => {
+    const match = /\.fc-face\s*{([^}]*)}/.exec(STYLES);
+    expect(match?.[1]).toMatch(/transform:\s*rotateY\(0deg\)/);
+    expect(match?.[1]).toMatch(/transition:\s*transform\s+300ms/);
+  });
+
+  it("rotates .fc-card--flipped's faces past each other via rotateY", () => {
+    expect(STYLES).toMatch(/\.fc-card--flipped \.fc-face--front\s*{[^}]*transform:\s*rotateY\(180deg\)/);
+    expect(STYLES).toMatch(/\.fc-card--flipped \.fc-face--back\s*{[^}]*transform:\s*rotateY\(360deg\)/);
+  });
+
+  it("removes the flip and navigation transitions under prefers-reduced-motion: reduce", () => {
+    const block = /@media \(prefers-reduced-motion:\s*reduce\)\s*{([\s\S]*?)}\s*}/.exec(STYLES)?.[1];
+    expect(block).toBeDefined();
+    expect(block).toMatch(/\.fc-face/);
+    expect(block).toMatch(/\.fc-track--animate/);
+    expect(block).toMatch(/transition:\s*none/);
+  });
+});
