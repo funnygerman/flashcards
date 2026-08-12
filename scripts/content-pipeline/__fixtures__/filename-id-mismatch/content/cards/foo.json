@@ -1,0 +1,6 @@
+{
+  "id": "bar",
+  "front": { "text": "Apfel" },
+  "back": { "text": "apple" },
+  "category": "noun"
+}

@@ -1,0 +1,6 @@
+{
+  "id": "everyday",
+  "title": "Everyday",
+  "description": "One card from each authoring format.",
+  "cards": ["danke-thank-you", "haus-house", "hund-dog", "gut-good", "schlecht-bad"]
+}
