@@ -88,6 +88,13 @@ describe("stylesheet structure (LIB-9.6)", () => {
   });
 });
 
+describe("card focus ring (LIB-8.7)", () => {
+  it("insets .fc-card's focus-visible outline, so .fc-viewport's overflow: hidden can never clip it on some sides but not others", () => {
+    const match = /\.fc-card:focus-visible\s*{([^}]*)}/.exec(STYLES);
+    expect(match?.[1]).toMatch(/outline-offset:\s*-2px/);
+  });
+});
+
 describe("card and track sizing (LIB-4.5, LIB-5.2)", () => {
   it("sizes .fc-card's block-size from --fc-card-h, not left to stretch to its flex container", () => {
     const match = /\.fc-card\s*{([^}]*)}/.exec(STYLES);

@@ -106,9 +106,16 @@ export const STYLES = `
 
 /* LIB-8.7: cards are tabindex="0" (T-08's roving focus); the ring must be
    visible, never just the browser default. */
+/* LIB-8.7: an outward outline-offset would extend past .fc-card's own box —
+   which exactly fills .fc-viewport's clipped width but not its (usually
+   taller) height — so .fc-viewport's overflow: hidden would clip the ring's
+   left/right edges while leaving its top/bottom edges alone, rendering as
+   two disconnected bars instead of a ring. Inset (negative offset) keeps
+   the whole ring inside the card's own box, which is always fully visible,
+   the same fix already applied to .fc-title below. */
 .fc-card:focus-visible {
   outline: 2px solid var(--fc-accent);
-  outline-offset: 2px;
+  outline-offset: -2px;
 }
 
 /* LIB-4.29, LIB-4.30, LIB-4.35: both faces sit stacked on top of each other
