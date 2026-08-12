@@ -10,6 +10,10 @@ import type { Flashcard, Side } from "./types.js";
 
 export const PREV_ARROW_LABEL = "Previous card";
 export const NEXT_ARROW_LABEL = "Next card";
+// LIB-4.25: the ⓘ control's only accessible name — it carries no visible text.
+export const INFO_BUTTON_LABEL = "Deck information";
+// LIB-4.26, LIB-8.8: the info panel's close control.
+export const CLOSE_PANEL_LABEL = "Close";
 
 /** LIB-8.2: `"Card 3 of 42, front"`. `index` is 0-based; the label is
  * 1-based, matching the counter indicator's own `3 / 42` formatting. */

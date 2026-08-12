@@ -11,21 +11,24 @@
  * keyboard grade path (`_grade`) that T-06 reuses for swipes. T-06 adds the
  * pointer-driven gesture engine (`gesture.ts`'s `reduceGesture`): horizontal
  * drag-to-navigate, vertical drag-to-grade, and the wiring that keeps a
- * committed drag from also firing T-05's tap-flip. The rest of the surface
- * arrives with:
- *   T-09   title/info
+ * committed drag from also firing T-05's tap-flip. T-09 adds the optional
+ * title-screen overlay and the always-available info panel (`panels.ts`),
+ * including the focus trap and ⓘ-return-on-close T-08 left as a documented
+ * gap (`LIB-8.8`) until this panel existed. The rest of the surface arrives
+ * with:
  *   T-10   the onCardShown / onFlip callbacks and final packaging
  *
  * See docs/tasks/README.md.
  */
 
-import { applyCardA11y, PREV_ARROW_LABEL, NEXT_ARROW_LABEL, revealedSideText } from "./a11y.js";
+import { applyCardA11y, INFO_BUTTON_LABEL, PREV_ARROW_LABEL, NEXT_ARROW_LABEL, revealedSideText } from "./a11y.js";
 import { resolveOptions } from "./config.js";
 import { shouldCommitFlip } from "./flip.js";
 import { IDLE_GESTURE_STATE, reduceGesture } from "./gesture.js";
 import type { GestureContext, GestureState } from "./gesture.js";
 import { gradeForDirection } from "./grade.js";
 import { renderIndicators } from "./indicators.js";
+import { createInfoPanel, createTitleScreen, detectTouchCapability, focusableElements } from "./panels.js";
 import { _renderCard } from "./rendering.js";
 import { STYLES } from "./styles.js";
 import type { DeckOptions, Flashcard, Grade, ResolvedOptions, Side } from "./types.js";
@@ -90,6 +93,22 @@ export class FlashcardDeck {
   // LIB-8.3: visually hidden (`.fc-sr-only`), `aria-live="polite"`.
   private readonly _liveRegion: HTMLDivElement;
 
+  // LIB-4.25–LIB-4.28: the info panel is always built (the ⓘ control is
+  // permanently available, LIB-4.25) — `info` config only affects whether
+  // `_infoPanel` carries application text alongside the library-generated
+  // interaction list. Starts hidden; `_infoOpen` is the single source of
+  // truth for whether it's currently shown.
+  private readonly _infoBackdrop: HTMLDivElement;
+  private readonly _infoPanel: HTMLDivElement;
+  private readonly _infoCloseButton: HTMLButtonElement;
+  private _infoOpen = false;
+
+  // LIB-4.19–LIB-4.24: only built when `title` is configured; `null` from
+  // the start otherwise (LIB-4.24 — no flag, no storage, just this). Set
+  // back to `null` the moment it's dismissed, permanently, for the life of
+  // the instance (LIB-4.21).
+  private _titleEl: HTMLDivElement | null = null;
+
   /** LIB-6.4: current position. */
   private _index = 0;
   // LIB-5.14: one entry per card, so flip state persists independently as
@@ -120,6 +139,28 @@ export class FlashcardDeck {
   private readonly _handleKeydown: EventListener = (event) => {
     const keyboardEvent = event as KeyboardEvent;
     const key = keyboardEvent.key;
+
+    // LIB-4.21: while the title screen is up, Enter/Space/→ dismiss it —
+    // permanently — instead of flipping or navigating, and every other key
+    // is swallowed (the overlay is meant to block interaction with the deck
+    // underneath, not just the keys that happen to dismiss it).
+    if (this._titleEl) {
+      if (key === "Enter" || key === " " || key === "ArrowRight") {
+        if (key === " ") keyboardEvent.preventDefault();
+        this._dismissTitle();
+      }
+      return;
+    }
+
+    // LIB-4.26, LIB-8.8: while the info panel is open, Esc closes it and Tab
+    // cycles within its own focus trap — neither reaches the deck's own
+    // navigation/flip/grade handling below.
+    if (this._infoOpen) {
+      if (key === "Escape") this._closeInfoPanel();
+      else if (key === "Tab") this._trapFocus(keyboardEvent);
+      return;
+    }
+
     if (key === "ArrowLeft") this._setIndex(this._index - 1, { animate: true });
     else if (key === "ArrowRight") this._setIndex(this._index + 1, { animate: true });
     else if (key === "Enter" || key === " ") {
@@ -218,6 +259,19 @@ export class FlashcardDeck {
     this._abandonGesture();
   };
 
+  // LIB-4.21: tap/click dismissal — bound directly to the title element
+  // itself, since (unlike the arrows/info button) it isn't wired through the
+  // container's keydown handler for pointer input.
+  private readonly _handleTitleClick = (): void => this._dismissTitle();
+
+  private readonly _handleInfoButtonClick = (): void => this._openInfoPanel();
+  private readonly _handleInfoCloseClick = (): void => this._closeInfoPanel();
+  // LIB-4.26: closes on a click that lands on the backdrop itself, not one
+  // that bubbled up from the panel's own content.
+  private readonly _handleBackdropClick: EventListener = (event) => {
+    if (event.target === this._infoBackdrop) this._closeInfoPanel();
+  };
+
   constructor(target: string | Element, cards: readonly Flashcard[], options: DeckOptions = {}) {
     this._container = resolveTarget(target);
     this._options = resolveOptions(options);
@@ -266,6 +320,11 @@ export class FlashcardDeck {
     this._infoButton = document.createElement("button");
     this._infoButton.type = "button";
     this._infoButton.className = "fc-info";
+    // LIB-8.4-style: no visible text, so this is its only accessible name.
+    this._infoButton.setAttribute("aria-label", INFO_BUTTON_LABEL);
+    this._infoButton.setAttribute("aria-haspopup", "dialog");
+    this._infoButton.setAttribute("aria-expanded", "false");
+    this._infoButton.textContent = "ⓘ";
 
     // LIB-8.3: holds only the just-revealed side's text between flips —
     // never appended to, always replaced (see `_flip`).
@@ -274,6 +333,18 @@ export class FlashcardDeck {
     this._liveRegion.setAttribute("aria-live", "polite");
     this._liveRegion.setAttribute("aria-atomic", "true");
 
+    // LIB-4.27, LIB-4.28: the interaction list is generated once from facts
+    // that don't change over the instance's life (device touch capability,
+    // card count) — never from the application's own `info` text, which is
+    // shown alongside it untouched (LIB-3.7).
+    const { backdrop, panel, closeButton } = createInfoPanel(this._options.info ?? {}, {
+      touch: detectTouchCapability(),
+      cardCount: cards.length,
+    });
+    this._infoBackdrop = backdrop;
+    this._infoPanel = panel;
+    this._infoCloseButton = closeButton;
+
     this._root.append(
       this._track,
       this._indicators,
@@ -281,7 +352,17 @@ export class FlashcardDeck {
       this._nextArrow,
       this._infoButton,
       this._liveRegion,
+      this._infoBackdrop,
     );
+
+    // LIB-4.19: mounted last so it stacks above everything else — a pure
+    // overlay, not a `.fc-track` slide, so it never touches card indices,
+    // indicator counts, or `goTo` arguments (LIB-4.20).
+    if (this._options.title !== undefined) {
+      this._titleEl = createTitleScreen(this._options.title);
+      this._root.append(this._titleEl);
+    }
+
     this._container.replaceChildren(this._root);
 
     // LIB-5.18, LIB-5.19, LIB-5.23: arrow clicks and the container's own
@@ -294,6 +375,11 @@ export class FlashcardDeck {
     this._track.addEventListener("pointermove", this._handlePointerMove);
     this._track.addEventListener("pointerup", this._handlePointerUp);
     this._track.addEventListener("pointercancel", this._handlePointerCancel);
+    this._infoButton.addEventListener("click", this._handleInfoButtonClick);
+    this._infoCloseButton.addEventListener("click", this._handleInfoCloseClick);
+    this._infoBackdrop.addEventListener("click", this._handleBackdropClick);
+    if (this._titleEl) this._titleEl.addEventListener("click", this._handleTitleClick);
+    this._titleEl?.focus();
 
     this._updateChrome();
   }
@@ -350,6 +436,70 @@ export class FlashcardDeck {
    * duplicated here. */
   private _grade(grade: Grade): void {
     this._options.onGrade?.(this._index, grade);
+  }
+
+  /** LIB-4.21: removes the title overlay and clears `_titleEl` so it can
+   * never reappear for the life of the instance — the only state this
+   * behaviour needs, and it lives only in memory (LIB-4.24). */
+  private _dismissTitle(): void {
+    const titleEl = this._titleEl;
+    if (!titleEl) return;
+
+    this._titleEl = null;
+    titleEl.removeEventListener("click", this._handleTitleClick);
+    titleEl.remove();
+  }
+
+  /** LIB-4.26: opens the info panel and moves focus inside it — the first
+   * step of the focus trap (LIB-8.8), which `_trapFocus` maintains for as
+   * long as the panel stays open. */
+  private _openInfoPanel(): void {
+    if (this._infoOpen) return;
+
+    this._infoOpen = true;
+    this._infoBackdrop.hidden = false;
+    this._infoButton.setAttribute("aria-expanded", "true");
+    (focusableElements(this._infoPanel)[0] ?? this._infoCloseButton).focus();
+  }
+
+  /** LIB-4.26, LIB-8.8: closes the panel by whichever path triggered it
+   * (Esc, the close control, or a click outside) and restores focus to the
+   * `ⓘ` control that opened it. */
+  private _closeInfoPanel(): void {
+    if (!this._infoOpen) return;
+
+    this._infoOpen = false;
+    this._infoBackdrop.hidden = true;
+    this._infoButton.setAttribute("aria-expanded", "false");
+    this._infoButton.focus();
+  }
+
+  /** LIB-8.8: keeps `Tab`/`Shift+Tab` cycling within the panel's own
+   * focusable elements. Recomputed on every press rather than cached (see
+   * `focusableElements`'s own doc comment); wrapping happens only at the
+   * boundaries (or when focus has somehow left the panel entirely), so a
+   * `Tab` in the middle of the list behaves exactly as the browser's default
+   * tab order already would. */
+  private _trapFocus(event: KeyboardEvent): void {
+    const focusables = focusableElements(this._infoPanel);
+    if (focusables.length === 0) {
+      event.preventDefault();
+      return;
+    }
+
+    const first = focusables[0]!;
+    const last = focusables[focusables.length - 1]!;
+    const active = document.activeElement;
+
+    if (event.shiftKey) {
+      if (active === first || !focusables.includes(active as HTMLElement)) {
+        event.preventDefault();
+        last.focus();
+      }
+    } else if (active === last || !focusables.includes(active as HTMLElement)) {
+      event.preventDefault();
+      first.focus();
+    }
   }
 
   /** T-06: measured fresh for every `reduceGesture` call (see `gesture.ts`'s
@@ -517,6 +667,10 @@ export class FlashcardDeck {
     this._track.removeEventListener("pointermove", this._handlePointerMove);
     this._track.removeEventListener("pointerup", this._handlePointerUp);
     this._track.removeEventListener("pointercancel", this._handlePointerCancel);
+    this._infoButton.removeEventListener("click", this._handleInfoButtonClick);
+    this._infoCloseButton.removeEventListener("click", this._handleInfoCloseClick);
+    this._infoBackdrop.removeEventListener("click", this._handleBackdropClick);
+    this._titleEl?.removeEventListener("click", this._handleTitleClick);
 
     this._container.replaceChildren();
   }
