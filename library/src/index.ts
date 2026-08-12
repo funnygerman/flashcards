@@ -2,18 +2,20 @@
  * @flashcards/library — public entry point.
  *
  * T-01 added the data and configuration types plus `resolveOptions`. T-02
- * added the sizing engine's pure `computeCardSize`. T-03 adds the
+ * added the sizing engine's pure `computeCardSize`. T-03 added the
  * `FlashcardDeck` class: its DOM skeleton, style injection, and teardown.
- * The rest of the surface arrives with:
- *   T-04 … T-09  card rendering, flip, gestures, chrome, a11y, title/info
- *   T-10  goTo, getState, and the onCardShown / onFlip / onGrade callbacks
+ * T-07 adds `goTo`, `getState`, and the arrow/indicator chrome. The rest of
+ * the surface arrives with:
+ *   T-04, T-05, T-06, T-08, T-09  card rendering, flip, gestures, a11y, title/info
+ *   T-10  the onCardShown / onFlip / onGrade callbacks and final packaging
  *
  * See docs/tasks/README.md.
  */
 
 import { resolveOptions } from "./config.js";
+import { renderIndicators } from "./indicators.js";
 import { STYLES } from "./styles.js";
-import type { DeckOptions, Flashcard, ResolvedOptions } from "./types.js";
+import type { DeckOptions, Flashcard, ResolvedOptions, Side } from "./types.js";
 
 export type * from "./types.js";
 export { resolveOptions } from "./config.js";
@@ -51,19 +53,20 @@ function resolveTarget(target: string | Element): Element {
   return target;
 }
 
-/** LIB-6.1–LIB-6.5, LIB-7.1–LIB-7.10: the reusable flashcard deck. This task
- * (T-03) builds the DOM skeleton and teardown; cards render blank and
- * nothing is interactive yet — see docs/tasks/T-03-dom-skeleton.md.
+/** LIB-6.1–LIB-6.5, LIB-7.1–LIB-7.10: the reusable flashcard deck. T-03 built
+ * the DOM skeleton and teardown. T-07 (this task) adds `goTo`/`getState`,
+ * the arrow buttons, the below-card indicators, and the container's
+ * `keydown` handler for `←`/`→` — see docs/tasks/T-07-chrome.md.
  *
- * T-03 itself binds no listeners and starts no timers, so `destroy()` has
- * nothing of its own to unwind yet beyond the container. Later tasks (T-02's
- * viewport resize handler, T-06's pointer listeners, T-08's container
- * keyboard handler, and any timers or animation frames they schedule) must
- * track what they add and extend `destroy()` to remove it, keeping LIB-6.5
- * satisfied as the deck grows. */
+ * Each listener the deck binds is removed in `destroy()`. Later tasks
+ * (T-02's viewport resize handler, T-06's pointer listeners, T-08's
+ * `↑`/`↓` grading on the same container `keydown` handler, and any timers
+ * or animation frames they schedule) must track what they add and extend
+ * `destroy()` to remove it, keeping LIB-6.5 satisfied as the deck grows. */
 export class FlashcardDeck {
   private readonly _container: Element;
   private readonly _options: ResolvedOptions;
+  private readonly _cards: readonly Flashcard[];
 
   private readonly _root: HTMLDivElement;
   private readonly _track: HTMLDivElement;
@@ -72,11 +75,30 @@ export class FlashcardDeck {
   private readonly _nextArrow: HTMLButtonElement;
   private readonly _infoButton: HTMLButtonElement;
 
+  /** LIB-6.4: current position and visible side. `_side` is a placeholder
+   * until T-05 lands per-card flip state — it stays "front" for now. */
+  private _index = 0;
+  private _side: Side = "front";
+
   private _destroyed = false;
+
+  // LIB-5.18, LIB-5.19: arrow clicks and ←/→ both funnel through `_setIndex`.
+  private readonly _handlePrevClick = (): void => this._setIndex(this._index - 1, { animate: true });
+  private readonly _handleNextClick = (): void => this._setIndex(this._index + 1, { animate: true });
+  // `_container` is typed as `Element`, not `HTMLElement` (it may be a plain
+  // selector match), so `addEventListener`'s `ElementEventMap` overload
+  // doesn't know "keydown" — hence the explicit `EventListener` type and the
+  // cast below rather than a `(event: KeyboardEvent) => void` parameter.
+  private readonly _handleKeydown: EventListener = (event) => {
+    const key = (event as KeyboardEvent).key;
+    if (key === "ArrowLeft") this._setIndex(this._index - 1, { animate: true });
+    else if (key === "ArrowRight") this._setIndex(this._index + 1, { animate: true });
+  };
 
   constructor(target: string | Element, cards: readonly Flashcard[], options: DeckOptions = {}) {
     this._container = resolveTarget(target);
     this._options = resolveOptions(options);
+    this._cards = cards;
 
     if (this._options.injectStyles) injectStylesOnce();
 
@@ -111,15 +133,61 @@ export class FlashcardDeck {
 
     this._root.append(this._track, this._indicators, this._prevArrow, this._nextArrow, this._infoButton);
     this._container.replaceChildren(this._root);
+
+    // LIB-5.18, LIB-5.19, LIB-5.23: arrow clicks and the container's own
+    // keyboard handler — never bound to `document`, so two decks on one page
+    // don't compete for arrow keys.
+    this._prevArrow.addEventListener("click", this._handlePrevClick);
+    this._nextArrow.addEventListener("click", this._handleNextClick);
+    this._container.addEventListener("keydown", this._handleKeydown);
+
+    this._updateChrome();
+  }
+
+  /** LIB-6.3: navigate to `index`, clamped to the deck's valid range. A
+   * no-op on an empty deck. Defaults to `animate: false`. */
+  goTo(index: number, options: { animate?: boolean } = {}): void {
+    this._setIndex(index, options);
+  }
+
+  /** LIB-6.4: current index, visible side, and card count, for hosts that
+   * prefer polling to callbacks. */
+  getState(): { index: number; side: Side; count: number } {
+    return { index: this._index, side: this._side, count: this._cards.length };
+  }
+
+  /** The single seam every navigation path — arrows, keys, `goTo`, and
+   * eventually T-06's committed gestures — funnels through, so index state
+   * and chrome updates never drift out of sync between callers. */
+  private _setIndex(index: number, options: { animate?: boolean } = {}): void {
+    const count = this._cards.length;
+    if (count === 0) return;
+
+    this._index = Math.min(Math.max(index, 0), count - 1);
+    this._track.classList.toggle("fc-track--animate", options.animate ?? false);
+    this._updateChrome();
+  }
+
+  /** LIB-4.15–LIB-4.18, LIB-5.4: rebuilds the indicators for the current
+   * index/count and disables whichever arrow (or both) has nowhere to go —
+   * navigation never wraps. */
+  private _updateChrome(): void {
+    const count = this._cards.length;
+    this._prevArrow.disabled = count === 0 || this._index <= 0;
+    this._nextArrow.disabled = count === 0 || this._index >= count - 1;
+    renderIndicators(this._indicators, count, this._index, this._options.dotLimit);
   }
 
   /** LIB-6.5: removes every listener the library added, cancels pending
    * timers and animation frames, and empties the container. Safe to call
-   * more than once. T-03 adds none of those itself, so this currently only
-   * has the container to empty; it is the seam later tasks extend. */
+   * more than once. */
   destroy(): void {
     if (this._destroyed) return;
     this._destroyed = true;
+
+    this._prevArrow.removeEventListener("click", this._handlePrevClick);
+    this._nextArrow.removeEventListener("click", this._handleNextClick);
+    this._container.removeEventListener("keydown", this._handleKeydown);
 
     this._container.replaceChildren();
   }

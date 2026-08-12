@@ -67,6 +67,34 @@ export const STYLES = `
   min-block-size: 1.5rem;
 }
 
+.fc-indicator-dot {
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border-radius: 50%;
+  background: var(--fc-card-border);
+}
+
+.fc-indicator-dot--active {
+  background: var(--fc-accent);
+}
+
+.fc-indicator-counter {
+  font-size: 0.8rem;
+  color: var(--fc-fg);
+  opacity: 0.7;
+}
+
+.fc-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--fc-fg);
+  opacity: 0.6;
+}
+
+.fc-track--animate {
+  transition: transform 250ms ease;
+}
+
 .fc-arrow,
 .fc-info {
   position: absolute;
