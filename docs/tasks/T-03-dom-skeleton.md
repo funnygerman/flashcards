@@ -22,13 +22,18 @@ DOM shape inside the container:
 
 ```html
 <div class="fc-root">
-  <div class="fc-track"><div class="fc-card">…</div>…</div>
+  <div class="fc-viewport"><div class="fc-track"><div class="fc-card">…</div>…</div></div>
   <div class="fc-indicators"></div>
   <button class="fc-arrow fc-arrow--prev"></button>
   <button class="fc-arrow fc-arrow--next"></button>
   <button class="fc-info"></button>
 </div>
 ```
+
+`.fc-viewport` is the fixed one-card-wide clipping window (`overflow: hidden`);
+`.fc-track` is the sliding reel inside it that holds every `.fc-card` and
+carries the paging `translateX`. A `transform` moves an element's whole box,
+clip region included, so the two roles can't be the same element (`LIB-5.2`).
 
 ## Acceptance criteria
 

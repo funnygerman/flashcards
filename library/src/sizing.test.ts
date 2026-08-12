@@ -123,13 +123,21 @@ describe("computeCardSize formula (LIB-4.6, LIB-4.7)", () => {
   });
 });
 
-describe("_sizeCard applies the size to the DOM (LIB-4.11, LIB-4.13)", () => {
+describe("_sizeCard applies the size to the DOM (LIB-4.5, LIB-4.11, LIB-4.13)", () => {
   it("publishes --fc-card-w in pixels on the container", () => {
     const container = document.createElement("div");
     const size = _sizeCard(container, baseOptions([4, 3]), VIEWPORTS.phonePortrait);
 
     expect(size).toEqual({ width: 351, height: 263 });
     expect(container.style.getPropertyValue("--fc-card-w")).toBe("351px");
+  });
+
+  it("publishes --fc-card-h in pixels on the container, so the card's block-size reflects the computed aspect ratio rather than its flex container's height", () => {
+    const container = document.createElement("div");
+    const size = _sizeCard(container, baseOptions([4, 3]), VIEWPORTS.phonePortrait);
+
+    expect(size).toEqual({ width: 351, height: 263 });
+    expect(container.style.getPropertyValue("--fc-card-h")).toBe("263px");
   });
 
   it("never publishes a vw-based value", () => {
@@ -163,9 +171,11 @@ describe("_observeViewportSize throttling (LIB-4.10)", () => {
     const observer = _observeViewportSize(container, () => baseOptions([4, 3]));
 
     // Construction schedules one initial recompute; flush it before the storm.
+    // Each recompute publishes both --fc-card-w and --fc-card-h, so it's two
+    // setProperty calls per animation frame, not one.
     expect(requestAnimationFrame).toHaveBeenCalledTimes(1);
     rafCallbacks.shift()?.(0);
-    expect(setProperty).toHaveBeenCalledTimes(1);
+    expect(setProperty).toHaveBeenCalledTimes(2);
 
     for (let i = 0; i < 100; i++) {
       window.dispatchEvent(new Event("resize"));
@@ -173,10 +183,10 @@ describe("_observeViewportSize throttling (LIB-4.10)", () => {
 
     // 100 events, still only one *new* animation frame requested.
     expect(requestAnimationFrame).toHaveBeenCalledTimes(2);
-    expect(setProperty).toHaveBeenCalledTimes(1);
+    expect(setProperty).toHaveBeenCalledTimes(2);
 
     rafCallbacks.shift()?.(0);
-    expect(setProperty).toHaveBeenCalledTimes(2);
+    expect(setProperty).toHaveBeenCalledTimes(4);
 
     observer.dispose();
   });
