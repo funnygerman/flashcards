@@ -1,0 +1,4 @@
+[
+  { "id": "gehen-to-go", "front": { "text": "gehen" }, "back": { "text": "to go" }, "category": "verb" },
+  { "id": "sein-to-be", "front": { "text": "sein" }, "back": { "text": "to be" }, "category": "verb" }
+]

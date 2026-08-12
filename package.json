@@ -14,9 +14,10 @@
   ],
   "scripts": {
     "build": "npm run build --workspace @flashcards/library && npm run build --workspace @flashcards/app",
-    "clean": "rm -rf library/dist app/dist *.tsbuildinfo",
+    "clean": "rm -rf library/dist app/dist data *.tsbuildinfo",
     "typecheck": "tsc -p tsconfig.json",
     "lint": "eslint . && npm run typecheck",
+    "build:content": "node scripts/build-content.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "serve": "node scripts/dev-server.mjs",

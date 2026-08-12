@@ -1,9 +1,10 @@
 /**
  * @flashcards/library — public entry point.
  *
- * T-01 added the data and configuration types plus `resolveOptions`. T-03
- * adds the `FlashcardDeck` class: its DOM skeleton, style injection, and
- * teardown. The rest of the surface arrives with:
+ * T-01 added the data and configuration types plus `resolveOptions`. T-02
+ * added the sizing engine's pure `computeCardSize`. T-03 adds the
+ * `FlashcardDeck` class: its DOM skeleton, style injection, and teardown.
+ * The rest of the surface arrives with:
  *   T-04 … T-09  card rendering, flip, gestures, chrome, a11y, title/info
  *   T-10  goTo, getState, and the onCardShown / onFlip / onGrade callbacks
  *
@@ -16,6 +17,8 @@ import type { DeckOptions, Flashcard, ResolvedOptions } from "./types.js";
 
 export type * from "./types.js";
 export { resolveOptions } from "./config.js";
+export { computeCardSize } from "./sizing.js";
+export type { CardSize, SizingOptions } from "./sizing.js";
 
 /** Package version, exported so the scaffold has an observable surface. */
 export const VERSION = "0.0.0";
