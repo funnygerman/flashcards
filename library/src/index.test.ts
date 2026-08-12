@@ -196,3 +196,180 @@ describe("container height (LIB-7.10)", () => {
     expect(container.getAttribute("style")).toBeNull();
   });
 });
+
+function mount(cards: Flashcard[], options?: ConstructorParameters<typeof FlashcardDeck>[2]): {
+  deck: FlashcardDeck;
+  container: HTMLElement;
+} {
+  document.body.innerHTML = '<div id="app"></div>';
+  const container = document.querySelector("#app") as HTMLElement;
+  const deck = new FlashcardDeck(container, cards, options);
+  return { deck, container };
+}
+
+function arrows(container: HTMLElement): { prev: HTMLButtonElement; next: HTMLButtonElement } {
+  return {
+    prev: container.querySelector(".fc-arrow--prev") as HTMLButtonElement,
+    next: container.querySelector(".fc-arrow--next") as HTMLButtonElement,
+  };
+}
+
+describe("indicator mode (LIB-4.15–LIB-4.18)", () => {
+  it("shows dots for n <= dotLimit and switches to a counter above it", () => {
+    const dotCards = Array.from({ length: 12 }, (_, i) => ({ front: { text: `${i}` }, back: { text: `${i}` } }));
+    const { container: dotContainer } = mount(dotCards);
+    expect(dotContainer.querySelectorAll(".fc-indicator-dot")).toHaveLength(12);
+    expect(dotContainer.querySelector(".fc-indicator-counter")).toBeNull();
+
+    const counterCards = Array.from({ length: 13 }, (_, i) => ({ front: { text: `${i}` }, back: { text: `${i}` } }));
+    const { container: counterContainer } = mount(counterCards);
+    expect(counterContainer.querySelectorAll(".fc-indicator-dot")).toHaveLength(0);
+    expect(counterContainer.querySelector(".fc-indicator-counter")?.textContent).toBe("1 / 13");
+  });
+
+  it("respects a configured dotLimit", () => {
+    const cards = Array.from({ length: 5 }, (_, i) => ({ front: { text: `${i}` }, back: { text: `${i}` } }));
+    const { container } = mount(cards, { dotLimit: 4 });
+
+    expect(container.querySelector(".fc-indicator-counter")?.textContent).toBe("1 / 5");
+  });
+
+  it("hides indicators and disables both arrows for exactly one card", () => {
+    const { container } = mount([CARDS[0]!]);
+
+    expect(container.querySelector(".fc-indicators")?.children).toHaveLength(0);
+    const { prev, next } = arrows(container);
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(true);
+  });
+
+  it("renders an empty-state message, disables both arrows, and never throws for an empty deck", () => {
+    let container!: HTMLElement;
+    expect(() => {
+      ({ container } = mount([]));
+    }).not.toThrow();
+
+    expect(container.querySelector(".fc-empty")).not.toBeNull();
+    const { prev, next } = arrows(container);
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(true);
+  });
+});
+
+describe("arrow disabled state at the ends (LIB-5.4, LIB-5.18)", () => {
+  it("disables the previous arrow on the first card and the next arrow on the last", () => {
+    const { deck, container } = mount(CARDS);
+    const { prev, next } = arrows(container);
+
+    expect(prev.disabled).toBe(true);
+    expect(next.disabled).toBe(false);
+
+    deck.goTo(CARDS.length - 1);
+
+    expect(prev.disabled).toBe(false);
+    expect(next.disabled).toBe(true);
+  });
+
+  it("navigates one card per arrow click and does not wrap", () => {
+    const { deck, container } = mount(CARDS);
+    const { prev, next } = arrows(container);
+
+    next.click();
+    expect(deck.getState().index).toBe(1);
+
+    next.click();
+    next.click(); // already on the last card — stays put, no wrap
+    expect(deck.getState().index).toBe(CARDS.length - 1);
+
+    prev.click();
+    expect(deck.getState().index).toBe(CARDS.length - 2);
+  });
+});
+
+describe("keyboard navigation (LIB-5.19, LIB-5.23)", () => {
+  it("navigates on ArrowRight / ArrowLeft dispatched at the container", () => {
+    const { deck, container } = mount(CARDS);
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    expect(deck.getState().index).toBe(1);
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+    expect(deck.getState().index).toBe(0);
+  });
+
+  it("ignores unrelated keys", () => {
+    const { deck, container } = mount(CARDS);
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "a", bubbles: true }));
+
+    expect(deck.getState().index).toBe(0);
+  });
+
+  it("only the deck whose container receives the event responds — no document-level listener", () => {
+    const { deck } = mount(CARDS);
+
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(deck.getState().index).toBe(0);
+  });
+});
+
+describe("goTo (LIB-6.3)", () => {
+  it("clamps a negative index to 0", () => {
+    const { deck } = mount(CARDS);
+
+    deck.goTo(-5);
+
+    expect(deck.getState().index).toBe(0);
+  });
+
+  it("clamps an out-of-range index to the last card", () => {
+    const { deck } = mount(CARDS);
+
+    deck.goTo(999);
+
+    expect(deck.getState().index).toBe(CARDS.length - 1);
+  });
+
+  it("is a no-op on an empty deck", () => {
+    const { deck } = mount([]);
+
+    expect(() => deck.goTo(2)).not.toThrow();
+    expect(deck.getState().index).toBe(0);
+    expect(deck.getState().count).toBe(0);
+  });
+
+  it("does not animate by default", () => {
+    const { deck, container } = mount(CARDS);
+
+    deck.goTo(1);
+
+    expect(container.querySelector(".fc-track")?.classList.contains("fc-track--animate")).toBe(false);
+  });
+
+  it("animates when animate: true is passed", () => {
+    const { deck, container } = mount(CARDS);
+
+    deck.goTo(1, { animate: true });
+
+    expect(container.querySelector(".fc-track")?.classList.contains("fc-track--animate")).toBe(true);
+  });
+});
+
+describe("getState (LIB-6.4)", () => {
+  it("reports the current index, side, and card count", () => {
+    const { deck } = mount(CARDS);
+
+    expect(deck.getState()).toEqual({ index: 0, side: "front", count: CARDS.length });
+
+    deck.goTo(2);
+
+    expect(deck.getState()).toEqual({ index: 2, side: "front", count: CARDS.length });
+  });
+
+  it("reports a count of 0 for an empty deck", () => {
+    const { deck } = mount([]);
+
+    expect(deck.getState()).toEqual({ index: 0, side: "front", count: 0 });
+  });
+});
