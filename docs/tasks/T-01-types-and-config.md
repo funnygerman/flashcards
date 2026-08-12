@@ -21,10 +21,10 @@ export interface Flashcard {
 export interface DeckOptions {
   accentColor?: string;
   aspectRatio?: [number, number];
-  widthRatio?: number;            // 0.90
+  widthRatio?: number;            // 0.75
   portraitHeightRatio?: number;   // 0.75
   landscapeHeightRatio?: number;  // 0.88
-  maxWidthPx?: number;            // 480
+  maxWidthPx?: number;            // 900
   textScale?: number;             // 0.085
   detailsScale?: number;          // 0.05
   dotLimit?: number;              // 12

@@ -32,10 +32,10 @@ const DEFAULT_INJECT_STYLES = true;
 
 // LIB-4.7, LIB-4.12, LIB-5.5, LIB-5.6, LIB-5.11
 const NUMBER_DEFAULTS: NumberDefaults = {
-  widthRatio: 0.9,
+  widthRatio: 0.75,
   portraitHeightRatio: 0.75,
   landscapeHeightRatio: 0.88,
-  maxWidthPx: 480,
+  maxWidthPx: 900,
   textScale: 0.085,
   detailsScale: 0.05,
   friction: 0.35,

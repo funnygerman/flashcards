@@ -107,6 +107,25 @@ describe("card and track sizing (LIB-4.5, LIB-5.2)", () => {
   });
 });
 
+describe("card content centering (LIB-4.29)", () => {
+  it("centers face text both horizontally (text-align) and, via .fc-face-content, vertically", () => {
+    const face = /\.fc-face\s*{([^}]*)}/.exec(STYLES);
+    expect(face?.[1]).toMatch(/text-align:\s*center/);
+
+    const content = /\.fc-face-content\s*{([^}]*)}/.exec(STYLES);
+    expect(content?.[1]).toMatch(/display:\s*flex/);
+    expect(content?.[1]).toMatch(/align-items:\s*center/);
+    expect(content?.[1]).toMatch(/justify-content:\s*center/);
+  });
+});
+
+describe("card text selection (LIB-5.16)", () => {
+  it("disables user-select on .fc-card, so a mouse drag that falls through to the browser (LIB-5.16) doesn't paint the card as selected", () => {
+    const match = /\.fc-card\s*{([^}]*)}/.exec(STYLES);
+    expect(match?.[1]).toMatch(/user-select:\s*none/);
+  });
+});
+
 describe("flip animation (LIB-4.35, LIB-4.36)", () => {
   it("animates .fc-face as a rotateY transform over 300ms", () => {
     const match = /\.fc-face\s*{([^}]*)}/.exec(STYLES);

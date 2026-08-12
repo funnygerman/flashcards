@@ -125,8 +125,9 @@ width       = floor(min(vw * widthRatio, maxWidthPx, maxH * ar.w / ar.h))
 height      = round(width * ar.h / ar.w)
 ```
 
-**LIB-4.7** Defaults: `widthRatio = 0.90`, `portraitHeightRatio = 0.75`, `landscapeHeightRatio = 0.88`,
-`maxWidthPx = 480`. All four are configurable.
+**LIB-4.7** Defaults: `widthRatio = 0.75`, `portraitHeightRatio = 0.75`, `landscapeHeightRatio = 0.88`,
+`maxWidthPx = 900`. All four are configurable. `maxWidthPx` exists mainly to keep cards from becoming
+absurdly large on ultra-wide monitors — `widthRatio` alone drives sizing on typical laptop/desktop widths.
 
 **LIB-4.8** Orientation is determined in JavaScript as `innerWidth >= innerHeight`, not by a CSS
 `orientation` media query, so the CSS and the sizing math can never disagree.
@@ -271,9 +272,9 @@ springs back with no event.
 **LIB-5.12** A tap or click on the card flips it between front and back.
 
 **LIB-5.13** A flip is committed on pointer-up only when **all** of: total pointer movement `< 8 px`, press
-duration `< 500 ms`, and the current text selection is collapsed. This is what allows text to be selected by
-dragging across a card without the release flipping it. *Resolves the conflict between "mouse dragging is not
-supported", "text must be freely selectable", and "clicking flips".*
+duration `< 500 ms`, and the current text selection is collapsed. The selection check is a defensive leftover
+from when card text was freely selectable (see `LIB-5.17`); it costs nothing to keep and still guards against a
+tap landing on a selection made some other way (e.g. before the card mounted).
 
 **LIB-5.14** Flip state is **per card** and persists for the life of the instance: navigating away from a
 flipped card and returning shows it still flipped.
@@ -283,9 +284,16 @@ the same rule as `LIB-5.13`.
 
 ### 5.4 Desktop / mouse
 
-**LIB-5.16** Mouse dragging is not a navigation mechanism.
+**LIB-5.16** Mouse dragging is a navigation mechanism, identical to touch and pen: the same gesture engine, the
+same swipe/grade thresholds, no separate mouse code path. *Supersedes an earlier version of this requirement
+that excluded mouse specifically to keep card text freely selectable (`LIB-5.17`) — a mouse drag that fell
+through to the browser untouched instead visibly painted the card as selected, which read as broken rather than
+merely inert, so the trade reversed.*
 
-**LIB-5.17** Users must be able to freely select and copy text from the card.
+**LIB-5.17** Card text is not selectable (`user-select: none` on `.fc-card`). *Supersedes an earlier version of
+this requirement that required text to be freely selectable — there is no CSS-only way to keep a drag over the
+text selectable while also not showing a selection for that same drag, and `LIB-5.16` now needs every drag,
+however short, to never visibly select text.*
 
 **LIB-5.18** Left and Right arrow buttons are displayed outside the card and navigate between cards.
 

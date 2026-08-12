@@ -95,6 +95,13 @@ export const STYLES = `
   /* LIB-5.10: the gesture engine owns every drag that starts on the card
      itself — the browser must not also try to pan/scroll it natively. */
   touch-action: none;
+  /* LIB-5.16: mouse drags never navigate — they fall through to the browser
+     untouched — but without this, that same fall-through drag paints the
+     card's text as selected, which reads as broken rather than merely
+     inert. This necessarily trades away LIB-5.17 (free text selection):
+     there is no CSS-only way to keep a click-drag over the text selectable
+     while also suppressing the selection highlight for that same drag. */
+  user-select: none;
 }
 
 /* LIB-8.7: cards are tabindex="0" (T-08's roving focus); the ring must be
@@ -115,6 +122,7 @@ export const STYLES = `
   flex-direction: column;
   padding: 1rem;
   overflow: hidden;
+  text-align: center;
   backface-visibility: hidden;
   transform: rotateY(0deg);
   transition: transform 300ms;
@@ -148,7 +156,11 @@ export const STYLES = `
    the gesture engine has left alone (content still scrollable, not yet at
    its boundary) scrolls exactly as it would outside the deck. */
 .fc-face-content {
+  display: flex;
   flex: 1 1 auto;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   min-block-size: 0;
   overflow-y: auto;
   touch-action: pan-y;

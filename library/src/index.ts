@@ -135,8 +135,7 @@ export class FlashcardDeck {
 
   // T-06: the pure gesture engine's own state for the in-flight pointer
   // sequence, plus the DOM it was measured against — `null` outside a
-  // gesture (idle, or a mouse pointer, which never feeds this engine at
-  // all; see `_handlePointerDown`, LIB-5.16).
+  // gesture, i.e. idle between pointer sequences.
   private _gestureState: GestureState = IDLE_GESTURE_STATE;
   private _gestureCardEl: Element | null = null;
   private _gestureContentEl: HTMLElement | null = null;
@@ -209,11 +208,10 @@ export class FlashcardDeck {
   // LIB-5.12, LIB-5.13, LIB-5.15: tap/click flip commit. Bound to `_track`
   // (not per-card) so one pair of listeners covers every card; the pressed
   // card is found via `closest(".fc-card")` on the event target. This does
-  // not drive navigation — dragging across the track to select text, or a
-  // touch long-press selection, both leave `window.getSelection()`
-  // non-collapsed at release, so `shouldCommitFlip` alone keeps the flip
-  // from firing. T-06's gesture engine is the other way a pointer sequence
-  // can cancel this: see the `_pendingFlip = null` in `_handlePointerMove`.
+  // not drive navigation on its own — a committed drag clears `_pendingFlip`
+  // in `_handlePointerMove` below, and `shouldCommitFlip`'s distance/duration
+  // check keeps a real drag that fell just short of any threshold from also
+  // registering as a tap.
   private readonly _handlePointerDown: EventListener = (event) => {
     const pointerEvent = event as PointerEvent;
     const cardEl = (pointerEvent.target as Element | null)?.closest(".fc-card") ?? null;
@@ -224,12 +222,13 @@ export class FlashcardDeck {
     this._gestureState = IDLE_GESTURE_STATE;
     this._gestureCardEl = null;
     this._gestureContentEl = null;
-    // LIB-5.16: a mouse drag never drives navigation or grading — only
-    // touch/pen pointers feed the gesture engine at all. Mouse pointer
-    // sequences fall through to the tap-flip path above exactly as they did
-    // before this task, so free text selection (LIB-5.17) is untouched: this
-    // branch never runs for them, and nothing here calls `preventDefault`.
-    if (cardEl && pointerEvent.pointerType !== "mouse") {
+    // Every pointer type — mouse included — feeds the gesture engine, so a
+    // mouse drag pages/grades exactly like a touch or pen drag does. (Mouse
+    // was previously excluded here per LIB-5.16/5.17, in favour of leaving
+    // it free for text selection; that trade reversed once .fc-card's
+    // user-select: none made a mouse drag select nothing anyway — see
+    // styles.ts.)
+    if (cardEl) {
       this._gestureCardEl = cardEl;
       this._gestureContentEl = (pointerEvent.target as Element | null)?.closest<HTMLElement>(".fc-face-content") ?? null;
       const [state] = reduceGesture(
@@ -693,8 +692,8 @@ export class FlashcardDeck {
   /** LIB-5.6, LIB-5.8, LIB-5.11: reduces the release itself and applies
    * whatever `reduceGesture` decides — navigate (via `_setIndex`, the same
    * seam every other navigation path uses), grade, or a snap-back on either
-   * axis. A no-op when no gesture was in progress (e.g. a mouse pointer,
-   * which never starts one — `LIB-5.16`). */
+   * axis. A no-op when no gesture was in progress, e.g. a plain tap that
+   * never crossed the "pressed" phase. */
   private _commitGesture(pointerEvent: PointerEvent): void {
     if (this._gestureState.phase === "idle") return;
     const axis = this._gestureState.phase === "dragging" ? this._gestureState.axis : null;
