@@ -1073,3 +1073,332 @@ describe("two-deck keyboard isolation (LIB-5.23)", () => {
     expect(deckB.getState().index).toBe(0);
   });
 });
+
+describe("title screen (LIB-4.19, LIB-4.22)", () => {
+  it("does not appear without title configuration", () => {
+    const { container } = mount(CARDS);
+
+    expect(container.querySelector(".fc-title")).toBeNull();
+  });
+
+  it("appears before the first card, showing only the configured text", () => {
+    const { container } = mount(CARDS, { title: { text: "Welcome", subtitle: "Learn the basics" } });
+
+    const title = container.querySelector(".fc-title");
+    expect(title).not.toBeNull();
+    expect(title!.querySelector(".fc-title-text")?.textContent).toBe("Welcome");
+    expect(title!.querySelector(".fc-title-subtitle")?.textContent).toBe("Learn the basics");
+  });
+
+  it("renders title/subtitle as plain text, never parsed as markup", () => {
+    const { container } = mount(CARDS, { title: { text: "<b>Hi</b>" } });
+
+    const text = container.querySelector(".fc-title-text");
+    expect(text?.textContent).toBe("<b>Hi</b>");
+    expect(text?.querySelector("b")).toBeNull();
+  });
+});
+
+describe("title screen is a pure overlay (LIB-4.20)", () => {
+  it("leaves card indices, indicator counts, and getState identical whether or not it is configured", () => {
+    const withTitle = mount(CARDS, { title: { text: "Welcome" } });
+    const without = mount(CARDS);
+
+    expect(withTitle.deck.getState()).toEqual(without.deck.getState());
+    expect(withTitle.container.querySelectorAll(".fc-indicator-dot")).toHaveLength(
+      without.container.querySelectorAll(".fc-indicator-dot").length,
+    );
+    expect(withTitle.container.querySelectorAll(".fc-card")).toHaveLength(
+      without.container.querySelectorAll(".fc-card").length,
+    );
+  });
+
+  it("takes identical goTo arguments to reach the same state with or without a title screen", () => {
+    const withTitle = mount(CARDS, { title: { text: "Welcome" } });
+    const without = mount(CARDS);
+
+    withTitle.deck.goTo(2);
+    without.deck.goTo(2);
+
+    expect(withTitle.deck.getState()).toEqual(without.deck.getState());
+  });
+});
+
+describe("title screen dismissal (LIB-4.21)", () => {
+  it("dismisses on tap/click", () => {
+    const { container } = mount(CARDS, { title: { text: "Welcome" } });
+    const title = container.querySelector(".fc-title") as HTMLElement;
+
+    title.dispatchEvent(new PointerEvent("click", { bubbles: true }));
+
+    expect(container.querySelector(".fc-title")).toBeNull();
+  });
+
+  it("dismisses on Enter, without also flipping the current card", () => {
+    const { deck, container } = mount(CARDS, { title: { text: "Welcome" } });
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+
+    expect(container.querySelector(".fc-title")).toBeNull();
+    expect(deck.getState().side).toBe("front");
+  });
+
+  it("dismisses on Space, preventing page scroll, without also flipping", () => {
+    const { deck, container } = mount(CARDS, { title: { text: "Welcome" } });
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+
+    container.dispatchEvent(event);
+
+    expect(container.querySelector(".fc-title")).toBeNull();
+    expect(deck.getState().side).toBe("front");
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it("dismisses on ArrowRight, without also navigating", () => {
+    const { deck, container } = mount(CARDS, { title: { text: "Welcome" } });
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+
+    expect(container.querySelector(".fc-title")).toBeNull();
+    expect(deck.getState().index).toBe(0);
+  });
+
+  it("ignores unrelated keys while shown, leaving the deck untouched", () => {
+    const { deck, container } = mount(CARDS, { title: { text: "Welcome" } });
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+
+    expect(container.querySelector(".fc-title")).not.toBeNull();
+    expect(deck.getState().index).toBe(0);
+  });
+
+  it("cannot reappear, and normal keyboard handling resumes right after dismissal", () => {
+    const { deck, container } = mount(CARDS, { title: { text: "Welcome" } });
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); // dismisses only
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })); // now flips normally
+
+    expect(container.querySelector(".fc-title")).toBeNull();
+    expect(deck.getState().side).toBe("back");
+  });
+});
+
+describe("title screen holds no persistence (LIB-4.24)", () => {
+  function throwingStorage(): Storage {
+    return new Proxy(
+      {},
+      {
+        get(): never {
+          throw new Error("storage was accessed");
+        },
+        set(): never {
+          throw new Error("storage was accessed");
+        },
+        has(): never {
+          throw new Error("storage was accessed");
+        },
+      },
+    ) as Storage;
+  }
+
+  it("never touches storage when no title is configured", () => {
+    const originalLocal = window.localStorage;
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, "localStorage", { value: throwingStorage(), configurable: true });
+    Object.defineProperty(window, "sessionStorage", { value: throwingStorage(), configurable: true });
+
+    try {
+      expect(() => mount(CARDS)).not.toThrow();
+    } finally {
+      Object.defineProperty(window, "localStorage", { value: originalLocal, configurable: true });
+      Object.defineProperty(window, "sessionStorage", { value: originalSession, configurable: true });
+    }
+  });
+
+  it("never touches storage across a full title show/dismiss cycle either", () => {
+    const originalLocal = window.localStorage;
+    const originalSession = window.sessionStorage;
+    Object.defineProperty(window, "localStorage", { value: throwingStorage(), configurable: true });
+    Object.defineProperty(window, "sessionStorage", { value: throwingStorage(), configurable: true });
+
+    try {
+      expect(() => {
+        const { container } = mount(CARDS, { title: { text: "Welcome" } });
+        (container.querySelector(".fc-title") as HTMLElement).dispatchEvent(
+          new PointerEvent("click", { bubbles: true }),
+        );
+      }).not.toThrow();
+    } finally {
+      Object.defineProperty(window, "localStorage", { value: originalLocal, configurable: true });
+      Object.defineProperty(window, "sessionStorage", { value: originalSession, configurable: true });
+    }
+  });
+});
+
+function openInfoPanel(container: HTMLElement): {
+  backdrop: HTMLElement;
+  panel: HTMLElement;
+  closeButton: HTMLButtonElement;
+  infoButton: HTMLButtonElement;
+} {
+  const infoButton = container.querySelector(".fc-info") as HTMLButtonElement;
+  infoButton.click();
+  return {
+    backdrop: container.querySelector(".fc-panel-backdrop") as HTMLElement,
+    panel: container.querySelector(".fc-panel") as HTMLElement,
+    closeButton: container.querySelector(".fc-panel-close") as HTMLButtonElement,
+    infoButton,
+  };
+}
+
+describe("info control (LIB-4.25)", () => {
+  it("is present, labelled, and closed by default for every deck", () => {
+    const { container } = mount(CARDS);
+    const infoButton = container.querySelector(".fc-info") as HTMLButtonElement;
+
+    expect(infoButton).not.toBeNull();
+    expect(infoButton.getAttribute("aria-label")).toBeTruthy();
+    expect(container.querySelector(".fc-panel-backdrop")?.hasAttribute("hidden")).toBe(true);
+  });
+});
+
+describe("info panel open/close (LIB-4.26)", () => {
+  it("opens on info button click and moves focus into the panel", () => {
+    const { container } = mount(CARDS, { info: { heading: "About" } });
+
+    const { backdrop, closeButton } = openInfoPanel(container);
+
+    expect(backdrop.hasAttribute("hidden")).toBe(false);
+    expect(document.activeElement).toBe(closeButton);
+  });
+
+  it("closes on Escape and returns focus to the info button", () => {
+    const { container } = mount(CARDS);
+    const { backdrop, infoButton } = openInfoPanel(container);
+
+    container.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+
+    expect(backdrop.hasAttribute("hidden")).toBe(true);
+    expect(document.activeElement).toBe(infoButton);
+  });
+
+  it("closes on the close control and returns focus to the info button", () => {
+    const { container } = mount(CARDS);
+    const { backdrop, closeButton, infoButton } = openInfoPanel(container);
+
+    closeButton.click();
+
+    expect(backdrop.hasAttribute("hidden")).toBe(true);
+    expect(document.activeElement).toBe(infoButton);
+  });
+
+  it("closes on a click landing on the backdrop itself and returns focus", () => {
+    const { container } = mount(CARDS);
+    const { backdrop, infoButton } = openInfoPanel(container);
+
+    backdrop.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(backdrop.hasAttribute("hidden")).toBe(true);
+    expect(document.activeElement).toBe(infoButton);
+  });
+
+  it("does not close on a click that lands on the panel's own content", () => {
+    const { container } = mount(CARDS, { info: { heading: "About", body: "Some text" } });
+    const { backdrop, panel } = openInfoPanel(container);
+
+    panel.querySelector(".fc-panel-heading")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    expect(backdrop.hasAttribute("hidden")).toBe(false);
+  });
+});
+
+describe("info panel focus trap (LIB-8.8)", () => {
+  it("pulls focus back into the panel on Tab if it had somehow left", () => {
+    const { container } = mount(CARDS, { info: { heading: "About" } });
+    const { closeButton } = openInfoPanel(container);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+    card.focus();
+    expect(document.activeElement).toBe(card);
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+    container.dispatchEvent(event);
+
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(closeButton);
+  });
+
+  it("wraps Shift+Tab from the panel's first focusable element back to its last, never leaving the panel", () => {
+    const { container } = mount(CARDS, { info: { heading: "About" } });
+    const { closeButton } = openInfoPanel(container);
+    expect(document.activeElement).toBe(closeButton); // the close button is both first and last here
+
+    const event = new KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+    container.dispatchEvent(event);
+
+    expect(preventDefaultSpy).toHaveBeenCalledTimes(1);
+    expect(document.activeElement).toBe(closeButton);
+  });
+
+  it("does not intercept Tab while the panel is closed", () => {
+    const { container } = mount(CARDS);
+    const event = new KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true });
+    const preventDefaultSpy = vi.spyOn(event, "preventDefault");
+
+    container.dispatchEvent(event);
+
+    expect(preventDefaultSpy).not.toHaveBeenCalled();
+  });
+});
+
+describe("info panel content (LIB-4.27, LIB-4.28, LIB-3.7)", () => {
+  afterEach(() => {
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 0, configurable: true });
+  });
+
+  it("shows the application's info text alongside a library-generated interaction list", () => {
+    const { container } = mount(CARDS, { info: { heading: "About this deck", body: "Some credits." } });
+    const { panel } = openInfoPanel(container);
+
+    expect(panel.querySelector(".fc-panel-heading")?.textContent).toBe("About this deck");
+    expect(panel.querySelector(".fc-panel-body")?.textContent).toBe("Some credits.");
+    expect(panel.querySelectorAll(".fc-panel-interactions li").length).toBeGreaterThan(0);
+  });
+
+  it("treats application info text as plain text, never markup", () => {
+    const { container } = mount(CARDS, { info: { heading: "<b>Hi</b>" } });
+    const { panel } = openInfoPanel(container);
+
+    expect(panel.querySelector(".fc-panel-heading")?.textContent).toBe("<b>Hi</b>");
+    expect(panel.querySelector(".fc-panel-heading b")).toBeNull();
+  });
+
+  it("still shows the interaction list with no info configuration at all", () => {
+    const { container } = mount(CARDS);
+    const { panel } = openInfoPanel(container);
+
+    expect(panel.querySelectorAll(".fc-panel-interactions li").length).toBeGreaterThan(0);
+  });
+
+  it("describes desktop interactions when the device reports no touch support", () => {
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 0, configurable: true });
+    const { container } = mount(CARDS);
+    const { panel } = openInfoPanel(container);
+
+    const items = Array.from(panel.querySelectorAll(".fc-panel-interactions li"), (li) => li.textContent ?? "");
+    expect(items.some((text) => /swipe/i.test(text))).toBe(false);
+    expect(items.some((text) => /click/i.test(text))).toBe(true);
+  });
+
+  it("describes touch interactions on a touch-capable device", () => {
+    Object.defineProperty(navigator, "maxTouchPoints", { value: 5, configurable: true });
+    const { container } = mount(CARDS);
+    const { panel } = openInfoPanel(container);
+
+    const items = Array.from(panel.querySelectorAll(".fc-panel-interactions li"), (li) => li.textContent ?? "");
+    expect(items.some((text) => /swipe/i.test(text))).toBe(true);
+    expect(items.some((text) => /click/i.test(text))).toBe(false);
+  });
+});

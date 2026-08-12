@@ -23,6 +23,7 @@ export const STYLES = `
   --fc-shadow-color: rgb(0 0 0 / 15%);
   --fc-text-scale: 0.085;
   --fc-details-scale: 0.05;
+  --fc-backdrop: rgb(0 0 0 / 55%);
 
   position: relative;
   display: flex;
@@ -240,9 +241,14 @@ export const STYLES = `
   inset-inline-end: 0.5rem;
 }
 
+/* LIB-4.25: sits in the root's own corner, never the card's — the card is
+   centered within .fc-root with room to spare on every side (T-02's sizing
+   ratios), so this corner is always clear of it. */
 .fc-info {
   inset-block-start: 0.5rem;
   inset-inline-end: 0.5rem;
+  font-size: 1.25rem;
+  line-height: 1;
 }
 
 .fc-arrow:focus-visible,
@@ -254,6 +260,116 @@ export const STYLES = `
 .fc-arrow:disabled {
   opacity: 0.35;
   cursor: default;
+}
+
+/* LIB-4.19–LIB-4.24: a pure overlay — never a .fc-track slide — covering
+   exactly the root's own box, so it never affects card indices, indicator
+   counts, or goTo arguments (LIB-4.20). */
+.fc-title {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1.5rem;
+  text-align: center;
+  background: var(--fc-bg);
+  color: var(--fc-fg);
+  cursor: pointer;
+}
+
+.fc-title-text {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+}
+
+.fc-title-subtitle {
+  margin: 0;
+  font-size: 1rem;
+  opacity: 0.75;
+}
+
+.fc-title:focus-visible {
+  outline: 2px solid var(--fc-accent);
+  outline-offset: -2px;
+}
+
+/* LIB-4.26: the backdrop covers the root's own box (never the viewport,
+   LIB-7.10) and centers the dialog; a click that lands on the backdrop
+   itself (not one bubbling up from the dialog) closes the panel. */
+.fc-panel-backdrop {
+  position: absolute;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--fc-backdrop);
+}
+
+.fc-panel-backdrop:not([hidden]) {
+  display: flex;
+}
+
+.fc-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-inline-size: 100%;
+  max-block-size: 100%;
+  overflow-y: auto;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  background: var(--fc-card-bg);
+  border: 1px solid var(--fc-card-border);
+  box-shadow: 0 0.25rem 1rem var(--fc-shadow-color);
+  color: var(--fc-fg);
+}
+
+.fc-panel-close {
+  align-self: flex-end;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--fc-accent);
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fc-panel-close:focus-visible,
+.fc-panel a:focus-visible,
+.fc-panel button:focus-visible {
+  outline: 2px solid var(--fc-accent);
+  outline-offset: 2px;
+}
+
+.fc-panel-heading {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.fc-panel-body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.fc-panel-interactions {
+  margin: 0;
+}
+
+.fc-panel-interactions h3 {
+  margin: 0 0 0.5rem;
+  font-size: 0.9rem;
+}
+
+.fc-panel-interactions ul {
+  margin: 0;
+  padding-inline-start: 1.25rem;
 }
 
 /* LIB-8.3: the flip live region — visually hidden but still reachable by
