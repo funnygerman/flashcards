@@ -4,9 +4,10 @@
  * T-01 added the data and configuration types plus `resolveOptions`. T-02
  * added the sizing engine's pure `computeCardSize`. T-03 added the
  * `FlashcardDeck` class: its DOM skeleton, style injection, and teardown.
- * T-07 adds `goTo`, `getState`, and the arrow/indicator chrome. The rest of
- * the surface arrives with:
- *   T-04, T-05, T-06, T-08, T-09  card rendering, flip, gestures, a11y, title/info
+ * T-07 adds `goTo`, `getState`, and the arrow/indicator chrome. T-04 adds
+ * `_renderCard`, filling each `.fc-card` with its plain-text faces. The rest
+ * of the surface arrives with:
+ *   T-05, T-06, T-08, T-09  flip, gestures, a11y, title/info
  *   T-10  the onCardShown / onFlip / onGrade callbacks and final packaging
  *
  * See docs/tasks/README.md.
@@ -14,6 +15,7 @@
 
 import { resolveOptions } from "./config.js";
 import { renderIndicators } from "./indicators.js";
+import { _renderCard } from "./rendering.js";
 import { STYLES } from "./styles.js";
 import type { DeckOptions, Flashcard, ResolvedOptions, Side } from "./types.js";
 
@@ -107,12 +109,18 @@ export class FlashcardDeck {
     if (this._options.accentColor !== undefined) {
       this._root.style.setProperty("--fc-accent", this._options.accentColor);
     }
+    // LIB-4.11, LIB-4.12: published so `.fc-text`/`.fc-details` can read them
+    // through calc(var(--fc-card-w) * k) without the stylesheet itself
+    // knowing about per-instance configuration.
+    this._root.style.setProperty("--fc-text-scale", String(this._options.textScale));
+    this._root.style.setProperty("--fc-details-scale", String(this._options.detailsScale));
 
     this._track = document.createElement("div");
     this._track.className = "fc-track";
-    cards.forEach(() => {
+    cards.forEach((card) => {
       const cardEl = document.createElement("div");
       cardEl.className = "fc-card";
+      _renderCard(card, cardEl, this._options);
       this._track.append(cardEl);
     });
 

@@ -21,6 +21,8 @@ export const STYLES = `
   --fc-card-bg: #ffffff;
   --fc-card-border: #d8dce1;
   --fc-shadow-color: rgb(0 0 0 / 15%);
+  --fc-text-scale: 0.085;
+  --fc-details-scale: 0.05;
 
   position: relative;
   display: flex;
@@ -56,6 +58,56 @@ export const STYLES = `
   border: 1px solid var(--fc-card-border);
   border-radius: 0.75rem;
   box-shadow: 0 0.25rem 1rem var(--fc-shadow-color);
+}
+
+/* LIB-4.29, LIB-4.30: each face is its own full-size box inside .fc-card;
+   which one is visible, and any transition between them, is T-05's concern. */
+.fc-face {
+  display: flex;
+  flex-direction: column;
+  inline-size: 100%;
+  block-size: 100%;
+  padding: 1rem;
+  overflow: hidden;
+}
+
+.fc-category {
+  flex: none;
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.65;
+}
+
+/* LIB-4.14: the scrollable remainder of the face, once shrinking (via
+   --fc-shrink, set in bounded steps by _renderCard) still isn't enough. */
+.fc-face-content {
+  flex: 1 1 auto;
+  min-block-size: 0;
+  overflow-y: auto;
+}
+
+.fc-text,
+.fc-details {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+.fc-text + .fc-details {
+  margin-block-start: 0.5rem;
+}
+
+/* LIB-4.11, LIB-4.12: sized from the published card width and the
+   configured scale factor, never tied to the viewport directly (LIB-4.13). */
+.fc-text {
+  font-size: calc(var(--fc-card-w) * var(--fc-text-scale) * var(--fc-shrink, 1));
+}
+
+.fc-details {
+  font-size: calc(var(--fc-card-w) * var(--fc-details-scale) * var(--fc-shrink, 1));
+  opacity: 0.75;
 }
 
 .fc-indicators {
