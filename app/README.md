@@ -3,8 +3,13 @@
 The learning application built on the library. Specification:
 [`docs/app/requirements.md`](../docs/app/requirements.md) (`APP-*` requirement IDs).
 
-**Status: scaffold only.** The shell and router arrive in
+**Status: scaffold, plus the progress store.** The shell and router arrive in
 [T-30](../docs/tasks/T-30-app-shell.md), the deck page in [T-31](../docs/tasks/T-31-deck-page.md).
+
+[T-22](../docs/tasks/T-22-progress-store.md) adds `createProgressStore()` (`src/progress-store.ts`), which
+persists `recordShown` / `recordGrade` / `recordDeckVisit` under the single `fc.v1.progress` `localStorage`
+key, debounced and flushed on a timer or page lifecycle event. It has no consumer yet — that's the app shell
+(T-30) and the collection view (T-32).
 
 ## Running it
 
