@@ -552,11 +552,306 @@ describe("destroy() teardown of pointer listeners", () => {
 
     expect(() => tap(card)).not.toThrow();
   });
+
+  it("removes the track's pointermove listener too, so a drag after destroy does not navigate", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = container.querySelector(".fc-card") as HTMLElement;
+
+    deck.destroy();
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: -100, y: 0 },
+      { x: -100, y: 0 },
+    ]);
+
+    expect(deck.getState().index).toBe(0);
+    restore();
+  });
 });
 
 function cards(container: HTMLElement): HTMLElement[] {
   return Array.from(container.querySelectorAll(".fc-card"));
 }
+
+/** Stubs every element's measured size for the duration of a test — jsdom
+ * has no layout engine, so `getBoundingClientRect` is 0 by default (see
+ * `gesture.ts`'s own doc comment on why the gesture context is measured this
+ * way rather than assuming a CSS value). Returns a restore function. */
+function stubCardRect(width: number, height: number): () => void {
+  const rect: DOMRect = {
+    width,
+    height,
+    top: 0,
+    left: 0,
+    right: width,
+    bottom: height,
+    x: 0,
+    y: 0,
+    toJSON: () => ({}),
+  };
+  const spy = vi.spyOn(Element.prototype, "getBoundingClientRect").mockReturnValue(rect);
+  return () => spy.mockRestore();
+}
+
+/** Dispatches a `pointerdown` at `points[0]`, a `pointermove` for every
+ * point up to the last, and a final `pointerup` at the last point — the
+ * shape `_handlePointerDown`/`_handlePointerMove`/`_handlePointerUp` expect
+ * from a real drag. */
+function drag(el: Element, points: Array<{ x: number; y: number }>, pointerType = "touch"): void {
+  const [first, ...rest] = points;
+  el.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, clientX: first!.x, clientY: first!.y, pointerType }));
+  rest.forEach((point, i) => {
+    const type = i === rest.length - 1 ? "pointerup" : "pointermove";
+    el.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: point.x, clientY: point.y, pointerType }));
+  });
+}
+
+describe("gesture engine: horizontal navigation (LIB-5.2, LIB-5.4, LIB-5.6, LIB-5.7)", () => {
+  it("navigates forward when a leftward drag crosses the swipe threshold (18% of 200px = 36px)", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: -50, y: 0 },
+      { x: -50, y: 0 },
+    ]);
+
+    expect(deck.getState().index).toBe(1);
+    restore();
+  });
+
+  it("navigates backward on a rightward drag past the threshold", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    deck.goTo(1);
+    const card = cards(container)[1]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: 50, y: 0 },
+      { x: 50, y: 0 },
+    ]);
+
+    expect(deck.getState().index).toBe(0);
+    restore();
+  });
+
+  it("snaps back (no navigation) when the drag stays under the threshold", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: -20, y: 0 },
+      { x: -20, y: 0 },
+    ]);
+
+    expect(deck.getState().index).toBe(0);
+    restore();
+  });
+
+  it("does not wrap: a rightward drag past threshold on the first card snaps back", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: 100, y: 0 },
+      { x: 100, y: 0 },
+    ]);
+
+    expect(deck.getState().index).toBe(0);
+    restore();
+  });
+
+  it("does not also flip the card once a horizontal drag has committed to navigate (LIB-5.7)", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: -50, y: 0 },
+      { x: -50, y: 0 },
+    ]);
+
+    expect(deck.getState()).toMatchObject({ index: 1, side: "front" });
+    restore();
+  });
+});
+
+describe("gesture engine: vertical grading (LIB-5.8, LIB-5.9, LIB-5.11)", () => {
+  it("grades easy on an upward drag past the threshold (15% of 300px = 45px)", () => {
+    const restore = stubCardRect(200, 300);
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: 0, y: -60 },
+      { x: 0, y: -60 },
+    ]);
+
+    expect(onGrade).toHaveBeenCalledExactlyOnceWith(0, "easy");
+    restore();
+  });
+
+  it("grades hard on a downward drag past the threshold", () => {
+    const restore = stubCardRect(200, 300);
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: 0, y: 60 },
+      { x: 0, y: 60 },
+    ]);
+
+    expect(onGrade).toHaveBeenCalledExactlyOnceWith(0, "hard");
+    restore();
+  });
+
+  it("does not grade when the vertical drag stays under the threshold", () => {
+    const restore = stubCardRect(200, 300);
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: 0, y: 20 },
+      { x: 0, y: 20 },
+    ]);
+
+    expect(onGrade).not.toHaveBeenCalled();
+    restore();
+  });
+
+  it("locks the axis on the first move and does not grade a diagonal-then-vertical drag as navigation", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    // First movement is vertical-dominant (locks to y); a later, larger
+    // horizontal component must not switch it to x.
+    drag(card, [
+      { x: 0, y: 0 },
+      { x: 2, y: 10 },
+      { x: 80, y: 60 },
+    ]);
+
+    expect(deck.getState().index).toBe(0);
+    restore();
+  });
+});
+
+describe("gesture engine: desktop mouse (LIB-5.16, LIB-5.17)", () => {
+  it("does not navigate on a mouse drag past the swipe threshold", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+
+    drag(
+      card,
+      [
+        { x: 0, y: 0 },
+        { x: -100, y: 0 },
+        { x: -100, y: 0 },
+      ],
+      "mouse",
+    );
+
+    expect(deck.getState().index).toBe(0);
+    restore();
+  });
+
+  it("does not grade on a mouse drag past the grade threshold", () => {
+    const restore = stubCardRect(200, 300);
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+
+    drag(
+      card,
+      [
+        { x: 0, y: 0 },
+        { x: 0, y: -100 },
+        { x: 0, y: -100 },
+      ],
+      "mouse",
+    );
+
+    expect(onGrade).not.toHaveBeenCalled();
+    restore();
+  });
+
+  it("leaves a non-collapsed selection at release alone — no flip — exactly as the pre-gesture tap path already did", () => {
+    const restore = stubCardRect(200, 300);
+    const { deck, container } = mount(CARDS);
+    const card = cards(container)[0]!;
+    const getSelectionSpy = vi
+      .spyOn(window, "getSelection")
+      .mockReturnValue({ isCollapsed: false } as unknown as Selection);
+
+    drag(card, [{ x: 0, y: 0 }, { x: 0, y: 0 }], "mouse");
+
+    expect(deck.getState().side).toBe("front");
+    getSelectionSpy.mockRestore();
+    restore();
+  });
+});
+
+describe("gesture engine: content scroll suppression (LIB-5.10)", () => {
+  it("does not grade while the card's scrollable content is not yet at its boundary", () => {
+    const restore = stubCardRect(200, 300);
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+    const content = card.querySelector(".fc-face-content") as HTMLElement;
+    Object.defineProperty(content, "scrollHeight", { configurable: true, value: 600 });
+    Object.defineProperty(content, "clientHeight", { configurable: true, value: 300 });
+    Object.defineProperty(content, "scrollTop", { configurable: true, value: 0, writable: true });
+
+    // Pressed directly on the scrollable content, as a real touch would be
+    // — `closest(".fc-face-content")` only searches target + ancestors.
+    drag(content, [
+      { x: 0, y: 0 },
+      { x: 0, y: -80 },
+      { x: 0, y: -80 },
+    ]);
+
+    expect(onGrade).not.toHaveBeenCalled();
+    restore();
+  });
+
+  it("grades once the scrollable content has reached its boundary", () => {
+    const restore = stubCardRect(200, 300);
+    const onGrade = vi.fn();
+    const { container } = mount(CARDS, { onGrade });
+    const card = cards(container)[0]!;
+    const content = card.querySelector(".fc-face-content") as HTMLElement;
+    Object.defineProperty(content, "scrollHeight", { configurable: true, value: 600 });
+    Object.defineProperty(content, "clientHeight", { configurable: true, value: 300 });
+    // Already at the bottom: an upward drag has nowhere further to scroll.
+    Object.defineProperty(content, "scrollTop", { configurable: true, value: 300, writable: true });
+
+    drag(content, [
+      { x: 0, y: 0 },
+      { x: 0, y: -80 },
+      { x: 0, y: -80 },
+    ]);
+
+    expect(onGrade).toHaveBeenCalledExactlyOnceWith(0, "easy");
+    restore();
+  });
+});
 
 describe("container role and roledescription (LIB-8.1)", () => {
   it("gives the deck root role=group and aria-roledescription='flashcard deck'", () => {
