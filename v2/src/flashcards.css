@@ -87,6 +87,7 @@
   background: var(--fc-bg);
   text-align: center;
   backface-visibility: hidden;
+  transition: border-width 160ms ease;
 
   /* Card size does not react to text length, so a word longer than the card
      has to break rather than bleed out of both sides of it. */
@@ -95,6 +96,17 @@
 
 .fc-back {
   transform: rotateY(180deg);
+}
+
+/* The grade mark: the card's own border thickens on the edge the gesture went
+   towards. No new element, no colour, and the direction is its own legend.
+   box-sizing keeps the content still while the edge grows. */
+.fc-card.is-harder .fc-face {
+  border-block-start-width: calc(var(--fc-card-w) * 0.014);
+}
+
+.fc-card.is-easier .fc-face {
+  border-block-end-width: calc(var(--fc-card-w) * 0.014);
 }
 
 /* LIB-4.11-4.12: type is a fraction of the card width, never of the viewport,
@@ -124,7 +136,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .fc-card {
+  .fc-card,
+  .fc-face {
     transition: none;
   }
 }

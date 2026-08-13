@@ -60,7 +60,12 @@ Returns `{ destroy() }`. Options:
 | Not known well enough | `↑` | swipe up |
 | Known well enough | `↓` | swipe down |
 
-The deck wraps in both directions, so it never runs out. Grading records the card and moves on.
+The deck wraps in both directions, so it never runs out.
+
+Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards,
+top for *not known well enough*, bottom for *known well enough*. Repeating a grade the card already
+carries does nothing — the mark is already there and `onGrade` is not called again. Grading the other
+way replaces it and does count, including changing back. Moving to another card clears the mark.
 
 Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
 focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored
@@ -87,6 +92,7 @@ the host page through `onGrade` only.
 ## Layout
 
 ```text
+docs/requirements.md what v2 is, statement by statement (`V2-*`)
 src/flashcards.js    mount() — the only export a deck page needs
 src/deck.js          shuffle and a cursor that wraps
 src/store.js         the local-storage card dictionary

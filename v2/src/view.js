@@ -85,9 +85,21 @@ export function createView(container) {
     card.classList.remove("fc-instant");
   };
 
+  /**
+   * Show the card's grade by thickening the edge the gesture went towards:
+   * the top edge for `harder`, the bottom for `easier`, neither for null. The
+   * mark stays until the grade changes or the card does, because grading no
+   * longer pages away — the reader has to be able to see what they marked.
+   */
+  const mark = (level) => {
+    card.classList.toggle("is-harder", level === "harder");
+    card.classList.toggle("is-easier", level === "easier");
+  };
+
   return {
     root,
     show,
+    mark,
     flip: () => setFlipped(!flipped),
 
     /**
@@ -98,6 +110,7 @@ export function createView(container) {
     slide(direction, data) {
       const swap = () => {
         resetFlip();
+        mark(null);
         show(data);
       };
 

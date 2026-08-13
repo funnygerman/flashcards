@@ -106,27 +106,74 @@ describe("mount", () => {
     expect(isFlipped()).toBe(false);
   });
 
-  it("grades the card in front of the reader, then moves on", () => {
+  it("grades the card in front of the reader and stays on it", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
     press("ArrowDown");
-    expect(front(".fc-text").textContent).toBe("zwei");
+
+    expect(front(".fc-text").textContent).toBe("eins");
+    expect(graded).toEqual([["a", "easier"]]);
+  });
+
+  it("counts a grade once however many times it is repeated", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push(level) });
 
     press("ArrowUp");
-    expect(front(".fc-text").textContent).toBe("drei");
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(graded).toEqual(["harder"]);
+  });
+
+  it("counts a change of mind, and counts changing back", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push(level) });
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowDown");
+    press("ArrowDown");
+    press("ArrowUp");
+
+    expect(graded).toEqual(["harder", "easier", "harder"]);
+  });
+
+  it("starts the next card ungraded, so the same grade counts again", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    press("ArrowUp");
+    press("ArrowRight");
+    press("ArrowUp");
 
     expect(graded).toEqual([
-      ["a", "easier"],
+      ["a", "harder"],
       ["b", "harder"],
     ]);
+  });
+
+  it("marks the card on the edge the gesture went towards, and clears it on paging", () => {
+    open();
+    const card = () => document.querySelector(".fc-card").className;
+
+    press("ArrowUp");
+    expect(card()).toContain("is-harder");
+
+    press("ArrowDown");
+    expect(card()).toContain("is-easier");
+    expect(card()).not.toContain("is-harder");
+
+    press("ArrowRight");
+    expect(card()).not.toContain("is-easier");
   });
 
   it("grades without an onGrade callback", () => {
     open();
 
     expect(() => press("ArrowDown")).not.toThrow();
-    expect(front(".fc-text").textContent).toBe("zwei");
+    expect(front(".fc-text").textContent).toBe("eins");
   });
 
   it("records every card of the deck in local storage", () => {

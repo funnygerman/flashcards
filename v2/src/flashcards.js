@@ -32,13 +32,26 @@ export function mount(element, cards, options = {}) {
 
   view.show(deck.current());
 
-  const page = (direction) => view.slide(direction, direction > 0 ? deck.next() : deck.previous());
+  /* The grade the card in front of the reader is currently marked with. Held
+     here rather than in the view because it is what the reader has said, not
+     how it is drawn. */
+  let graded = null;
 
-  /* Grading is an opinion about the card in front of you, so it is recorded
-     before paging on — and it pages on through the same path as the arrows. */
+  const page = (direction) => {
+    graded = null;
+    return view.slide(direction, direction > 0 ? deck.next() : deck.previous());
+  };
+
+  /* Grading keeps the card in place, so the same grade can arrive many times
+     over: repeating it says nothing new and is dropped. Grading the other way
+     is a change of mind, and counts. */
   const grade = (level) => {
+    if (level === graded) return null;
+
+    graded = level;
+    view.mark(level);
     onGrade?.(deck.current(), level);
-    return page(1);
+    return null;
   };
 
   const actions = {
