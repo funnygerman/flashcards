@@ -15,7 +15,12 @@ export default defineConfig({
        depending on rendered geometry are verified manually — see the testing
        posture note in docs/tasks/T-00-scaffold.md. */
     environment: "jsdom",
-    include: ["library/src/**/*.test.ts", "app/src/**/*.test.ts", "scripts/content-pipeline/**/*.test.mjs"],
+    include: [
+      "library/src/**/*.test.ts",
+      "app/src/**/*.test.ts",
+      "scripts/content-pipeline/**/*.test.mjs",
+      "v2/src/**/*.test.js",
+    ],
     globals: false,
   },
 });

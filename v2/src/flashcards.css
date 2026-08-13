@@ -1,0 +1,121 @@
+/*
+ * One card, one page. No shadows, no rounded corners, no decoration that is not
+ * the card itself. The same stylesheet serves desktop and phone: the card fills
+ * whatever viewport it is given and the type scales with it.
+ */
+
+.fc {
+  --fc-bg: #fff;
+  --fc-fg: #111;
+  --fc-muted: #666;
+  --fc-line: #111;
+
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  block-size: 100dvh;
+  padding: 4vmin;
+  overflow: hidden;
+  color: var(--fc-fg);
+  background: var(--fc-bg);
+  font-family: system-ui, sans-serif;
+  perspective: 1200px;
+
+  /* The card is dragged in all four directions, so the page must not scroll or
+     select text under the gesture. */
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fc {
+    --fc-bg: #111;
+    --fc-fg: #f2f2f2;
+    --fc-muted: #999;
+    --fc-line: #f2f2f2;
+  }
+}
+
+/* Paging moves this element; the flip rotates the one inside it. */
+.fc-slide {
+  inline-size: 100%;
+  block-size: 100%;
+  max-inline-size: 48rem;
+}
+
+/* On a phone the card is the page. On a larger screen it stops growing and
+   stays a card-shaped rectangle in the middle of it. */
+@media (min-width: 48rem) {
+  .fc-slide {
+    max-block-size: 40rem;
+  }
+}
+
+.fc-card {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 320ms ease;
+}
+
+.fc-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* Set while the flip is reset under a card that is off screen. */
+.fc-card.fc-instant {
+  transition: none;
+}
+
+.fc-face {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 2rem;
+  border: 1px solid var(--fc-line);
+  background: var(--fc-bg);
+  text-align: center;
+  backface-visibility: hidden;
+}
+
+.fc-back {
+  transform: rotateY(180deg);
+}
+
+.fc-text {
+  margin: 0;
+  font-size: clamp(1.75rem, 7vmin, 4rem);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.fc-details {
+  margin: 0;
+  color: var(--fc-muted);
+  font-size: clamp(0.9rem, 2.5vmin, 1.25rem);
+  line-height: 1.4;
+}
+
+.fc-category {
+  position: absolute;
+  inset-block-start: 1rem;
+  margin: 0;
+  color: var(--fc-muted);
+  font-size: 0.75rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-card {
+    transition: none;
+  }
+}

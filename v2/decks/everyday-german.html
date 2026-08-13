@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Everyday German</title>
+    <link rel="stylesheet" href="../src/flashcards.css" />
+    <style>
+      html,
+      body {
+        margin: 0;
+        block-size: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <script type="module">
+      import { mount } from "../src/flashcards.js";
+
+      mount(document.body, [
+        { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
+        { key: "danke-thank-you", frontText: "danke", backText: "thank you", category: "phrase" },
+        {
+          key: "bitte-please",
+          frontText: "bitte",
+          backText: "please",
+          backDetails: "also: you're welcome, here you are",
+          category: "phrase",
+        },
+        { key: "auf-wiedersehen-goodbye", frontText: "auf Wiedersehen", backText: "goodbye", category: "phrase" },
+        { key: "sein-to-be", frontText: "sein", frontDetails: "ich bin, du bist", backText: "to be", category: "verb" },
+        { key: "haben-to-have", frontText: "haben", frontDetails: "ich habe, du hast", backText: "to have", category: "verb" },
+        { key: "gehen-to-go", frontText: "gehen", backText: "to go", category: "verb" },
+        { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run", category: "verb" },
+        {
+          key: "laufen-to-operate",
+          frontText: "laufen",
+          frontDetails: "of a machine",
+          backText: "to operate",
+          backDetails: "der Motor läuft — the engine is running",
+          category: "verb",
+        },
+        { key: "haus-house", frontText: "das Haus", backText: "house", category: "noun" },
+        { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
+        { key: "brot-bread", frontText: "das Brot", backText: "bread", category: "noun" },
+        { key: "buch-book", frontText: "das Buch", backText: "book", category: "noun" },
+        { key: "hund-dog", frontText: "der Hund", backText: "dog", category: "noun" },
+        { key: "katze-cat", frontText: "die Katze", backText: "cat", category: "noun" },
+        { key: "gut-good", frontText: "gut", backText: "good", category: "adjective" },
+        { key: "schlecht-bad", frontText: "schlecht", backText: "bad", category: "adjective" },
+        { key: "schnell-fast", frontText: "schnell", backText: "fast", backDetails: "also: quick", category: "adjective" },
+        { key: "langsam-slow", frontText: "langsam", backText: "slow", category: "adjective" },
+      ]);
+    </script>
+  </body>
+</html>
