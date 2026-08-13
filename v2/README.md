@@ -78,6 +78,10 @@ Unchanged from the old library's `LIB-4.3`–`LIB-4.12`: a **4:3** card, as wide
 allows, capped at 900 px, and never taller than 75 % of the viewport in portrait or 88 % in landscape.
 Type is a fraction of the card's own width — `0.085` for the text, `0.05` for the details.
 
+Where the deck is the page, the stylesheet owns the page box too: the document is exactly the visible
+viewport and nothing scrolls, so a phone's address bar stays put under a vertical swipe and a swipe down
+cannot turn into a pull-to-refresh. A deck mounted into a smaller container leaves its host's page alone.
+
 The difference is that CSS computes it, in one `min()` on `--fc-card-w`, instead of a JavaScript sizing
 engine with a throttled resize listener. The numbers come out the same: 900×675 on a 1280×800 desktop,
 292×219 on a 390×844 phone. Only the old integer-pixel rounding is gone — CSS sizes to the subpixel.
