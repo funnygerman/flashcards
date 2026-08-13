@@ -4,6 +4,21 @@
  * whatever viewport it is given and the type scales with it.
  */
 
+/*
+ * When the deck is the page — the case v2 is built for — the page box belongs
+ * to the library. Nothing scrolls, so a phone's address bar cannot slide in and
+ * out from under a vertical swipe, and a swipe down cannot become a
+ * pull-to-refresh. A deck mounted into a smaller container leaves its host's
+ * page alone.
+ */
+html:has(> body > .fc),
+html:has(> body > .fc) body {
+  margin: 0;
+  block-size: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 .fc {
   --fc-bg: #fff;
   --fc-fg: #111;

@@ -188,6 +188,13 @@ rather than overflowing it.
 
 **V2-7.9** Light and dark both work, following the reader's system preference.
 
+**V2-7.10** Where the deck is the page — its element a direct child of `body` — the library owns the
+page box: the document is exactly the visible viewport and nothing scrolls. A phone's address bar
+therefore cannot slide in and out from under a vertical swipe, and a swipe down cannot become a
+pull-to-refresh.
+
+**V2-7.11** A deck mounted into a smaller container leaves its host's page layout alone.
+
 ---
 
 ## 8. Animation
