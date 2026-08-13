@@ -6,6 +6,9 @@ name: Deploy to GitHub Pages
 # page. T-33 extends this same workflow with the content pipeline and the
 # release-1.0 smoke check once T-31 lands. See
 # docs/decisions/D5-continuous-pages-deployment.md.
+#
+# v2/ rides along as a third site: it needs no build, so it is copied as it is
+# and reached from the root page rather than through the app.
 
 on:
   push:
@@ -50,16 +53,35 @@ jobs:
           mkdir -p _site/app _site/library
           cp -r app/index.html app/dist _site/app/
           cp -r library/dist library/demo _site/library/
+
+          # v2 has no build step, so the sources the browser loads are the ones
+          # in the repository. Its tests are not part of the site.
+          cp -r v2 _site/v2
+          rm -f _site/v2/src/*.test.js
+
+          # The root used to redirect straight into the app. While two designs
+          # are live side by side it lists both instead, so neither is reachable
+          # only by knowing its URL.
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <html lang="en">
             <head>
               <meta charset="utf-8" />
-              <meta http-equiv="refresh" content="0; url=./app/" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
               <title>Flashcards</title>
+              <style>
+                body { margin: 0 auto; padding: 2rem; max-width: 32rem;
+                       font-family: system-ui, sans-serif; line-height: 1.5; }
+                li { margin-block-end: 0.75rem; }
+              </style>
             </head>
             <body>
-              <p>Redirecting to <a href="./app/">the app</a>…</p>
+              <h1>Flashcards</h1>
+              <ul>
+                <li><a href="./v2/decks/everyday-german.html">Everyday German</a> — a v2 deck</li>
+                <li><a href="./app/">The application</a></li>
+                <li><a href="./library/demo/">The library demo</a></li>
+              </ul>
             </body>
           </html>
           HTML

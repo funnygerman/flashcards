@@ -63,4 +63,20 @@ export default tseslint.config(
       globals: { document: "readonly", window: "readonly", console: "readonly" },
     },
   },
+
+  {
+    /* v2/ is plain browser JavaScript with no build step and no TS project
+       behind it, so its globals are declared the same way as the demo's. */
+    files: ["v2/**/*.js"],
+    languageOptions: {
+      globals: {
+        document: "readonly",
+        window: "readonly",
+        localStorage: "readonly",
+        console: "readonly",
+        KeyboardEvent: "readonly",
+        MouseEvent: "readonly",
+      },
+    },
+  },
 );

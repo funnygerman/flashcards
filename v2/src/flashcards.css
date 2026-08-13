@@ -1,0 +1,130 @@
+/*
+ * One card, one page. No shadows, no rounded corners, no decoration that is not
+ * the card itself. The same stylesheet serves desktop and phone: the card fills
+ * whatever viewport it is given and the type scales with it.
+ */
+
+.fc {
+  --fc-bg: #fff;
+  --fc-fg: #111;
+  --fc-muted: #666;
+  --fc-line: #111;
+
+  /* Card size, per docs/library/requirements.md LIB-4.3 and LIB-4.6-4.7: a 4:3
+     card, as wide as 75vw allows, capped at 900px, and never taller than 75 %
+     of the viewport. CSS min() does the whole formula, so there is no sizing
+     engine and no resize listener to keep in step with it. */
+  --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
+
+  box-sizing: border-box;
+  display: grid;
+  place-items: center;
+  block-size: 100dvh;
+  overflow: hidden;
+  color: var(--fc-fg);
+  background: var(--fc-bg);
+  font-family: system-ui, sans-serif;
+  perspective: 1200px;
+
+  /* The card is dragged in all four directions, so the page must not scroll or
+     select text under the gesture. */
+  touch-action: none;
+  user-select: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fc {
+    --fc-bg: #111;
+    --fc-fg: #f2f2f2;
+    --fc-muted: #999;
+    --fc-line: #f2f2f2;
+  }
+}
+
+/* LIB-4.8: landscape starts where the viewport is at least as wide as it is
+   tall, the same boundary the old sizing engine drew with `vw >= vh`. */
+@media (min-aspect-ratio: 1 / 1) {
+  .fc {
+    --fc-card-w: min(75vw, 900px, 88dvh * 4 / 3);
+  }
+}
+
+/* Paging moves this element; the flip rotates the one inside it. */
+.fc-slide {
+  inline-size: var(--fc-card-w);
+  block-size: calc(var(--fc-card-w) * 3 / 4);
+}
+
+.fc-card {
+  position: relative;
+  inline-size: 100%;
+  block-size: 100%;
+  cursor: pointer;
+  transform-style: preserve-3d;
+  transition: transform 320ms ease;
+}
+
+.fc-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+/* Set while the flip is reset under a card that is off screen. */
+.fc-card.fc-instant {
+  transition: none;
+}
+
+.fc-face {
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--fc-card-w) * 0.02);
+  padding: calc(var(--fc-card-w) * 0.06);
+  border: 1px solid var(--fc-line);
+  background: var(--fc-bg);
+  text-align: center;
+  backface-visibility: hidden;
+
+  /* Card size does not react to text length, so a word longer than the card
+     has to break rather than bleed out of both sides of it. */
+  overflow-wrap: anywhere;
+}
+
+.fc-back {
+  transform: rotateY(180deg);
+}
+
+/* LIB-4.11-4.12: type is a fraction of the card width, never of the viewport,
+   so the two can never disagree about how big the card is. */
+.fc-text {
+  margin: 0;
+  font-size: calc(var(--fc-card-w) * 0.085);
+  font-weight: 500;
+  line-height: 1.15;
+}
+
+.fc-details {
+  margin: 0;
+  color: var(--fc-muted);
+  font-size: calc(var(--fc-card-w) * 0.05);
+  line-height: 1.4;
+}
+
+.fc-category {
+  position: absolute;
+  inset-block-start: calc(var(--fc-card-w) * 0.04);
+  margin: 0;
+  color: var(--fc-muted);
+  font-size: calc(var(--fc-card-w) * 0.03);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fc-card {
+    transition: none;
+  }
+}
