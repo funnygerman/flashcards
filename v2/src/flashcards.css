@@ -10,11 +10,16 @@
   --fc-muted: #666;
   --fc-line: #111;
 
+  /* Card size, per docs/library/requirements.md LIB-4.3 and LIB-4.6-4.7: a 4:3
+     card, as wide as 75vw allows, capped at 900px, and never taller than 75 %
+     of the viewport. CSS min() does the whole formula, so there is no sizing
+     engine and no resize listener to keep in step with it. */
+  --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
+
   box-sizing: border-box;
   display: grid;
   place-items: center;
   block-size: 100dvh;
-  padding: 4vmin;
   overflow: hidden;
   color: var(--fc-fg);
   background: var(--fc-bg);
@@ -37,19 +42,18 @@
   }
 }
 
-/* Paging moves this element; the flip rotates the one inside it. */
-.fc-slide {
-  inline-size: 100%;
-  block-size: 100%;
-  max-inline-size: 48rem;
+/* LIB-4.8: landscape starts where the viewport is at least as wide as it is
+   tall, the same boundary the old sizing engine drew with `vw >= vh`. */
+@media (min-aspect-ratio: 1 / 1) {
+  .fc {
+    --fc-card-w: min(75vw, 900px, 88dvh * 4 / 3);
+  }
 }
 
-/* On a phone the card is the page. On a larger screen it stops growing and
-   stays a card-shaped rectangle in the middle of it. */
-@media (min-width: 48rem) {
-  .fc-slide {
-    max-block-size: 40rem;
-  }
+/* Paging moves this element; the flip rotates the one inside it. */
+.fc-slide {
+  inline-size: var(--fc-card-w);
+  block-size: calc(var(--fc-card-w) * 3 / 4);
 }
 
 .fc-card {
@@ -78,8 +82,8 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  padding: 2rem;
+  gap: calc(var(--fc-card-w) * 0.02);
+  padding: calc(var(--fc-card-w) * 0.06);
   border: 1px solid var(--fc-line);
   background: var(--fc-bg);
   text-align: center;
@@ -90,9 +94,11 @@
   transform: rotateY(180deg);
 }
 
+/* LIB-4.11-4.12: type is a fraction of the card width, never of the viewport,
+   so the two can never disagree about how big the card is. */
 .fc-text {
   margin: 0;
-  font-size: clamp(1.75rem, 7vmin, 4rem);
+  font-size: calc(var(--fc-card-w) * 0.085);
   font-weight: 500;
   line-height: 1.15;
 }
@@ -100,16 +106,16 @@
 .fc-details {
   margin: 0;
   color: var(--fc-muted);
-  font-size: clamp(0.9rem, 2.5vmin, 1.25rem);
+  font-size: calc(var(--fc-card-w) * 0.05);
   line-height: 1.4;
 }
 
 .fc-category {
   position: absolute;
-  inset-block-start: 1rem;
+  inset-block-start: calc(var(--fc-card-w) * 0.04);
   margin: 0;
   color: var(--fc-muted);
-  font-size: 0.75rem;
+  font-size: calc(var(--fc-card-w) * 0.03);
   letter-spacing: 0.12em;
   text-transform: uppercase;
 }

@@ -59,6 +59,16 @@ Returns `{ destroy() }`. Options:
 
 The deck wraps in both directions, so it never runs out. Grading records the card and moves on.
 
+## Card size
+
+Unchanged from the old library's `LIB-4.3`–`LIB-4.12`: a **4:3** card, as wide as 75 % of the viewport
+allows, capped at 900 px, and never taller than 75 % of the viewport in portrait or 88 % in landscape.
+Type is a fraction of the card's own width — `0.085` for the text, `0.05` for the details.
+
+The difference is that CSS computes it, in one `min()` on `--fc-card-w`, instead of a JavaScript sizing
+engine with a throttled resize listener. The numbers come out the same: 900×675 on a 1280×800 desktop,
+292×219 on a 390×844 phone. Only the old integer-pixel rounding is gone — CSS sizes to the subpixel.
+
 ## Local storage
 
 Every card the reader opens is written to `localStorage["flashcards.cards"]`, keyed by `key`, and is
