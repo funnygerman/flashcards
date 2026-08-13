@@ -24,6 +24,9 @@ No build step, no dependencies, no framework: the browser loads `src/*.js` as it
 root and open <http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over
 `file://`.
 
+Once this is on `main` it is published at
+<https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html>, and linked from the site root.
+
 ### Cards
 
 ```js
