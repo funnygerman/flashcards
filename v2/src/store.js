@@ -8,6 +8,19 @@
 
 export const STORAGE_KEY = "flashcards.cards";
 
+/**
+ * The page's own storage, or null where there is none to have. Reading the
+ * property is itself what throws on an opaque origin or with site data blocked,
+ * so it cannot be left to a default parameter.
+ */
+function defaultStorage() {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null;
+  }
+}
+
 /** The stored `{ [key]: card }` map, or an empty one if it is missing or unusable. */
 function read(storage) {
   try {
@@ -20,20 +33,36 @@ function read(storage) {
 }
 
 /**
+ * The card stored under `key`, or null if there is nothing usable there.
+ * `Object.hasOwn` rather than `in`, so a card keyed `constructor` or `toString`
+ * reads its own entry instead of one inherited from Object.prototype.
+ */
+function storedCard(stored, key) {
+  if (!Object.hasOwn(stored, key)) return null;
+
+  const card = stored[key];
+  return card && typeof card === "object" ? card : null;
+}
+
+/**
  * Merge a deck into the dictionary and return the cards to display.
  *
  * A card the dictionary has not seen is written to it; a card it has seen is
  * loaded from it. Card content is assumed not to change, so the stored copy
  * wins. Cards without a `key` are displayed but not stored.
  */
-export function syncCards(cards, storage) {
+export function syncCards(cards, storage = defaultStorage()) {
   const stored = read(storage);
   let added = false;
 
   const resolved = cards.map((card) => {
     if (!card.key) return card;
-    if (card.key in stored) return stored[card.key];
 
+    const known = storedCard(stored, card.key);
+    if (known) return known;
+
+    /* Anything unusable under this key is replaced rather than left to break
+       every future visit the same way. */
     stored[card.key] = card;
     added = true;
     return card;

@@ -21,6 +21,12 @@ export function keyIntent(key) {
   return KEY_INTENTS[key];
 }
 
+/** Keys belong to the deck unless the reader is typing into something. */
+function isTyping(target) {
+  const tag = target?.tagName;
+  return Boolean(target?.isContentEditable) || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
 /**
  * What a drag of (dx, dy) means. The dominant axis wins, and anything shorter
  * than the threshold is a tap — which is why a plain click flips the card.
@@ -34,21 +40,38 @@ export function swipeIntent(dx, dy, threshold = SWIPE_THRESHOLD) {
   return dy > 0 ? "easier" : "harder";
 }
 
-/** Bind both input sources to `onIntent`. Returns the unbind function. */
+/**
+ * Bind both input sources to `onIntent`. Returns the unbind function.
+ *
+ * Keys are bound to the document rather than to a focusable card: one page is
+ * one deck, so there is nothing else they could be meant for, and nothing the
+ * reader can click that takes the keyboard away from the deck.
+ */
 export function bindInput(element, onIntent) {
   let start = null;
 
-  const handlers = {
+  const keys = {
     keydown(event) {
       const intent = keyIntent(event.key);
-      if (!intent) return;
+      if (!intent || isTyping(event.target)) return;
 
       event.preventDefault();
       onIntent(intent);
     },
+  };
 
+  const gestures = {
     pointerdown(event) {
+      /* A right- or middle-click travels no distance, which would read as a
+         tap and flip the card open under the context menu. */
+      if (event.button > 0) return;
+
       start = { x: event.clientX, y: event.clientY, id: event.pointerId };
+
+      /* Capturing means the release is reported here even when it happens
+         outside the element, so a gesture cannot be left half-open and have
+         its origin measured against somebody else's release. */
+      if (typeof event.pointerId === "number") element.setPointerCapture?.(event.pointerId);
     },
 
     pointerup(event) {
@@ -64,9 +87,17 @@ export function bindInput(element, onIntent) {
     },
   };
 
-  for (const [type, handler] of Object.entries(handlers)) element.addEventListener(type, handler);
+  const bound = [
+    [element.ownerDocument, keys],
+    [element, gestures],
+  ];
 
-  return () => {
-    for (const [type, handler] of Object.entries(handlers)) element.removeEventListener(type, handler);
+  const each = (method) => {
+    for (const [target, handlers] of bound) {
+      for (const [type, handler] of Object.entries(handlers)) target[method](type, handler);
+    }
   };
+
+  each("addEventListener");
+  return () => each("removeEventListener");
 }

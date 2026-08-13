@@ -62,6 +62,11 @@ Returns `{ destroy() }`. Options:
 
 The deck wraps in both directions, so it never runs out. Grading records the card and moves on.
 
+Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
+focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored
+while the reader is typing into an input, a textarea, a select, or anything `contenteditable`.
+Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
+
 ## Card size
 
 Unchanged from the old library's `LIB-4.3`–`LIB-4.12`: a **4:3** card, as wide as 75 % of the viewport

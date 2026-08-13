@@ -21,7 +21,7 @@ import { createView } from "./view.js";
  *                  will act on it is the next step
  */
 export function mount(element, cards, options = {}) {
-  const { storage = globalThis.localStorage, random = Math.random, onGrade } = options;
+  const { storage, random = Math.random, onGrade } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -61,8 +61,6 @@ export function mount(element, cards, options = {}) {
       sliding = null;
     });
   });
-
-  view.focus();
 
   return {
     destroy() {

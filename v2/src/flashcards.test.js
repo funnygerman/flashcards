@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { STORAGE_KEY } from "./store.js";
 import { mount } from "./flashcards.js";
@@ -15,22 +15,37 @@ const cards = [
 /** Random that leaves the order alone, so "next" means the next card written above. */
 const unshuffled = () => 0.999;
 
-function press(key) {
-  document.querySelector(".fc").dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
+/* Keys are bound to the document, so the deck answers them wherever they land
+   and there is no focus to establish first. */
+function press(key, target = document) {
+  target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 }
 
 const front = (selector) => document.querySelector(`.fc-front ${selector}`);
 const back = (selector) => document.querySelector(`.fc-back ${selector}`);
 const isFlipped = () => document.querySelector(".fc-card").classList.contains("is-flipped");
 
+const mounted = [];
+
+function track(deck) {
+  mounted.push(deck);
+  return deck;
+}
+
 function open(options = {}) {
-  return mount(document.body, cards, { storage: localStorage, random: unshuffled, ...options });
+  return track(mount(document.body, cards, { storage: localStorage, random: unshuffled, ...options }));
 }
 
 describe("mount", () => {
   beforeEach(() => {
-    document.body.replaceChildren();
     localStorage.clear();
+  });
+
+  afterEach(() => {
+    /* Document-level keys mean a deck left mounted would go on answering them
+       in the next test. */
+    for (const deck of mounted.splice(0)) deck.destroy();
+    document.body.replaceChildren();
   });
 
   it("refuses an empty deck", () => {
@@ -48,7 +63,7 @@ describe("mount", () => {
   });
 
   it("renders card content as text, never as markup", () => {
-    mount(document.body, [{ key: "x", frontText: "<b>bold</b>", backText: "b" }], { random: unshuffled });
+    track(mount(document.body, [{ key: "x", frontText: "<b>bold</b>", backText: "b" }], { random: unshuffled }));
 
     expect(front(".fc-text").textContent).toBe("<b>bold</b>");
     expect(front(".fc-text").children.length).toBe(0);
@@ -127,16 +142,24 @@ describe("mount", () => {
     expect(front(".fc-text").textContent).toBe("stored");
   });
 
+  it("leaves the keyboard alone while the reader is typing", () => {
+    const input = document.createElement("input");
+    document.body.append(input);
+    open();
+
+    press("ArrowRight", input);
+
+    expect(front(".fc-text").textContent).toBe("eins");
+  });
+
   it("removes the deck and stops listening on destroy", () => {
-    const deck = open();
-    const root = document.querySelector(".fc");
-    const listener = vi.fn();
-    root.addEventListener("keydown", listener);
+    const graded = [];
+    const deck = open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
     deck.destroy();
+    press("ArrowDown");
 
     expect(document.querySelector(".fc")).toBe(null);
-    root.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
-    expect(listener).toHaveBeenCalledOnce(); /* the test's own listener, not the library's */
+    expect(graded).toEqual([]);
   });
 });

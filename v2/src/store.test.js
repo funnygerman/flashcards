@@ -66,6 +66,23 @@ describe("syncCards", () => {
     expect(JSON.parse(storage.read())).toEqual({ [card.key]: card });
   });
 
+  it("reads a card keyed like an Object.prototype member as its own entry", () => {
+    /* `"constructor" in {}` is true, so `in` would hand back the Object
+       constructor and the card would render blank forever. */
+    const named = { key: "constructor", frontText: "der Konstrukteur", backText: "the builder" };
+
+    expect(syncCards([named], storage)).toEqual([named]);
+    expect(JSON.parse(storage.read())).toEqual({ constructor: named });
+  });
+
+  it("replaces a stored entry that is not a card", () => {
+    /* Left in place, a null entry breaks rendering on every future visit. */
+    storage = createStorage(JSON.stringify({ [card.key]: null }));
+
+    expect(syncCards([card], storage)).toEqual([card]);
+    expect(JSON.parse(storage.read())).toEqual({ [card.key]: card });
+  });
+
   it("shows keyless cards without storing them", () => {
     const keyless = { frontText: "no key", backText: "not stored" };
 

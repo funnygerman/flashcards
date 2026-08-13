@@ -60,8 +60,6 @@ const offscreen = (percent) => [
 
 export function createView(container) {
   const root = createElement("div", "fc", container);
-  root.tabIndex = 0;
-
   const slider = createElement("div", "fc-slide", root);
   const card = createElement("div", "fc-card", slider);
   const front = createFace(card, "front");
@@ -115,7 +113,6 @@ export function createView(container) {
       });
     },
 
-    focus: () => root.focus(),
     destroy: () => root.remove(),
   };
 }

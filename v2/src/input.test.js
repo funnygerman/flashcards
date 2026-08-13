@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { SWIPE_THRESHOLD, bindInput, keyIntent, swipeIntent } from "./input.js";
 
@@ -46,18 +46,32 @@ describe("swipeIntent", () => {
 });
 
 describe("bindInput", () => {
+  const bound = [];
+
+  /* Attached to the document, because that is where the key handler lives. */
   const listen = () => {
     const element = document.createElement("div");
+    document.body.append(element);
+
     const intents = [];
     const unbind = bindInput(element, (intent) => intents.push(intent));
+    bound.push(() => {
+      unbind();
+      element.remove();
+    });
+
     return { element, intents, unbind };
   };
+
+  afterEach(() => {
+    for (const dispose of bound.splice(0)) dispose();
+  });
 
   it("reports keyboard intents", () => {
     const { element, intents } = listen();
 
-    element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
-    element.dispatchEvent(new KeyboardEvent("keydown", { key: "x" }));
+    element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+    element.dispatchEvent(new KeyboardEvent("keydown", { key: "x", bubbles: true }));
 
     expect(intents).toEqual(["next"]);
   });
@@ -72,6 +86,15 @@ describe("bindInput", () => {
     pointer(element, "pointerup", 52, 51);
 
     expect(intents).toEqual(["next", "flip"]);
+  });
+
+  it("ignores a right-click, which would otherwise read as a tap", () => {
+    const { element, intents } = listen();
+
+    element.dispatchEvent(new MouseEvent("pointerdown", { clientX: 5, clientY: 5, button: 2, bubbles: true }));
+    element.dispatchEvent(new MouseEvent("pointerup", { clientX: 5, clientY: 5, button: 2, bubbles: true }));
+
+    expect(intents).toEqual([]);
   });
 
   it("ignores a release with no press, and a cancelled gesture", () => {
@@ -90,7 +113,7 @@ describe("bindInput", () => {
     const { element, intents, unbind } = listen();
 
     unbind();
-    element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft" }));
+    element.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
 
     expect(intents).toEqual([]);
   });
