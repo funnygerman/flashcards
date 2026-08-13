@@ -88,6 +88,10 @@
   background: var(--fc-bg);
   text-align: center;
   backface-visibility: hidden;
+
+  /* Card size does not react to text length, so a word longer than the card
+     has to break rather than bleed out of both sides of it. */
+  overflow-wrap: anywhere;
 }
 
 .fc-back {
