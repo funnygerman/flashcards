@@ -9,8 +9,9 @@
   <body>
     <script type="module">
       import { mount } from "../src/flashcards.js";
+      import { recordGrade } from "../src/review.js";
 
-      mount(document.body, [
+      const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
         { key: "danke-thank-you", frontText: "danke", backText: "thank you", category: "phrase" },
         {
@@ -43,7 +44,14 @@
         { key: "schlecht-bad", frontText: "schlecht", backText: "bad", category: "adjective" },
         { key: "schnell-fast", frontText: "schnell", backText: "fast", backDetails: "also: quick", category: "adjective" },
         { key: "langsam-slow", frontText: "langsam", backText: "slow", category: "adjective" },
-      ]);
+      ];
+
+      /* Review scheduling is not part of the library (V2-5.9) — a deck page
+         wires it up itself, through the same onGrade callback any other
+         host-side concern would use. */
+      mount(document.body, cards, {
+        onGrade: (card, level) => recordGrade(card.key, level),
+      });
     </script>
   </body>
 </html>

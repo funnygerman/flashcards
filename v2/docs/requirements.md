@@ -138,8 +138,20 @@ edge the gesture went towards — the top edge for `harder`, the bottom for `eas
 **V2-5.8** The mark uses no colour, so it carries in both themes and does not depend on colour vision to
 be seen.
 
-**V2-5.9** Grades reach the host page through `onGrade` only. The library stores no grade and computes
-no schedule.
+**V2-5.9** Grades reach the host page through `onGrade` only. The library itself stores no grade and
+computes no schedule — see §11 for the separate module a deck page can use for that.
+
+**V2-5.10** The on-card mark (V2-5.7) and a review schedule (§11) are independent. The mark is what the
+reader currently sees on the card in front of them and resets every time the deck pages (V2-5.6); the
+schedule, where a deck chooses to keep one, is what the reader saw last time and persists across visits.
+Neither reads the other.
+
+**V2-5.11** A card the reader pages past without grading is reported once, as `onGrade(card, "neutral")`,
+at the moment it leaves — so a card the reader simply forgot to grade is not indistinguishable, to
+whatever is listening, from a card that was never shown at all.
+
+**V2-5.12** `neutral` never fires for a card the reader did grade during that viewing, and never fires
+for the card left on screen when the deck is destroyed — only an actual page turn reports it.
 
 ---
 
@@ -159,8 +171,11 @@ an empty dictionary. A deck must render whether or not storage works.
 **V2-6.5** An unusable entry under a card's key is replaced, so a bad write cannot break every future
 visit the same way.
 
-**V2-6.6** This dictionary is groundwork. It is what a later dictionary view and review schedule will
-read; neither is part of v2.
+**V2-6.6** This dictionary is groundwork for a later dictionary view (V2-10.1). The review schedule
+(§11) does not read it — it keys its own storage by the same card `key`, independently.
+
+**V2-6.7** `storage.js` — reading and writing a `{ [key]: value }` map safely — is shared by this module
+and by review.js (§11), so the two agree on what "storage is unusable" means without saying so twice.
 
 ---
 
@@ -232,7 +247,8 @@ carrying their own copy of what the four directions mean.
 
 These are known and deliberately absent. They are listed so their absence reads as a decision.
 
-**V2-10.1** Review scheduling. `onGrade` is the seam it will attach to.
+**V2-10.1** *(implemented — see §11)* Review scheduling was deliberately absent from v2 at first, with
+`onGrade` as the seam it would attach to. §11 describes what was built there.
 
 **V2-10.2** A dictionary view over everything the reader has seen, with sorting and category filters.
 
@@ -247,12 +263,51 @@ live region.
 
 ---
 
+## 11. Review scheduling
+
+**V2-11.1** Not part of the library. `mount()` never imports this module (V2-5.9) — a deck page composes
+it itself, through `onGrade`, the same way it would reach for any other host-side concern.
+
+**V2-11.2** A Leitner system: a card sits in a box numbered 0 upward. `easier` promotes it one box;
+`harder` returns it to box 0. There is no partial credit and no smaller step back — a wrong answer means
+starting over.
+
+**V2-11.3** Each box has a fixed interval, in days, before a card in it is due again: `[0, 1, 2, 4, 8,
+16, 32]`, box 0 due immediately. The last box is the cap; `easier` there is recorded but does not
+promote further.
+
+**V2-11.4** Leitner, not a continuous model such as SM-2 or FSRS, because the signal this library
+produces is binary — `harder` or `easier`, never a graded quality — and Leitner is the classic scheduler
+built for exactly that signal. It also needs no dependency, which keeps V2-9.1 intact.
+
+**V2-11.5** `neutral` (V2-5.11) neither promotes nor demotes: the card's box is unchanged, and its
+interval is renewed from the moment it was seen. It is evidence of neither recall nor difficulty, so it
+moves the schedule in neither direction — but it still writes an entry, so a card that is only ever seen
+and never graded gets a schedule instead of staying permanently, indistinguishably due.
+
+**V2-11.6** A card's schedule is `{ box, dueAt }`, one entry per card `key`, in one storage key,
+`flashcards.review`, independent of the card dictionary (V2-6.6).
+
+**V2-11.7** A card that has never been graded has no stored schedule. Reading its state returns box 0,
+due now, without writing anything — a schedule is created by grading, not by looking.
+
+**V2-11.8** A stored entry that is not a usable schedule — the wrong shape, a non-integer or
+out-of-range box, a non-finite `dueAt` — is read as though the card had never been graded, and is
+replaced the next time it is graded, the same posture V2-6.5 takes towards the card dictionary.
+
+**V2-11.9** Storage that is absent, blocked, or corrupt degrades the same way it does for the card
+dictionary (V2-6.4): an empty schedule, not a thrown error.
+
+---
+
 ## Open questions
 
 Not requirements — decisions deferred until there is a reason to make them.
 
 - **Should a grade survive leaving the card?** V2-5.6 says no: come back to a card and it is ungraded
-  again. Remembering it means deciding where a grade lives and for how long, which is the review
-  schedule's question (V2-10.1), not this one.
+  again. That mark is UI, not scheduling data — it is deliberately separate from the review schedule
+  (V2-5.10), which does persist across visits.
 - **Should sizing round to whole pixels?** The library it replaces computed integer pixels in
   JavaScript. CSS sizes to the subpixel, and no problem has been traced to the difference.
+- **Should the Leitner box count or interval schedule be configurable?** Fixed for now (V2-11.3). Nothing
+  has needed it to move yet.

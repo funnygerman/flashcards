@@ -46,7 +46,7 @@ Returns `{ destroy() }`. Options:
 
 | | |
 |---|---|
-| `onGrade(card, level)` | called when the reader grades a card, with `"harder"` or `"easier"` |
+| `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -66,6 +66,9 @@ Grading keeps the card in place and marks it: the border thickens on the edge th
 top for *not known well enough*, bottom for *known well enough*. Repeating a grade the card already
 carries does nothing — the mark is already there and `onGrade` is not called again. Grading the other
 way replaces it and does count, including changing back. Moving to another card clears the mark.
+
+A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
+— so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.
 
 Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
 focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored
@@ -89,9 +92,40 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 ## Local storage
 
 Every card the reader opens is written to `localStorage["flashcards.cards"]`, keyed by `key`, and is
-loaded from there on the next visit — card content is assumed not to change. Nothing else is stored
-yet: this is the groundwork for the dictionary view and the review logic, and grades currently reach
-the host page through `onGrade` only.
+loaded from there on the next visit — card content is assumed not to change. This is the groundwork for
+a later dictionary view; it holds no grade and no schedule.
+
+## Review scheduling
+
+Not part of `mount()` — the library never stores a grade or computes a schedule (see `onGrade` above).
+`src/review.js` is a separate module a deck page can wire up itself:
+
+```js
+import { mount } from "../src/flashcards.js";
+import { recordGrade } from "../src/review.js";
+
+mount(document.body, cards, {
+  onGrade: (card, level) => recordGrade(card.key, level),
+});
+```
+
+It's a Leitner system: a card sits in a box, `easier` promotes it one box towards a longer interval,
+`harder` sends it back to the first box due immediately — no partial credit, no smaller step back.
+`neutral` neither promotes nor demotes; it just renews the card's current interval from now, so a card
+that is only ever paged past still gets a schedule instead of staying permanently, indistinguishably
+due. Box intervals are `[0, 1, 2, 4, 8, 16, 32]` days, fixed. Leitner rather than a continuous model like
+SM-2 or FSRS, because the grade here is at most three outcomes, never a five-point quality — and Leitner
+is the classic scheduler for exactly that kind of signal; it also needs no dependency.
+
+```js
+import { isDue, reviewState } from "../src/review.js";
+
+const due = cards.filter((card) => isDue(reviewState(card.key)));
+```
+
+Everything ends up in one storage key, `localStorage["flashcards.review"]`, as `{ [key]: { box, dueAt } }`
+— independent of the card dictionary above; the two never read each other. `decks/everyday-german.html`
+wires it up as the example.
 
 ## Layout
 
@@ -100,6 +134,8 @@ docs/requirements.md what v2 is, statement by statement (`V2-*`)
 src/flashcards.js    mount() — the only export a deck page needs
 src/deck.js          shuffle and a cursor that wraps
 src/store.js         the local-storage card dictionary
+src/review.js        Leitner review scheduling — separate from mount()
+src/storage.js       the local-storage map helpers store.js and review.js share
 src/view.js          the DOM, the flip, and the slide
 src/input.js         keys and swipes, mapped onto one set of intents
 src/flashcards.css   all of the styling
