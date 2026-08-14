@@ -186,6 +186,57 @@ describe("mount", () => {
     expect(graded).toEqual([]);
   });
 
+  it("draws no progress column by default", () => {
+    open();
+
+    expect(document.querySelector(".fc-progress")).toBe(null);
+  });
+
+  it("draws a progress column of the given size, filled from the host's data", () => {
+    open({ progress: { steps: 5, of: () => 3 } });
+
+    const dots = document.querySelectorAll(".fc-dot");
+    expect(dots).toHaveLength(5);
+    expect([...dots].filter((d) => d.classList.contains("is-filled"))).toHaveLength(3);
+  });
+
+  it("clamps an out-of-range level into the drawable dots", () => {
+    open({ progress: { steps: 3, of: () => 99 } });
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(3);
+
+    document.body.replaceChildren();
+    open({ progress: { steps: 3, of: () => -5 } });
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(0);
+  });
+
+  it("re-reads progress for the card that is actually on screen after paging", () => {
+    const levels = { a: 1, b: 4, c: 2 };
+    open({ progress: { steps: 5, of: (card) => levels[card.key] } });
+
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(1);
+
+    press("ArrowRight");
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(4);
+
+    press("ArrowRight");
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(2);
+  });
+
+  it("re-reads progress immediately after a grade, since onGrade already ran", () => {
+    const levels = { a: 0 };
+    open({
+      onGrade: (card) => {
+        levels[card.key] += 1;
+      },
+      progress: { steps: 5, of: (card) => levels[card.key] },
+    });
+
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(0);
+
+    press("ArrowUp");
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(1);
+  });
+
   it("marks the card on the edge the gesture went towards, and clears it on paging", () => {
     open();
     const card = () => document.querySelector(".fc-card").className;

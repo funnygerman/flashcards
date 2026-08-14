@@ -32,8 +32,10 @@ html:has(> body > .fc) body {
   --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
 
   box-sizing: border-box;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--fc-card-w) * 0.03);
   block-size: 100dvh;
   overflow: hidden;
   color: var(--fc-fg);
@@ -62,6 +64,30 @@ html:has(> body > .fc) body {
   .fc {
     --fc-card-w: min(75vw, 900px, 88dvh * 4 / 3);
   }
+}
+
+/* The progress column: squares, not circles, stacked bottom-to-top — an
+   empty column reads as "nothing yet", not zero of an unknown total. Sits
+   outside the card entirely, on its own, so it never has to compete with the
+   card's content the way the on-card marks that came before it did. */
+.fc-progress {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--fc-card-w) * 0.012);
+  flex: none;
+}
+
+.fc-dot {
+  inline-size: calc(var(--fc-card-w) * 0.022);
+  block-size: calc(var(--fc-card-w) * 0.022);
+  border: 1px solid var(--fc-line);
+  box-sizing: border-box;
+  transition: background-color 160ms ease;
+}
+
+.fc-dot.is-filled {
+  background: var(--fc-line);
 }
 
 /* Paging moves this element; the flip rotates the one inside it. */

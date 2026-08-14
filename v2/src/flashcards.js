@@ -20,19 +20,33 @@ import { createView } from "./view.js";
  *                  receives (card, "harder" | "easier" | "neutral") — "neutral"
  *                  for a card the reader paged past without grading, so a
  *                  forgotten card is not silently skipped by whatever is
- *                  listening (e.g. review scheduling, see review.js)
+ *                  listening (e.g. review scheduling, see review.js).
+ *                  `progress` draws a column of `steps` squares beside the
+ *                  card, `of(card)` filled — any host-supplied 0..steps
+ *                  count, e.g. review.js's box; omit it for a bare card.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade } = options;
+  const { storage, random = Math.random, onGrade, progress } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
   }
 
   const deck = createDeck(syncCards(cards, storage), random);
-  const view = createView(element);
+  const view = createView(element, progress?.steps);
+
+  /* Progress is the host's data, not the library's — read fresh every time
+     the reader could plausibly have changed it (a new card, or a grade on
+     this one) rather than held as state here. */
+  const showProgress = () => {
+    if (!progress) return;
+
+    const filled = Math.max(0, Math.min(progress.of(deck.current()) || 0, progress.steps));
+    view.setProgress(filled);
+  };
 
   view.show(deck.current());
+  showProgress();
 
   /* The grade the card in front of the reader is currently marked with. Held
      here rather than in the view because it is what the reader has said, not
@@ -47,7 +61,15 @@ export function mount(element, cards, options = {}) {
     if (graded === null) onGrade?.(deck.current(), "neutral");
 
     graded = null;
-    return view.slide(direction, direction > 0 ? deck.next() : deck.previous());
+
+    /* The dots belong to the card that is about to be on screen, so they
+       update once it actually arrives — not the one sliding away. */
+    const sliding = view.slide(direction, direction > 0 ? deck.next() : deck.previous());
+    if (!sliding) {
+      showProgress();
+      return null;
+    }
+    return sliding.then(showProgress);
   };
 
   /* Grading keeps the card in place, so the same grade can arrive many times
@@ -59,6 +81,7 @@ export function mount(element, cards, options = {}) {
     graded = level;
     view.mark(level);
     onGrade?.(deck.current(), level);
+    showProgress(); /* onGrade already ran, so the host's own data is current */
     return null;
   };
 
