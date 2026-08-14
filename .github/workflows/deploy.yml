@@ -1,14 +1,10 @@
 name: Deploy to GitHub Pages
 
-# T-00b: publishes whatever currently exists in app/ (plus library/dist) on
-# every push to main, well before the deck page (T-31) exists. T-10 extends
-# the assembly step to also publish library/demo/, a library-only showcase
-# page. T-33 extends this same workflow with the content pipeline and the
-# release-1.0 smoke check once T-31 lands. See
-# docs/decisions/D5-continuous-pages-deployment.md.
-#
-# v2/ rides along as a third site: it needs no build, so it is copied as it is
-# and reached from the root page rather than through the app.
+# v1 (library/, app/) is being retired: this workflow no longer builds it or
+# publishes it. v2 needs no build — the sources the browser loads are the
+# ones in the repository, copied in as they are. See
+# docs/decisions/D5-continuous-pages-deployment.md for the history behind why
+# this workflow exists at all.
 
 on:
   push:
@@ -37,51 +33,30 @@ jobs:
           cache: npm
 
       - run: npm ci
-      - run: npm run build
       - run: npm run lint
       - run: npm test
 
-      # Mirrors the layout scripts/dev-server.mjs already serves locally
-      # (repository root, app at /app/) so app/index.html's import map
-      # resolves ../library/dist/... with no changes. library/demo/ (T-10)
-      # rides along the same way, resolving its own ../dist/... import map
-      # entry against library/dist/ once both land under _site/library/.
       - name: Assemble Pages site
         run: |
           set -euo pipefail
           rm -rf _site
-          mkdir -p _site/app _site/library
-          cp -r app/index.html app/dist _site/app/
-          cp -r library/dist library/demo _site/library/
+          mkdir -p _site
 
           # v2 has no build step, so the sources the browser loads are the ones
           # in the repository. Its tests are not part of the site.
           cp -r v2 _site/v2
           rm -f _site/v2/src/*.test.js
 
-          # The root used to redirect straight into the app. While two designs
-          # are live side by side it lists both instead, so neither is reachable
-          # only by knowing its URL.
           cat > _site/index.html <<'HTML'
           <!doctype html>
           <html lang="en">
             <head>
               <meta charset="utf-8" />
-              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <meta http-equiv="refresh" content="0; url=./v2/decks/everyday-german.html" />
               <title>Flashcards</title>
-              <style>
-                body { margin: 0 auto; padding: 2rem; max-width: 32rem;
-                       font-family: system-ui, sans-serif; line-height: 1.5; }
-                li { margin-block-end: 0.75rem; }
-              </style>
             </head>
             <body>
-              <h1>Flashcards</h1>
-              <ul>
-                <li><a href="./v2/decks/everyday-german.html">Everyday German</a> — a v2 deck</li>
-                <li><a href="./app/">The application</a></li>
-                <li><a href="./library/demo/">The library demo</a></li>
-              </ul>
+              <p>Redirecting to <a href="./v2/decks/everyday-german.html">the deck</a>…</p>
             </body>
           </html>
           HTML
