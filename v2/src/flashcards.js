@@ -17,8 +17,10 @@ import { createView } from "./view.js";
  * @param element   where the deck is rendered
  * @param cards     the deck, shown in a random order
  * @param options   `storage` and `random` are injectable for tests; `onGrade`
- *                  receives (card, "harder" | "easier") — the review logic that
- *                  will act on it is the next step
+ *                  receives (card, "harder" | "easier" | "neutral") — "neutral"
+ *                  for a card the reader paged past without grading, so a
+ *                  forgotten card is not silently skipped by whatever is
+ *                  listening (e.g. review scheduling, see review.js)
  */
 export function mount(element, cards, options = {}) {
   const { storage, random = Math.random, onGrade } = options;
@@ -37,7 +39,13 @@ export function mount(element, cards, options = {}) {
      how it is drawn. */
   let graded = null;
 
+  /* A card leaving ungraded is not nothing — the reader saw it and moved on,
+     which is itself worth reporting once, as a neutral outcome, so a card
+     they simply forgot to grade is not indistinguishable from one they never
+     saw at all. */
   const page = (direction) => {
+    if (graded === null) onGrade?.(deck.current(), "neutral");
+
     graded = null;
     return view.slide(direction, direction > 0 ? deck.next() : deck.previous());
   };

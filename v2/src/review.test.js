@@ -80,6 +80,18 @@ describe("recordGrade", () => {
     expect(recordGrade("a", "harder", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
   });
 
+  it("keeps a never-graded card at box 0 and due now on neutral", () => {
+    expect(recordGrade("a", "neutral", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
+  });
+
+  it("neither promotes nor demotes an already-graded card on neutral, but renews its interval", () => {
+    recordGrade("a", "easier", storage, NOW); // box 1
+    recordGrade("a", "easier", storage, NOW); // box 2, due at NOW + 2 * DAY
+
+    const later = NOW + DAY; // a day later, the reader sees it again and pages past it
+    expect(recordGrade("a", "neutral", storage, later)).toEqual({ box: 2, dueAt: later + 2 * DAY });
+  });
+
   it("keeps each card's schedule independent", () => {
     recordGrade("a", "easier", storage, NOW);
     recordGrade("b", "harder", storage, NOW);

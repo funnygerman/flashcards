@@ -146,6 +146,13 @@ reader currently sees on the card in front of them and resets every time the dec
 schedule, where a deck chooses to keep one, is what the reader saw last time and persists across visits.
 Neither reads the other.
 
+**V2-5.11** A card the reader pages past without grading is reported once, as `onGrade(card, "neutral")`,
+at the moment it leaves — so a card the reader simply forgot to grade is not indistinguishable, to
+whatever is listening, from a card that was never shown at all.
+
+**V2-5.12** `neutral` never fires for a card the reader did grade during that viewing, and never fires
+for the card left on screen when the deck is destroyed — only an actual page turn reports it.
+
 ---
 
 ## 6. Storage
@@ -273,17 +280,22 @@ promote further.
 produces is binary — `harder` or `easier`, never a graded quality — and Leitner is the classic scheduler
 built for exactly that signal. It also needs no dependency, which keeps V2-9.1 intact.
 
-**V2-11.5** A card's schedule is `{ box, dueAt }`, one entry per card `key`, in one storage key,
+**V2-11.5** `neutral` (V2-5.11) neither promotes nor demotes: the card's box is unchanged, and its
+interval is renewed from the moment it was seen. It is evidence of neither recall nor difficulty, so it
+moves the schedule in neither direction — but it still writes an entry, so a card that is only ever seen
+and never graded gets a schedule instead of staying permanently, indistinguishably due.
+
+**V2-11.6** A card's schedule is `{ box, dueAt }`, one entry per card `key`, in one storage key,
 `flashcards.review`, independent of the card dictionary (V2-6.6).
 
-**V2-11.6** A card that has never been graded has no stored schedule. Reading its state returns box 0,
+**V2-11.7** A card that has never been graded has no stored schedule. Reading its state returns box 0,
 due now, without writing anything — a schedule is created by grading, not by looking.
 
-**V2-11.7** A stored entry that is not a usable schedule — the wrong shape, a non-integer or
+**V2-11.8** A stored entry that is not a usable schedule — the wrong shape, a non-integer or
 out-of-range box, a non-finite `dueAt` — is read as though the card had never been graded, and is
 replaced the next time it is graded, the same posture V2-6.5 takes towards the card dictionary.
 
-**V2-11.8** Storage that is absent, blocked, or corrupt degrades the same way it does for the card
+**V2-11.9** Storage that is absent, blocked, or corrupt degrades the same way it does for the card
 dictionary (V2-6.4): an empty schedule, not a thrown error.
 
 ---

@@ -154,6 +154,38 @@ describe("mount", () => {
     ]);
   });
 
+  it("reports an ungraded card as neutral when the reader pages past it", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    press("ArrowRight"); // card a, never graded
+    press("ArrowLeft"); // card b, never graded, either direction counts
+
+    expect(graded).toEqual([
+      ["a", "neutral"],
+      ["b", "neutral"],
+    ]);
+  });
+
+  it("does not also report a graded card as neutral when the reader pages past it", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    press("ArrowUp"); // grades card a
+    press("ArrowRight");
+
+    expect(graded).toEqual([["a", "harder"]]);
+  });
+
+  it("does not report the card on screen as neutral just because the deck is destroyed", () => {
+    const graded = [];
+    const deck = open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    deck.destroy();
+
+    expect(graded).toEqual([]);
+  });
+
   it("marks the card on the edge the gesture went towards, and clears it on paging", () => {
     open();
     const card = () => document.querySelector(".fc-card").className;

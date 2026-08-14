@@ -46,7 +46,7 @@ Returns `{ destroy() }`. Options:
 
 | | |
 |---|---|
-| `onGrade(card, level)` | called when the reader grades a card, with `"harder"` or `"easier"` |
+| `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -66,6 +66,9 @@ Grading keeps the card in place and marks it: the border thickens on the edge th
 top for *not known well enough*, bottom for *known well enough*. Repeating a grade the card already
 carries does nothing — the mark is already there and `onGrade` is not called again. Grading the other
 way replaces it and does count, including changing back. Moving to another card clears the mark.
+
+A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
+— so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.
 
 Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
 focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored
@@ -107,10 +110,12 @@ mount(document.body, cards, {
 ```
 
 It's a Leitner system: a card sits in a box, `easier` promotes it one box towards a longer interval,
-`harder` sends it back to the first box due immediately — no partial credit, no smaller step back. Box
-intervals are `[0, 1, 2, 4, 8, 16, 32]` days, fixed. Leitner rather than a continuous model like SM-2 or
-FSRS, because the grade here is binary — never a five-point quality — and Leitner is the classic
-scheduler for exactly that signal; it also needs no dependency.
+`harder` sends it back to the first box due immediately — no partial credit, no smaller step back.
+`neutral` neither promotes nor demotes; it just renews the card's current interval from now, so a card
+that is only ever paged past still gets a schedule instead of staying permanently, indistinguishably
+due. Box intervals are `[0, 1, 2, 4, 8, 16, 32]` days, fixed. Leitner rather than a continuous model like
+SM-2 or FSRS, because the grade here is at most three outcomes, never a five-point quality — and Leitner
+is the classic scheduler for exactly that kind of signal; it also needs no dependency.
 
 ```js
 import { isDue, reviewState } from "../src/review.js";

@@ -9,9 +9,11 @@
  * A Leitner system: cards sit in a box, a wrong answer sends a card back to
  * the first box due immediately, a right answer promotes it one box to a
  * longer interval. It is the classic scheduler for a binary signal — this
- * library's grade is exactly "harder" or "easier", never a five-point quality
- * — and it needs no dependency, which keeps V2-9.1 (no runtime dependency)
- * intact rather than reaching for SM-2 or FSRS.
+ * library's grade is "harder" or "easier", never a five-point quality — and
+ * it needs no dependency, which keeps V2-9.1 (no runtime dependency) intact
+ * rather than reaching for SM-2 or FSRS. A third outcome, "neutral", covers a
+ * card the reader only ever saw and paged past: neither promoted nor
+ * demoted, just kept from going unscheduled.
  */
 
 import { pageStorage, readMap, writeMap } from "./storage.js";
@@ -45,17 +47,31 @@ export function reviewState(key, storage = pageStorage(), now = Date.now()) {
   return validSchedule(readMap(storage, STORAGE_KEY)[key]) ?? schedule(0, now);
 }
 
+/** The box a grade moves a card to, from the box it is in now. */
+function nextBox(level, box) {
+  if (level === "easier") return Math.min(box + 1, MAX_BOX);
+  if (level === "harder") return 0;
+
+  /* "neutral" — the reader saw the card and moved on without an opinion. That
+     is evidence of neither recall nor difficulty, so it neither promotes nor
+     demotes; the box stays. */
+  return box;
+}
+
 /**
  * Record a grade and persist the card's new schedule.
  *
  * `easier` promotes one box towards a longer interval, capped at the last
  * box. `harder` sends the card back to the first box, due again immediately —
  * a wrong answer means starting over, not stepping back one box at a time.
+ * Anything else — chiefly `"neutral"` — keeps the current box and simply
+ * renews it from now, so a card that is only ever seen and never graded still
+ * gets a schedule instead of staying permanently, indistinguishably due.
  */
 export function recordGrade(key, level, storage = pageStorage(), now = Date.now()) {
   const map = readMap(storage, STORAGE_KEY);
   const current = validSchedule(map[key]) ?? schedule(0, now);
-  const next = schedule(level === "easier" ? Math.min(current.box + 1, MAX_BOX) : 0, now);
+  const next = schedule(nextBox(level, current.box), now);
 
   map[key] = next;
   writeMap(storage, STORAGE_KEY, map);
