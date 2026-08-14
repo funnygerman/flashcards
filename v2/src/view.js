@@ -58,8 +58,30 @@ const offscreen = (percent) => [
   { transform: `translateX(${percent}%)`, opacity: 0 },
 ];
 
-export function createView(container) {
+/**
+ * The progress column: `steps` squares stacked to the left of the card, the
+ * bottom `filled` of them solid. What "filled" means is entirely the host's
+ * business — the view only ever draws a count out of a count, never a box or
+ * a schedule.
+ */
+function createProgress(root, steps) {
+  const column = createElement("div", "fc-progress", root);
+  const dots = Array.from({ length: steps }, () => createElement("span", "fc-dot", column));
+  dots.reverse(); /* built top to bottom, filled from the bottom up */
+
+  return {
+    set(filled) {
+      dots.forEach((dot, i) => dot.classList.toggle("is-filled", i < filled));
+    },
+  };
+}
+
+/** `steps` is omitted where no host has asked for a progress column at all. */
+export function createView(container, steps) {
   const root = createElement("div", "fc", container);
+
+  const progress = steps ? createProgress(root, steps) : null;
+
   const slider = createElement("div", "fc-slide", root);
   const card = createElement("div", "fc-card", slider);
   const front = createFace(card, "front");
@@ -100,6 +122,7 @@ export function createView(container) {
     root,
     show,
     mark,
+    setProgress: (filled) => progress?.set(filled),
     flip: () => setFlipped(!flipped),
 
     /**

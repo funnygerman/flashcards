@@ -300,6 +300,36 @@ dictionary (V2-6.4): an empty schedule, not a thrown error.
 
 ---
 
+## 12. Progress indicator
+
+**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a column of `steps` squares
+beside the card, the bottom `of(card)` of them filled. Omitted, the card is exactly as bare as it always
+was.
+
+**V2-12.2** The library draws a count out of a count. It has no notion of what the count means — not a
+box, not a schedule, not review.js — the same way `category` (V2-2.4) is free-form data the library
+displays without interpreting. A deck feeds it from whatever review state it keeps; §11's box is one
+example, not the definition.
+
+**V2-12.3** This is not the position indicator V2-10.3 excludes. A position indicator would say where the
+reader is in the deck; this says how well the reader knows the one card in front of them. Both could use
+dots, but they answer different questions and neither implies the other.
+
+**V2-12.4** The column sits outside the card, never on it. Text hints naming the grading gestures were
+tried directly on the card faces and reverted as overloaded — stacking a level indicator on top of the
+existing border mark (V2-5.7) would have repeated that. Keeping it off the card entirely was the fix.
+
+**V2-12.5** The value `of(card)` returns is clamped into `0..steps` before it is drawn, so a card with no
+data yet (an unclamped or missing value) does not crash the count, and out-of-range host data does not
+under- or overflow the column.
+
+**V2-12.6** The column re-reads `of(card)` — and so can change — at exactly two moments: a new card
+arriving (V2-8.2), and a grade being recorded (V2-5.3). It never reads on a tick or a timer; if a host's
+own data changes for a reason outside those two events, the column does not learn about it until the
+next one.
+
+---
+
 ## Open questions
 
 Not requirements — decisions deferred until there is a reason to make them.

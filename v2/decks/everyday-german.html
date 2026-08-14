@@ -9,7 +9,7 @@
   <body>
     <script type="module">
       import { mount } from "../src/flashcards.js";
-      import { recordGrade } from "../src/review.js";
+      import { recordGrade, reviewState } from "../src/review.js";
 
       const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
@@ -48,9 +48,16 @@
 
       /* Review scheduling is not part of the library (V2-5.9) — a deck page
          wires it up itself, through the same onGrade callback any other
-         host-side concern would use. */
+         host-side concern would use. The library's `progress` option is
+         equally review-agnostic: it just draws N of M dots, so box + 1 (box
+         is 0-indexed, the dots are a count) is this deck's own mapping, not
+         the library's. */
       mount(document.body, cards, {
         onGrade: (card, level) => recordGrade(card.key, level),
+        progress: {
+          steps: 7,
+          of: (card) => reviewState(card.key).box + 1,
+        },
       });
     </script>
   </body>

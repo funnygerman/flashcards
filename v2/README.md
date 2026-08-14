@@ -47,6 +47,7 @@ Returns `{ destroy() }`. Options:
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
+| `progress` | `{ steps, of(card) }` — draws a column of `steps` squares beside the card, the bottom `of(card)` of them filled; omit it for a bare card |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -89,6 +90,35 @@ The difference is that CSS computes it, in one `min()` on `--fc-card-w`, instead
 engine with a throttled resize listener. The numbers come out the same: 900×675 on a 1280×800 desktop,
 292×219 on a 390×844 phone. Only the old integer-pixel rounding is gone — CSS sizes to the subpixel.
 
+## Progress indicator
+
+A column of squares to the left of the card, filled from the bottom, showing how far along the card in
+front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
+draws `steps` squares and fills the bottom `of(card)` of them; leave `progress` out entirely for the bare
+card v2 has always had.
+
+```js
+import { mount } from "../src/flashcards.js";
+import { reviewState } from "../src/review.js";
+
+mount(document.body, cards, {
+  progress: { steps: 7, of: (card) => reviewState(card.key).box + 1 },
+});
+```
+
+The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
+what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
+number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the dots are a count), not
+the library's.
+
+It re-reads `of(card)` at exactly two moments — a new card arriving, and a grade being recorded — clamped
+into `0..steps` either time, so a card with no data yet or a host returning something out of range still
+draws a sane column.
+
+This isn't the position-in-deck indicator v2 deliberately doesn't have; it says how well the reader knows
+*this* card, not where they are in the session. It's designed to be reused by a future dictionary-view
+row, not just this single-card view, which is why it stayed generic rather than Leitner-shaped.
+
 ## Local storage
 
 Every card the reader opens is written to `localStorage["flashcards.cards"]`, keyed by `key`, and is
@@ -121,6 +151,21 @@ is the classic scheduler for exactly that kind of signal; it also needs no depen
 import { isDue, reviewState } from "../src/review.js";
 
 const due = cards.filter((card) => isDue(reviewState(card.key)));
+```
+
+For a large deck, cap how many cards a session asks for at once, prioritizing the most overdue: `mount()`
+already shuffles whatever it's given, so sorting by `dueAt` only decides *which* cards make the cut, not
+the order they're studied in.
+
+```js
+const SESSION_LIMIT = 20;
+
+const today = cards
+  .filter((card) => isDue(reviewState(card.key)))
+  .sort((a, b) => reviewState(a.key).dueAt - reviewState(b.key).dueAt)
+  .slice(0, SESSION_LIMIT);
+
+mount(document.body, today.length > 0 ? today : cards, { /* … */ });
 ```
 
 Everything ends up in one storage key, `localStorage["flashcards.review"]`, as `{ [key]: { box, dueAt } }`
