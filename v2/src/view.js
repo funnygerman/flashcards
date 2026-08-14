@@ -59,10 +59,16 @@ const offscreen = (percent) => [
 ];
 
 /**
- * The progress row: `steps` stars along the card's bottom edge, the first
+ * The progress row: `steps` squares along the card's bottom edge, the first
  * `filled` of them solid. What "filled" means is entirely the host's
  * business — the view only ever draws a count out of a count, never a box or
  * a schedule.
+ *
+ * Squares rather than stars: stars were tried and reverted after testing on
+ * a real phone — at a size actually legible as a star shape they read as
+ * "too big", and any count other than the culturally fixed five reads as a
+ * broken rating widget rather than a plain count. A square carries no such
+ * expectation, so seven of them is just seven, not a wrong five.
  *
  * A sibling of `.fc-card`, not a child of it: `.fc-card` is what rotates for
  * the flip, and this must not — it stays put and legible on whichever face is
@@ -70,15 +76,11 @@ const offscreen = (percent) => [
  */
 function createProgress(slider, steps) {
   const row = createElement("div", "fc-progress", slider);
-  const stars = Array.from({ length: steps }, () => createElement("span", "fc-star", row));
+  const dots = Array.from({ length: steps }, () => createElement("span", "fc-dot", row));
 
   return {
     set(filled) {
-      stars.forEach((star, i) => {
-        const isFilled = i < filled;
-        star.classList.toggle("is-filled", isFilled);
-        star.textContent = isFilled ? "★" : "☆";
-      });
+      dots.forEach((dot, i) => dot.classList.toggle("is-filled", i < filled));
     },
   };
 }

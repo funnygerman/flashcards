@@ -307,9 +307,9 @@ dictionary (V2-6.4): an empty schedule, not a thrown error.
 
 ## 12. Progress indicator
 
-**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` stars along the
-card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it always
-was.
+**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` squares along
+the card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it
+always was.
 
 **V2-12.2** The library draws a count out of a count. It has no notion of what the count means — not a
 box, not a schedule, not review.js — the same way `category` (V2-2.4) is free-form data the library
@@ -339,11 +339,16 @@ changes for a reason outside those two events, the row does not learn about it u
 **V2-12.7** The row is drawn above the card rather than inside the element that flips: it has to read the
 same on either face, and must not itself flip — or mirror — when the card does.
 
-**V2-12.8** Stars, not squares: `★`/`☆` read as a level without needing a legend the way plain marks
-don't. `steps` is set to match the number of distinct values `of(card)` can actually take — review.js's
-box count (§11), not a conventional five — so every real change in the underlying data moves the display
-by exactly one star; a coarser scale would let two different values compress onto the same star count,
-making one of those changes look like nothing happened.
+**V2-12.8** `steps` is set to match the number of distinct values `of(card)` can actually take —
+review.js's box count (§11), not a conventional round number — so every real change in the underlying
+data moves the display by exactly one mark; a coarser scale would let two different values compress onto
+the same count, making one of those changes look like nothing happened.
+
+**V2-12.9** Squares, not stars: `★`/`☆` were tried and reverted after testing on a real phone. Two
+problems, both real: at a size that actually read as a star shape they were too big for the row, and any
+count other than the culturally fixed five read as a broken rating widget rather than a plain count — a
+problem V2-12.8 exists specifically to avoid, which stars undid by carrying their own count expectation. A
+square carries no such expectation, so seven of them is just seven.
 
 ---
 

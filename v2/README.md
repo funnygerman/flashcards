@@ -95,9 +95,9 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 
 ## Progress indicator
 
-A row of stars along the card's bottom edge, filled from the left, showing how far along the card in
+A row of squares along the card's bottom edge, filled from the left, showing how far along the card in
 front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
-draws `steps` stars and fills the first `of(card)` of them; leave `progress` out entirely for the bare
+draws `steps` squares and fills the first `of(card)` of them; leave `progress` out entirely for the bare
 card v2 has always had.
 
 ```js
@@ -111,10 +111,15 @@ mount(document.body, cards, {
 
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
-number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the stars are a count), not
-the library's — and `steps: 7` matches the box count exactly rather than a conventional five, so every
-real grade moves the display by one star; a coarser scale could compress two different grades onto the
-same star count and make one of them look like nothing happened.
+number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the squares are a count), not
+the library's — and `steps: 7` matches the box count exactly rather than a conventional round number, so
+every real grade moves the display by one square; a coarser scale could compress two different grades
+onto the same count and make one of them look like nothing happened.
+
+Squares rather than stars: `★`/`☆` were tried and reverted after testing on a real phone. At a size that
+actually read as a star shape they were too big for the row, and any count other than the culturally
+fixed five read as a broken rating widget rather than a plain count — undoing the exact thing the `steps:
+7` choice above exists to protect. A square carries no such expectation, so seven of them is just seven.
 
 It re-reads `of(card)` at exactly two moments — a new card arriving, and a grade being recorded — clamped
 into `0..steps` either time, so a card with no data yet or a host returning something out of range still
