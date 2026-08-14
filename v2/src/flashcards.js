@@ -24,9 +24,13 @@ import { createView } from "./view.js";
  *                  `progress` draws a column of `steps` squares beside the
  *                  card, `of(card)` filled — any host-supplied 0..steps
  *                  count, e.g. review.js's box; omit it for a bare card.
+ *                  `gradeOf(card)` is the host's answer to "what has this card
+ *                  already been graded?" — a grade the reader gave it before
+ *                  this deck was mounted, e.g. review.js's `gradedToday`. Such
+ *                  a card arrives wearing its mark and settled: see `locked`.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, progress } = options;
+  const { storage, random = Math.random, onGrade, progress, gradeOf } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -55,7 +59,32 @@ export function mount(element, cards, options = {}) {
      actually changed. */
   const grades = new Map();
 
-  view.show(deck.current(), grades.get(deck.current()) ?? null);
+  /* Cards whose grade is no longer the reader's to change: one they graded and
+     then moved on from, and one that arrived already graded (`gradeOf`, e.g.
+     review.js's grade from earlier today). While a card is in front of the
+     reader they can say anything they like about it and change their mind
+     freely; leaving it is what settles the answer. Without that, "the reader
+     saw this card and judged it" would be worth however many times they cared
+     to page back to it or reload the page — the same replay `grades` closed
+     for a single visit, one level up. */
+  const locked = new Set();
+
+  /* A card's grade, asking the host once about a card neither this deck nor
+     the reader has seen graded yet. */
+  const gradeFor = (card) => {
+    if (!grades.has(card)) {
+      const given = gradeOf?.(card) ?? null;
+
+      if (given) {
+        grades.set(card, given);
+        locked.add(card);
+      }
+    }
+
+    return grades.get(card) ?? null;
+  };
+
+  view.show(deck.current(), gradeFor(deck.current()));
   showProgress();
 
   /* A card leaving ungraded is not nothing — the reader saw it and moved on,
@@ -64,29 +93,26 @@ export function mount(element, cards, options = {}) {
      saw at all. A card graded earlier this session, even in a visit before
      this one, does not count as leaving ungraded. */
   const page = (direction) => {
-    if (!grades.has(deck.current())) onGrade?.(deck.current(), "neutral");
+    const leaving = deck.current();
+
+    if (grades.has(leaving)) locked.add(leaving); /* the answer it leaves with is the answer */
+    else onGrade?.(leaving, "neutral");
 
     const arriving = direction > 0 ? deck.next() : deck.previous();
-    const level = grades.get(arriving) ?? null;
 
-    /* The dots and the mark belong to the card that is about to be on
-       screen, so they update once it actually arrives — not the one sliding
-       away. */
-    const sliding = view.slide(direction, arriving, level);
-    if (!sliding) {
-      showProgress();
-      return null;
-    }
-    return sliding.then(showProgress);
+    /* The dots and the mark belong to the card that is about to be on screen,
+       so they change with it — in the same off-screen frame as its content,
+       not once the slide that delivers it has finished. */
+    return view.slide(direction, arriving, gradeFor(arriving), showProgress);
   };
 
-  /* Repeating the grade a card already carries — even after paging away and
-     back — says nothing new and is dropped. Grading the other way is a
-     change of mind, and counts, including changing back to one it carried
-     before. */
+  /* Repeating the grade a card already carries says nothing new and is
+     dropped, and a card the reader has already left is settled (see `locked`).
+     Otherwise grading the other way is a change of mind, and counts —
+     including changing back to one it carried earlier this visit. */
   const grade = (level) => {
     const card = deck.current();
-    if (grades.get(card) === level) return null;
+    if (locked.has(card) || grades.get(card) === level) return null;
 
     grades.set(card, level);
     view.mark(level);

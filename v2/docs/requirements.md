@@ -129,10 +129,9 @@ nothing to focus first and nothing the reader can click that takes the keyboard 
 **V2-5.4** Repeating a grade the card already carries is not an event: it is dropped, and `onGrade` is
 not called again.
 
-**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier —
-even across a visit in between. Five swipes up then two swipes down then one swipe up is three events:
-`easier`, `harder`, `easier`; so is the same sequence with a trip to another card and back between each
-swipe.
+**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier, for
+as long as the card is still in front of the reader. Five swipes up then two swipes down then one swipe
+up is three events: `easier`, `harder`, `easier`.
 
 **V2-5.6** Moving to another card changes what's on screen, not what any card carries: a card's grade,
 once given, is remembered for the rest of the session, and its mark reappears exactly as left if the
@@ -155,9 +154,10 @@ be seen.
 computes no schedule — see §11 for the separate module a deck page can use for that.
 
 **V2-5.10** The on-card mark (V2-5.7) and a review schedule (§11) are independent. The mark is what the
-reader has said about each card so far this session, forgotten when the deck is unmounted or the page is
-reloaded; the schedule, where a deck chooses to keep one, is what the reader said last time and persists
-across page reloads too. Neither reads the other.
+reader has said about each card so far this session; the schedule, where a deck chooses to keep one, is
+what that means for when the card comes round again. Neither reads the other — a deck that wants the
+mark back after a page reload says so itself, by handing the library its own memory through `gradeOf`
+(V2-5.14), which is host data reaching the library like any other.
 
 **V2-5.11** A card the reader pages past without grading is reported once, as `onGrade(card, "neutral")`,
 at the moment it leaves — so a card the reader simply forgot to grade is not indistinguishable, to
@@ -166,6 +166,19 @@ whatever is listening, from a card that was never shown at all.
 **V2-5.12** `neutral` never fires for a card the reader has graded this session — including a grade given
 in an earlier visit, not just the current one — and never fires for the card left on screen when the deck
 is destroyed; only an actual page turn away from an ungraded card reports it.
+
+**V2-5.13** Paging away from a card settles the grade it carries: the reader may say anything they like
+about a card, and change their mind as often as they like, for as long as it is in front of them, and
+what it carries when they leave it is the answer. A settled card still shows its mark when revisited,
+but grading it again is not an event — the swipe is dropped exactly as a repeat of the same grade is
+(V2-5.4). This is V2-5.6 one level up: a card's grade is worth what the reader said about it, once, not
+once per visit — otherwise "I know this one" is worth however many times they care to page back to it.
+
+**V2-5.14** A card can arrive already settled. `gradeOf(card)` — a host option, `null` or absent when the
+host has nothing to say — is the grade the card carried before this deck was mounted, and a card the
+host answers for wears its mark from the moment it appears and is settled per V2-5.13. It is asked once
+per card, and never about a card this session has already seen graded. This is the seam a deck page uses
+to make a grade survive a page reload (§11); the library still stores nothing itself (V2-5.9).
 
 ---
 
@@ -240,6 +253,14 @@ pull-to-refresh.
 **V2-8.5** Every animation degrades to an instant change under `prefers-reduced-motion`, and where the
 Web Animations API is unavailable.
 
+**V2-8.6** One card is exchanged for another in a single off-screen frame: its content, its mark (V2-5.7)
+and the progress row around it (§12) all change together, between the two legs of the slide, with the
+transitions that would otherwise ease them into place suspended. The arriving card is therefore already
+itself the first time the reader sees it. (Two separate bugs said otherwise: the mark's own
+`border-width` transition played over the arriving card *after* it had landed, and the progress row was
+re-read only once the whole slide had finished — so paging between two cards graded differently looked
+like the page turn had changed the card's grade a fifth of a second after delivering it.)
+
 ---
 
 ## 9. Code
@@ -284,7 +305,11 @@ it itself, through `onGrade`, the same way it would reach for any other host-sid
 
 **V2-11.2** A Leitner system: a card sits in a box numbered 0 upward. `easier` promotes it one box;
 `harder` returns it to box 0. There is no partial credit and no smaller step back — a wrong answer means
-starting over.
+starting over. `harder` resets a card in a high box as completely as one in a low box: a card the reader
+could not recall is not a 32-day card however it earned that box, and box 0 is due immediately, so it
+comes round again in the same session rather than disappearing for a week. (A gentler step down by one
+box was considered and rejected on that last point. What made the reset feel punitive was not the reset:
+it was a grade given by accident, or changed and then stacked on, both of which V2-11.10 fixes.)
 
 **V2-11.3** Each box has a fixed interval, in days, before a card in it is due again: `[0, 1, 2, 4, 8,
 16, 32]`, box 0 due immediately. The last box is the cap; `easier` there is recorded but does not
@@ -300,7 +325,9 @@ moves the schedule in neither direction — but it still writes an entry, so a c
 and never graded gets a schedule instead of staying permanently, indistinguishably due.
 
 **V2-11.6** A card's schedule is `{ box, dueAt }`, one entry per card `key`, in one storage key,
-`flashcards.review`, independent of the card dictionary (V2-6.6).
+`flashcards.review`, independent of the card dictionary (V2-6.6). The stored entry also carries what the
+reader said today and where the card stood before they said it (V2-11.10), but `reviewState` gives back
+the schedule and only the schedule.
 
 **V2-11.7** A card that has never been graded has no stored schedule. Reading its state returns box 0,
 due now, without writing anything — a schedule is created by grading, not by looking.
@@ -311,6 +338,28 @@ replaced the next time it is graded, the same posture V2-6.5 takes towards the c
 
 **V2-11.9** Storage that is absent, blocked, or corrupt degrades the same way it does for the card
 dictionary (V2-6.4): an empty schedule, not a thrown error.
+
+**V2-11.10** One grade per card per day, however many times it is given. A grade applies to `baseBox` —
+the box the card stood in before the day's first grade — not to whatever an earlier grade the same day
+already made of it, so a second grade replaces the first rather than stacking on it. `easier` then
+`harder` then `easier` leaves a card in box 3 in box 4: one step from where the day found it, exactly
+where saying `easier` once would have left it. Without this, a change of mind was destructive (that same
+sequence used to land the card in box 1, *below* where it started, despite the reader's final answer
+being "easier"), and grading, reloading the page and grading again promoted twice with no recall in
+between — V2-5.6's bug surviving through storage rather than through paging.
+
+**V2-11.11** The day is the reader's own calendar day, in their own time zone: a grade at 23:00 and one
+an hour later belong to different days as they experience them, which UTC would get wrong for most of
+the world.
+
+**V2-11.12** `neutral` does not spend the day. It is not an opinion (V2-11.5), so it neither counts as
+the day's grade — a card paged past and graded properly later still counts — nor overwrites one already
+given.
+
+**V2-11.13** `gradedToday(key)` answers what the reader said about a card today, or `null`. This is what
+a deck page hands to `mount()` as `gradeOf` (V2-5.14), so a card graded before a page reload comes back
+wearing its mark, and settled: the daily rule and what the reader sees then agree, rather than the card
+looking untouched while the schedule quietly ignores the next swipe.
 
 ---
 
@@ -341,9 +390,10 @@ that), then centred on the card's left edge, which a sufficiently long word coul
 data yet (an unclamped or missing value) does not crash the count, and out-of-range host data does not
 under- or overflow the row.
 
-**V2-12.6** The row re-reads `of(card)` — and so can change — at exactly two moments: a new card arriving
-(V2-8.2), and a grade being recorded (V2-5.3). It never reads on a tick or a timer; if a host's own data
-changes for a reason outside those two events, the row does not learn about it until the next one.
+**V2-12.6** The row re-reads `of(card)` — and so can change — at exactly two moments: a card being
+exchanged for another, in the same off-screen frame as its content and its mark (V2-8.6), and a grade
+being recorded (V2-5.3). It never reads on a tick or a timer; if a host's own data changes for a reason
+outside those two events, the row does not learn about it until the next one.
 
 **V2-12.7** The row is drawn above the card rather than inside the element that flips: it has to read the
 same on either face, and must not itself flip — or mirror — when the card does.

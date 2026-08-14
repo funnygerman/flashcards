@@ -9,7 +9,7 @@
   <body>
     <script type="module">
       import { mount } from "../src/flashcards.js";
-      import { recordGrade, reviewState } from "../src/review.js";
+      import { gradedToday, recordGrade, reviewState } from "../src/review.js";
 
       const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
@@ -55,9 +55,17 @@
          (review.js) rather than a conventional five — every real grade then
          moves the display by one dot; a coarser scale could compress two
          different grades into the same count, and make one of them look
-         like nothing happened. */
+         like nothing happened.
+
+         gradeOf is the other half of that wiring: review.js remembers what
+         the reader said about a card today, so a card graded before this page
+         was reloaded comes back wearing its mark instead of looking untouched
+         — and the library, seeing it arrive already graded, leaves it that
+         way. One grade per card per day; changing one's mind is free until
+         the card is left behind. */
       mount(document.body, cards, {
         onGrade: (card, level) => recordGrade(card.key, level),
+        gradeOf: (card) => gradedToday(card.key),
         progress: {
           steps: 7,
           of: (card) => reviewState(card.key).box + 1,

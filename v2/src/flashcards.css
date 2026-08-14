@@ -117,8 +117,15 @@ html:has(> body > .fc) body {
   transform: rotateY(180deg);
 }
 
-/* Set while the flip is reset under a card that is off screen. */
-.fc-card.fc-instant {
+/* Set while one card is exchanged for another off screen. Everything under the
+   slider that would otherwise ease into its new state — the flip rotating back,
+   the border mark (below) thickening or thinning, the progress squares filling —
+   is already correct by the time the arriving card is seen, rather than
+   animating towards it after it lands and reading as the page turn having
+   changed the card's grade. */
+.fc-slide.fc-instant .fc-card,
+.fc-slide.fc-instant .fc-face,
+.fc-slide.fc-instant .fc-dot {
   transition: none;
 }
 

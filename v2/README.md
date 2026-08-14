@@ -47,6 +47,7 @@ Returns `{ destroy() }`. Options:
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
+| `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives marked and settled (§ Interactions) |
 | `progress` | `{ steps, of(card) }` — draws a column of `steps` squares in the card's corner, the bottom `of(card)` of them filled; omit it for a bare card |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
@@ -67,14 +68,21 @@ swiped, and `→` follows the same motion, arriving from ahead the way paging fo
 
 Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
 top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
-grade the card already carries does nothing — the mark is already there and `onGrade` is not called
-again, even after paging away and back: a card's grade is remembered for the rest of the session, and its
-mark reappears exactly as left if the reader revisits it. Grading the other way replaces it and does
-count, including changing back to one it carried before. A card that has never been graded starts, and
-stays, ungraded until it actually is.
+grade the card already carries does nothing; grading the other way replaces it and counts, including
+changing back to one it carried a moment ago. A card that has never been graded starts, and stays,
+ungraded until it actually is.
+
+**Paging away settles it.** The reader can say anything they like about a card, and change their mind as
+often as they like, for as long as it's in front of them — what it carries when they leave is the answer.
+Its mark reappears exactly as left if they page back to it, but grading it again is dropped the same way
+a repeat is. Otherwise "I know this one" would be worth however many times they cared to page back to
+it, and against a schedule (§ Review scheduling) that walks a card up the boxes with no recall in
+between. `gradeOf(card)` is the other half: hand the library a grade a card already carries — from a
+deck's own storage, from before a page reload — and it arrives wearing its mark and equally settled.
 
 A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
 — so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.
+That isn't an opinion, so it settles nothing: grade the card properly later and it still counts.
 
 Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
 focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored
@@ -123,9 +131,12 @@ actually read as a star shape they were too big for the row, and any count other
 fixed five read as a broken rating widget rather than a plain count — undoing the exact thing the `steps:
 7` choice above exists to protect. A square carries no such expectation, so seven of them is just seven.
 
-It re-reads `of(card)` at exactly two moments — a new card arriving, and a grade being recorded — clamped
-into `0..steps` either time, so a card with no data yet or a host returning something out of range still
-draws a sane row. Bottom rather than beside or across the middle of the card: a 4:3 card has far more
+It re-reads `of(card)` at exactly two moments — a grade being recorded, and one card being exchanged for
+another, in the same off-screen frame as that card's content and mark — clamped into `0..steps` either
+time, so a card with no data yet or a host returning something out of range still draws a sane row.
+Reading it *after* the slide instead, which is what it used to do, left the arriving card sitting there
+for a fifth of a second wearing the previous card's count before it snapped: the page turn looked like
+it had regraded the card. Bottom rather than beside or across the middle of the card: a 4:3 card has far more
 spare width around a short word than spare height, so a row along the bottom stays clear even of a word
 long enough to wrap across most of the card.
 
@@ -146,20 +157,33 @@ Not part of `mount()` — the library never stores a grade or computes a schedul
 
 ```js
 import { mount } from "../src/flashcards.js";
-import { recordGrade } from "../src/review.js";
+import { gradedToday, recordGrade } from "../src/review.js";
 
 mount(document.body, cards, {
   onGrade: (card, level) => recordGrade(card.key, level),
+  gradeOf: (card) => gradedToday(card.key),
 });
 ```
 
 It's a Leitner system: a card sits in a box, `easier` promotes it one box towards a longer interval,
-`harder` sends it back to the first box due immediately — no partial credit, no smaller step back.
-`neutral` neither promotes nor demotes; it just renews the card's current interval from now, so a card
-that is only ever paged past still gets a schedule instead of staying permanently, indistinguishably
-due. Box intervals are `[0, 1, 2, 4, 8, 16, 32]` days, fixed. Leitner rather than a continuous model like
-SM-2 or FSRS, because the grade here is at most three outcomes, never a five-point quality — and Leitner
-is the classic scheduler for exactly that kind of signal; it also needs no dependency.
+`harder` sends it back to the first box due immediately — no partial credit, no smaller step back, and no
+gentler treatment for a card in a high box, because a card the reader couldn't recall isn't a 32-day
+card however it earned that box. `neutral` neither promotes nor demotes; it just renews the card's
+current interval from now, so a card that is only ever paged past still gets a schedule instead of
+staying permanently, indistinguishably due. Box intervals are `[0, 1, 2, 4, 8, 16, 32]` days, fixed.
+Leitner rather than a continuous model like SM-2 or FSRS, because the grade here is at most three
+outcomes, never a five-point quality — and Leitner is the classic scheduler for exactly that kind of
+signal; it also needs no dependency.
+
+**One grade per card per day**, however many times it's given. A grade applies to the box the card stood
+in before the day's *first* grade, not to whatever an earlier grade the same day already made of it, so
+a second grade replaces the first instead of stacking on it — easier, then harder, then easier leaves a
+card in box 3 in box 4, exactly where saying `easier` once would have left it. Changing one's mind used
+to be destructive (that sequence landed the card in box 1, *below* where it started), and grading,
+reloading the page and grading again used to promote twice with no recall in between. `gradedToday(key)`
+is what closes the loop in the other direction: pass it as `gradeOf` and a card graded before the reload
+comes back wearing its mark, so what the reader sees and what the schedule will accept agree. The day is
+the reader's own calendar day, in their own time zone. `neutral` doesn't spend it.
 
 ```js
 import { isDue, reviewState } from "../src/review.js";
@@ -182,9 +206,13 @@ const today = cards
 mount(document.body, today.length > 0 ? today : cards, { /* … */ });
 ```
 
-Everything ends up in one storage key, `localStorage["flashcards.review"]`, as `{ [key]: { box, dueAt } }`
-— independent of the card dictionary above; the two never read each other. `decks/everyday-german.html`
-wires it up as the example.
+Everything ends up in one storage key, `localStorage["flashcards.review"]` — independent of the card
+dictionary above; the two never read each other. An entry carries the schedule and, alongside it, what
+the reader said today and where the card stood before they said it (`baseBox`, `day`, `grade`), which is
+what makes the rule above hold across a reload; `reviewState(key)` hands back `{ box, dueAt }` and
+nothing else. An entry written before those fields existed still reads as a perfectly good schedule — it
+just counts as a card not yet graded today. `decks/everyday-german.html` wires the whole thing up as the
+example.
 
 ## Layout
 
