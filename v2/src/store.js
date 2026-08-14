@@ -3,34 +3,12 @@
  *
  * Every card the reader has ever opened accumulates under one key, so a later
  * dictionary view and the review step have something to read. This module only
- * remembers cards; it does not track progress yet.
+ * remembers cards; it does not track progress — see review.js for that.
  */
+
+import { pageStorage, readMap, writeMap } from "./storage.js";
 
 export const STORAGE_KEY = "flashcards.cards";
-
-/**
- * The page's own storage, or null where there is none to have. Reading the
- * property is itself what throws on an opaque origin or with site data blocked,
- * so it cannot be left to a default parameter.
- */
-function defaultStorage() {
-  try {
-    return globalThis.localStorage ?? null;
-  } catch {
-    return null;
-  }
-}
-
-/** The stored `{ [key]: card }` map, or an empty one if it is missing or unusable. */
-function read(storage) {
-  try {
-    const parsed = JSON.parse(storage.getItem(STORAGE_KEY) ?? "null");
-    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
-  } catch {
-    /* Absent, corrupt, or blocked storage all mean the same thing: start empty. */
-    return {};
-  }
-}
 
 /**
  * The card stored under `key`, or null if there is nothing usable there.
@@ -51,8 +29,8 @@ function storedCard(stored, key) {
  * loaded from it. Card content is assumed not to change, so the stored copy
  * wins. Cards without a `key` are displayed but not stored.
  */
-export function syncCards(cards, storage = defaultStorage()) {
-  const stored = read(storage);
+export function syncCards(cards, storage = pageStorage()) {
+  const stored = readMap(storage, STORAGE_KEY);
   let added = false;
 
   const resolved = cards.map((card) => {
@@ -68,13 +46,7 @@ export function syncCards(cards, storage = defaultStorage()) {
     return card;
   });
 
-  if (added) {
-    try {
-      storage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    } catch {
-      /* Full or blocked storage costs persistence, not the session. */
-    }
-  }
+  if (added) writeMap(storage, STORAGE_KEY, stored);
 
   return resolved;
 }

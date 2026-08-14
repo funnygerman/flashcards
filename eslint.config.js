@@ -76,6 +76,8 @@ export default tseslint.config(
         console: "readonly",
         KeyboardEvent: "readonly",
         MouseEvent: "readonly",
+        DOMException: "readonly",
+        globalThis: "readonly",
       },
     },
   },
