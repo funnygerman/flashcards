@@ -110,7 +110,7 @@ describe("mount", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
-    press("ArrowDown");
+    press("ArrowUp");
 
     expect(front(".fc-text").textContent).toBe("eins");
     expect(graded).toEqual([["a", "easier"]]);
@@ -120,9 +120,9 @@ describe("mount", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push(level) });
 
-    press("ArrowUp");
-    press("ArrowUp");
-    press("ArrowUp");
+    press("ArrowDown");
+    press("ArrowDown");
+    press("ArrowDown");
 
     expect(graded).toEqual(["harder"]);
   });
@@ -131,11 +131,11 @@ describe("mount", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push(level) });
 
-    press("ArrowUp");
-    press("ArrowUp");
     press("ArrowDown");
     press("ArrowDown");
     press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowDown");
 
     expect(graded).toEqual(["harder", "easier", "harder"]);
   });
@@ -144,9 +144,9 @@ describe("mount", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
-    press("ArrowUp");
+    press("ArrowDown");
     press("ArrowRight");
-    press("ArrowUp");
+    press("ArrowDown");
 
     expect(graded).toEqual([
       ["a", "harder"],
@@ -171,7 +171,7 @@ describe("mount", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
-    press("ArrowUp"); // grades card a
+    press("ArrowDown"); // grades card a
     press("ArrowRight");
 
     expect(graded).toEqual([["a", "harder"]]);
@@ -241,10 +241,10 @@ describe("mount", () => {
     open();
     const card = () => document.querySelector(".fc-card").className;
 
-    press("ArrowUp");
+    press("ArrowDown");
     expect(card()).toContain("is-harder");
 
-    press("ArrowDown");
+    press("ArrowUp");
     expect(card()).toContain("is-easier");
     expect(card()).not.toContain("is-harder");
 

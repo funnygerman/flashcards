@@ -56,17 +56,20 @@ Returns `{ destroy() }`. Options:
 | | Key | Gesture |
 |---|---|---|
 | Flip the card | `Space` / `Enter` | tap or click |
-| Next card | `→` | swipe left to right |
-| Previous card | `←` | swipe right to left |
-| Not known well enough | `↑` | swipe up |
-| Known well enough | `↓` | swipe down |
+| Next card | `→` | swipe right to left |
+| Previous card | `←` | swipe left to right |
+| Known well enough | `↑` | swipe up |
+| Not known well enough | `↓` | swipe down |
 
-The deck wraps in both directions, so it never runs out.
+`next` exits to the left and the next card arrives from the right — the card drags away in the direction
+swiped, and `→` follows the same motion, arriving from ahead the way paging forward usually looks.
+`previous` mirrors it. The deck wraps in both directions, so it never runs out.
 
-Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards,
-top for *not known well enough*, bottom for *known well enough*. Repeating a grade the card already
-carries does nothing — the mark is already there and `onGrade` is not called again. Grading the other
-way replaces it and does count, including changing back. Moving to another card clears the mark.
+Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
+top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
+grade the card already carries does nothing — the mark is already there and `onGrade` is not called
+again. Grading the other way replaces it and does count, including changing back. Moving to another card
+clears the mark.
 
 A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
 — so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.

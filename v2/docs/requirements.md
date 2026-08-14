@@ -86,10 +86,14 @@ map onto this one set.
 | Intent | Key | Gesture |
 |---|---|---|
 | `flip` | `Space`, `Enter` | tap or click |
-| `next` | `→` | swipe left to right |
-| `previous` | `←` | swipe right to left |
-| `harder` | `↑` | swipe up |
-| `easier` | `↓` | swipe down |
+| `next` | `→` | swipe right to left |
+| `previous` | `←` | swipe left to right |
+| `easier` | `↑` | swipe up |
+| `harder` | `↓` | swipe down |
+
+`next` exits to the left and arrives from the right — the swipe drags the card away in the direction
+travelled, and the same motion carries over to the keyboard: pressing `→` for "forward" arrives from
+ahead, the way paging forward through a sequence usually looks. `previous` is the mirror image.
 
 **V2-4.2** A pointer gesture shorter than the swipe threshold is a tap. The threshold is 40 px.
 
@@ -126,14 +130,15 @@ nothing to focus first and nothing the reader can click that takes the keyboard 
 not called again.
 
 **V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier in
-the same visit. Five swipes up then two swipes down then one swipe up is three events: `harder`,
-`easier`, `harder`.
+the same visit. Five swipes up then two swipes down then one swipe up is three events: `easier`,
+`harder`, `easier`.
 
 **V2-5.6** Moving to another card clears the grade. The next card starts ungraded, and the grade the
 previous card carried is not remembered.
 
 **V2-5.7** A grade is visible on the card for as long as it is held: the card's border thickens on the
-edge the gesture went towards — the top edge for `harder`, the bottom for `easier`.
+edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder`
+(swipe down).
 
 **V2-5.8** The mark uses no colour, so it carries in both themes and does not depend on colour vision to
 be seen.
@@ -216,8 +221,8 @@ pull-to-refresh.
 
 **V2-8.1** Flipping rotates the card about its vertical axis, showing the other face.
 
-**V2-8.2** Paging slides the card out in the direction of travel and the next one in from the opposite
-edge.
+**V2-8.2** Paging slides the current card out one edge and the next one in from the other — left for
+`next`, right for `previous` (V2-4.1), regardless of whether a key or a swipe triggered it.
 
 **V2-8.3** Paging returns the card to its front face.
 

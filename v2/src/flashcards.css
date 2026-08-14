@@ -140,13 +140,14 @@ html:has(> body > .fc) body {
 }
 
 /* The grade mark: the card's own border thickens on the edge the gesture went
-   towards. No new element, no colour, and the direction is its own legend.
-   box-sizing keeps the content still while the edge grows. */
-.fc-card.is-harder .fc-face {
+   towards — up is easier, down is harder (V2-4.1) — so the mark stays its
+   own legend rather than needing one. No new element, no colour. box-sizing
+   keeps the content still while the edge grows. */
+.fc-card.is-easier .fc-face {
   border-block-start-width: calc(var(--fc-card-w) * 0.014);
 }
 
-.fc-card.is-easier .fc-face {
+.fc-card.is-harder .fc-face {
   border-block-end-width: calc(var(--fc-card-w) * 0.014);
 }
 

@@ -126,9 +126,12 @@ export function createView(container, steps) {
     flip: () => setFlipped(!flipped),
 
     /**
-     * Page to `data`: the card leaves in the direction of travel and the next
-     * one arrives from the opposite edge. Returns a promise while it animates,
-     * null when the swap was instant.
+     * Page to `data`: next exits to the left and the following card enters
+     * from the right — the reverse for previous — matching a swipe that
+     * drags the card away in the direction travelled (right-to-left is
+     * next) and, for the keyboard, the usual sense that "forward" arrives
+     * from ahead. Returns a promise while it animates, null when the swap
+     * was instant.
      */
     slide(direction, data) {
       const swap = () => {
@@ -137,7 +140,7 @@ export function createView(container, steps) {
         show(data);
       };
 
-      const out = animate(slider, offscreen(direction * 100));
+      const out = animate(slider, offscreen(direction * -100));
       if (!out) {
         swap();
         return null;
@@ -145,7 +148,7 @@ export function createView(container, steps) {
 
       return out.then(() => {
         swap();
-        return animate(slider, offscreen(direction * -100).reverse());
+        return animate(slider, offscreen(direction * 100).reverse());
       });
     },
 
