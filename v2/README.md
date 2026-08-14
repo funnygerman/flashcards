@@ -68,8 +68,10 @@ swiped, and `→` follows the same motion, arriving from ahead the way paging fo
 Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
 top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
 grade the card already carries does nothing — the mark is already there and `onGrade` is not called
-again. Grading the other way replaces it and does count, including changing back. Moving to another card
-clears the mark.
+again, even after paging away and back: a card's grade is remembered for the rest of the session, and its
+mark reappears exactly as left if the reader revisits it. Grading the other way replaces it and does
+count, including changing back to one it carried before. A card that has never been graded starts, and
+stays, ungraded until it actually is.
 
 A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
 — so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.

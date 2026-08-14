@@ -129,12 +129,20 @@ nothing to focus first and nothing the reader can click that takes the keyboard 
 **V2-5.4** Repeating a grade the card already carries is not an event: it is dropped, and `onGrade` is
 not called again.
 
-**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier in
-the same visit. Five swipes up then two swipes down then one swipe up is three events: `easier`,
-`harder`, `easier`.
+**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier —
+even across a visit in between. Five swipes up then two swipes down then one swipe up is three events:
+`easier`, `harder`, `easier`; so is the same sequence with a trip to another card and back between each
+swipe.
 
-**V2-5.6** Moving to another card clears the grade. The next card starts ungraded, and the grade the
-previous card carried is not remembered.
+**V2-5.6** Moving to another card changes what's on screen, not what any card carries: a card's grade,
+once given, is remembered for the rest of the session, and its mark reappears exactly as left if the
+reader pages back to it. A card that has never been graded starts, and stays, ungraded until it actually
+is. (An earlier version of this library cleared the grade on every page turn; a card revisited after
+being graded looked untouched, and the same swipe — repeated on a returning visit rather than the same
+one V2-5.4 already covers — read as a new event each time. Against review.js's box (§11), that meant
+paging away and back was, by itself, indistinguishable from a fresh correct recall: a reader (or a stray
+extra keypress) could walk a card from the first box to the last in seconds, with no attempt at recall in
+between.)
 
 **V2-5.7** A grade is visible on the card for as long as it is held: the card's border thickens on the
 edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder`
@@ -147,16 +155,17 @@ be seen.
 computes no schedule — see §11 for the separate module a deck page can use for that.
 
 **V2-5.10** The on-card mark (V2-5.7) and a review schedule (§11) are independent. The mark is what the
-reader currently sees on the card in front of them and resets every time the deck pages (V2-5.6); the
-schedule, where a deck chooses to keep one, is what the reader saw last time and persists across visits.
-Neither reads the other.
+reader has said about each card so far this session, forgotten when the deck is unmounted or the page is
+reloaded; the schedule, where a deck chooses to keep one, is what the reader said last time and persists
+across page reloads too. Neither reads the other.
 
 **V2-5.11** A card the reader pages past without grading is reported once, as `onGrade(card, "neutral")`,
 at the moment it leaves — so a card the reader simply forgot to grade is not indistinguishable, to
 whatever is listening, from a card that was never shown at all.
 
-**V2-5.12** `neutral` never fires for a card the reader did grade during that viewing, and never fires
-for the card left on screen when the deck is destroyed — only an actual page turn reports it.
+**V2-5.12** `neutral` never fires for a card the reader has graded this session — including a grade given
+in an earlier visit, not just the current one — and never fires for the card left on screen when the deck
+is destroyed; only an actual page turn away from an ungraded card reports it.
 
 ---
 
@@ -356,9 +365,6 @@ square carries no such expectation, so seven of them is just seven.
 
 Not requirements — decisions deferred until there is a reason to make them.
 
-- **Should a grade survive leaving the card?** V2-5.6 says no: come back to a card and it is ungraded
-  again. That mark is UI, not scheduling data — it is deliberately separate from the review schedule
-  (V2-5.10), which does persist across visits.
 - **Should sizing round to whole pixels?** The library it replaces computed integer pixels in
   JavaScript. CSS sizes to the subpixel, and no problem has been traced to the difference.
 - **Should the Leitner box count or interval schedule be configurable?** Fixed for now (V2-11.3). Nothing

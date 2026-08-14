@@ -247,7 +247,7 @@ describe("mount", () => {
     expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(1);
   });
 
-  it("marks the card on the edge the gesture went towards, and clears it on paging", () => {
+  it("marks the card on the edge the gesture went towards, and shows no mark on an ungraded card paged to", () => {
     open();
     const card = () => document.querySelector(".fc-card").className;
 
@@ -258,8 +258,56 @@ describe("mount", () => {
     expect(card()).toContain("is-easier");
     expect(card()).not.toContain("is-harder");
 
-    press("ArrowRight");
+    press("ArrowRight"); // card b, never graded
     expect(card()).not.toContain("is-easier");
+  });
+
+  it("remembers a card's grade across a revisit: the mark returns, and repeating the grade is dropped", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push([card.key, level]) });
+    const card = () => document.querySelector(".fc-card").className;
+
+    press("ArrowUp"); // card a: easier
+    press("ArrowRight"); // to card b, ungraded
+    press("ArrowLeft"); // back to card a
+
+    expect(front(".fc-text").textContent).toBe("eins");
+    expect(card()).toContain("is-easier");
+
+    press("ArrowUp"); // the same grade again: not a new event
+    expect(graded).toEqual([
+      ["a", "easier"],
+      ["b", "neutral"],
+    ]);
+
+    press("ArrowDown"); // a change of mind: still counts, even after a revisit
+    expect(graded).toEqual([
+      ["a", "easier"],
+      ["b", "neutral"],
+      ["a", "harder"],
+    ]);
+    expect(card()).toContain("is-harder");
+    expect(card()).not.toContain("is-easier");
+  });
+
+  it("does not report a card as neutral on a revisit if it was graded in an earlier visit", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    press("ArrowUp"); // card a: easier
+    press("ArrowRight"); // to card b
+    press("ArrowRight"); // to card c
+    press("ArrowLeft"); // back to card b
+    press("ArrowLeft"); // back to card a, already graded
+    press("ArrowRight"); // leave card a again
+
+    expect(graded).toEqual([
+      ["a", "easier"],
+      ["b", "neutral"], // b still ungraded on this pass
+      ["c", "neutral"],
+      ["b", "neutral"], // and still ungraded on this pass too
+      // no further "a" entry: it still carries the grade from before
+    ]);
   });
 
   it("grades without an onGrade callback", () => {
