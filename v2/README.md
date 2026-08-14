@@ -95,10 +95,10 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 
 ## Progress indicator
 
-A column of squares in the card's bottom-left corner, filled from the bottom, showing how far along the
-card in front of the reader is — without the library knowing what "along" means. `progress: { steps,
-of(card) }` draws `steps` squares and fills the bottom `of(card)` of them; leave `progress` out entirely
-for the bare card v2 has always had.
+A row of stars along the card's bottom edge, filled from the left, showing how far along the card in
+front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
+draws `steps` stars and fills the first `of(card)` of them; leave `progress` out entirely for the bare
+card v2 has always had.
 
 ```js
 import { mount } from "../src/flashcards.js";
@@ -111,12 +111,16 @@ mount(document.body, cards, {
 
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
-number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the dots are a count), not
-the library's.
+number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the stars are a count), not
+the library's — and `steps: 7` matches the box count exactly rather than a conventional five, so every
+real grade moves the display by one star; a coarser scale could compress two different grades onto the
+same star count and make one of them look like nothing happened.
 
 It re-reads `of(card)` at exactly two moments — a new card arriving, and a grade being recorded — clamped
 into `0..steps` either time, so a card with no data yet or a host returning something out of range still
-draws a sane column.
+draws a sane row. Bottom rather than beside or across the middle of the card: a 4:3 card has far more
+spare width around a short word than spare height, so a row along the bottom stays clear even of a word
+long enough to wrap across most of the card.
 
 This isn't the position-in-deck indicator v2 deliberately doesn't have; it says how well the reader knows
 *this* card, not where they are in the session. It's designed to be reused by a future dictionary-view

@@ -307,9 +307,9 @@ dictionary (V2-6.4): an empty schedule, not a thrown error.
 
 ## 12. Progress indicator
 
-**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a column of `steps` squares in
-the card's bottom-left corner, the bottom `of(card)` of them filled. Omitted, the card is exactly as bare
-as it always was.
+**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` stars along the
+card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it always
+was.
 
 **V2-12.2** The library draws a count out of a count. It has no notion of what the count means — not a
 box, not a schedule, not review.js — the same way `category` (V2-2.4) is free-form data the library
@@ -317,26 +317,33 @@ displays without interpreting. A deck feeds it from whatever review state it kee
 example, not the definition.
 
 **V2-12.3** This is not the position indicator V2-10.3 excludes. A position indicator would say where the
-reader is in the deck; this says how well the reader knows the one card in front of them. Both could use
-dots, but they answer different questions and neither implies the other.
+reader is in the deck; this says how well the reader knows the one card in front of them. Both could use a
+row of marks, but they answer different questions and neither implies the other.
 
-**V2-12.4** It sits on the card, in a corner clear of the centred text and the border mark's edges (V2-5.7)
-— unlike an earlier version, which was tried beside the card instead, after text hints naming the grading
-gestures directly on the card faces had been tried and reverted as overloaded. What made the corner
-placement work where the text hadn't was dropping words, not moving off the card as such: a handful of
-plain squares in a corner competes far less with the card's content than a line of text across it did.
+**V2-12.4** It sits on the card, along the bottom edge, clear of the centred text and the border mark's
+edges (V2-5.7). A 4:3 card has far more spare width around a short word than spare height, so a row here
+stays clear even of a word long enough to wrap across most of the card — verified against both v2's
+longest realistic word and a synthetic one well beyond it. Two earlier placements were tried and replaced:
+first beside the card (after text hints naming the grading gestures directly on the card faces had been
+tried and reverted as overloaded — dropping the words, not leaving the card, was what actually fixed
+that), then centred on the card's left edge, which a sufficiently long word could still reach.
 
 **V2-12.5** The value `of(card)` returns is clamped into `0..steps` before it is drawn, so a card with no
 data yet (an unclamped or missing value) does not crash the count, and out-of-range host data does not
-under- or overflow the column.
+under- or overflow the row.
 
-**V2-12.6** The column re-reads `of(card)` — and so can change — at exactly two moments: a new card
-arriving (V2-8.2), and a grade being recorded (V2-5.3). It never reads on a tick or a timer; if a host's
-own data changes for a reason outside those two events, the column does not learn about it until the
-next one.
+**V2-12.6** The row re-reads `of(card)` — and so can change — at exactly two moments: a new card arriving
+(V2-8.2), and a grade being recorded (V2-5.3). It never reads on a tick or a timer; if a host's own data
+changes for a reason outside those two events, the row does not learn about it until the next one.
 
-**V2-12.7** The column is drawn above the card rather than inside the element that flips: it has to read
-the same on either face, and must not itself flip — or mirror — when the card does.
+**V2-12.7** The row is drawn above the card rather than inside the element that flips: it has to read the
+same on either face, and must not itself flip — or mirror — when the card does.
+
+**V2-12.8** Stars, not squares: `★`/`☆` read as a level without needing a legend the way plain marks
+don't. `steps` is set to match the number of distinct values `of(card)` can actually take — review.js's
+box count (§11), not a conventional five — so every real change in the underlying data moves the display
+by exactly one star; a coarser scale would let two different values compress onto the same star count,
+making one of those changes look like nothing happened.
 
 ---
 

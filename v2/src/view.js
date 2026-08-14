@@ -59,23 +59,26 @@ const offscreen = (percent) => [
 ];
 
 /**
- * The progress column: `steps` squares stacked in the card's bottom-left
- * corner, the bottom `filled` of them solid. What "filled" means is entirely
- * the host's business — the view only ever draws a count out of a count,
- * never a box or a schedule.
+ * The progress row: `steps` stars along the card's bottom edge, the first
+ * `filled` of them solid. What "filled" means is entirely the host's
+ * business — the view only ever draws a count out of a count, never a box or
+ * a schedule.
  *
  * A sibling of `.fc-card`, not a child of it: `.fc-card` is what rotates for
  * the flip, and this must not — it stays put and legible on whichever face is
  * showing, rather than flipping (and mirroring) with the card.
  */
 function createProgress(slider, steps) {
-  const column = createElement("div", "fc-progress", slider);
-  const dots = Array.from({ length: steps }, () => createElement("span", "fc-dot", column));
-  dots.reverse(); /* built top to bottom, filled from the bottom up */
+  const row = createElement("div", "fc-progress", slider);
+  const stars = Array.from({ length: steps }, () => createElement("span", "fc-star", row));
 
   return {
     set(filled) {
-      dots.forEach((dot, i) => dot.classList.toggle("is-filled", i < filled));
+      stars.forEach((star, i) => {
+        const isFilled = i < filled;
+        star.classList.toggle("is-filled", isFilled);
+        star.textContent = isFilled ? "★" : "☆";
+      });
     },
   };
 }

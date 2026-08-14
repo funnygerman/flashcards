@@ -64,36 +64,30 @@ html:has(> body > .fc) body {
   }
 }
 
-/* The progress column: squares, not circles, stacked bottom-to-top — an
-   empty column reads as "nothing yet", not zero of an unknown total. Anchored
-   to the card's left edge, centred along its height — where it sat when it
-   was still beside the card, just moved inward. A sibling of .fc-card rather
-   than a child of it, so it sits above the 3D-rotating card without rotating
-   (or mirroring) itself — z-index says so explicitly, since .fc-card's own
-   transform gives it a stacking context that plain DOM order can't be relied
-   on to lose to. */
+/* The progress row: stars, filled left to right along the card's bottom
+   edge, centred. Bottom rather than beside the centred text: a 4:3 card has
+   far more spare width around a short word than spare height, so a row here
+   stays clear even of a word long enough to wrap across most of the card's
+   height (verified against v2's longest realistic case and beyond it). A
+   sibling of .fc-card rather than a child of it, so it sits above the
+   3D-rotating card without rotating (or mirroring) itself — z-index says so
+   explicitly, since .fc-card's own transform gives it a stacking context
+   that plain DOM order can't be relied on to lose to. */
 .fc-progress {
   position: absolute;
   z-index: 1;
-  inset-block-start: 50%;
-  inset-inline-start: calc(var(--fc-card-w) * 0.06);
-  transform: translateY(-50%);
+  inset-block-end: calc(var(--fc-card-w) * 0.06);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: calc(var(--fc-card-w) * 0.012);
+  gap: calc(var(--fc-card-w) * 0.02);
 }
 
-.fc-dot {
-  inline-size: calc(var(--fc-card-w) * 0.022);
-  block-size: calc(var(--fc-card-w) * 0.022);
-  border: 1px solid var(--fc-line);
-  box-sizing: border-box;
-  transition: background-color 160ms ease;
-}
-
-.fc-dot.is-filled {
-  background: var(--fc-line);
+.fc-star {
+  color: var(--fc-line);
+  font-size: calc(var(--fc-card-w) * 0.045);
+  line-height: 1;
 }
 
 /* Paging moves this element; the flip rotates the one inside it. position:

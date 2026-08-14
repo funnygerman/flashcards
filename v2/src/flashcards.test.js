@@ -186,13 +186,13 @@ describe("mount", () => {
     expect(graded).toEqual([]);
   });
 
-  it("draws no progress column by default", () => {
+  it("draws no progress row by default", () => {
     open();
 
     expect(document.querySelector(".fc-progress")).toBe(null);
   });
 
-  it("keeps the progress column out of the element that flips, so it never rotates or mirrors", () => {
+  it("keeps the progress row out of the element that flips, so it never rotates or mirrors", () => {
     open({ progress: { steps: 5, of: () => 3 } });
 
     const progress = document.querySelector(".fc-progress");
@@ -202,34 +202,41 @@ describe("mount", () => {
     expect(progress.parentElement).toBe(card.parentElement); /* siblings under .fc-slide */
   });
 
-  it("draws a progress column of the given size, filled from the host's data", () => {
+  it("draws a progress row of the given size, filled from the host's data", () => {
     open({ progress: { steps: 5, of: () => 3 } });
 
-    const dots = document.querySelectorAll(".fc-dot");
-    expect(dots).toHaveLength(5);
-    expect([...dots].filter((d) => d.classList.contains("is-filled"))).toHaveLength(3);
+    const stars = document.querySelectorAll(".fc-star");
+    expect(stars).toHaveLength(5);
+    expect([...stars].filter((s) => s.classList.contains("is-filled"))).toHaveLength(3);
   });
 
-  it("clamps an out-of-range level into the drawable dots", () => {
+  it("renders a filled star and an empty star as different characters", () => {
+    open({ progress: { steps: 3, of: () => 1 } });
+
+    const stars = [...document.querySelectorAll(".fc-star")];
+    expect(stars.map((s) => s.textContent)).toEqual(["★", "☆", "☆"]);
+  });
+
+  it("clamps an out-of-range level into the drawable stars", () => {
     open({ progress: { steps: 3, of: () => 99 } });
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(3);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(3);
 
     document.body.replaceChildren();
     open({ progress: { steps: 3, of: () => -5 } });
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(0);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(0);
   });
 
   it("re-reads progress for the card that is actually on screen after paging", () => {
     const levels = { a: 1, b: 4, c: 2 };
     open({ progress: { steps: 5, of: (card) => levels[card.key] } });
 
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(1);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(1);
 
     press("ArrowRight");
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(4);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(4);
 
     press("ArrowRight");
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(2);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(2);
   });
 
   it("re-reads progress immediately after a grade, since onGrade already ran", () => {
@@ -241,10 +248,10 @@ describe("mount", () => {
       progress: { steps: 5, of: (card) => levels[card.key] },
     });
 
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(0);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(0);
 
     press("ArrowUp");
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(1);
+    expect(document.querySelectorAll(".fc-star.is-filled")).toHaveLength(1);
   });
 
   it("marks the card on the edge the gesture went towards, and clears it on paging", () => {
