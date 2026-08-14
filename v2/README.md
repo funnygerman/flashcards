@@ -47,7 +47,7 @@ Returns `{ destroy() }`. Options:
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
-| `progress` | `{ steps, of(card) }` — draws a column of `steps` squares beside the card, the bottom `of(card)` of them filled; omit it for a bare card |
+| `progress` | `{ steps, of(card) }` — draws a column of `steps` squares in the card's corner, the bottom `of(card)` of them filled; omit it for a bare card |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -56,17 +56,20 @@ Returns `{ destroy() }`. Options:
 | | Key | Gesture |
 |---|---|---|
 | Flip the card | `Space` / `Enter` | tap or click |
-| Next card | `→` | swipe left to right |
-| Previous card | `←` | swipe right to left |
-| Not known well enough | `↑` | swipe up |
-| Known well enough | `↓` | swipe down |
+| Next card | `→` | swipe right to left |
+| Previous card | `←` | swipe left to right |
+| Known well enough | `↑` | swipe up |
+| Not known well enough | `↓` | swipe down |
 
-The deck wraps in both directions, so it never runs out.
+`next` exits to the left and the next card arrives from the right — the card drags away in the direction
+swiped, and `→` follows the same motion, arriving from ahead the way paging forward usually looks.
+`previous` mirrors it. The deck wraps in both directions, so it never runs out.
 
-Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards,
-top for *not known well enough*, bottom for *known well enough*. Repeating a grade the card already
-carries does nothing — the mark is already there and `onGrade` is not called again. Grading the other
-way replaces it and does count, including changing back. Moving to another card clears the mark.
+Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
+top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
+grade the card already carries does nothing — the mark is already there and `onGrade` is not called
+again. Grading the other way replaces it and does count, including changing back. Moving to another card
+clears the mark.
 
 A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
 — so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.
@@ -92,9 +95,9 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 
 ## Progress indicator
 
-A column of squares to the left of the card, filled from the bottom, showing how far along the card in
+A row of stars along the card's bottom edge, filled from the left, showing how far along the card in
 front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
-draws `steps` squares and fills the bottom `of(card)` of them; leave `progress` out entirely for the bare
+draws `steps` stars and fills the first `of(card)` of them; leave `progress` out entirely for the bare
 card v2 has always had.
 
 ```js
@@ -108,12 +111,16 @@ mount(document.body, cards, {
 
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
-number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the dots are a count), not
-the library's.
+number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the stars are a count), not
+the library's — and `steps: 7` matches the box count exactly rather than a conventional five, so every
+real grade moves the display by one star; a coarser scale could compress two different grades onto the
+same star count and make one of them look like nothing happened.
 
 It re-reads `of(card)` at exactly two moments — a new card arriving, and a grade being recorded — clamped
 into `0..steps` either time, so a card with no data yet or a host returning something out of range still
-draws a sane column.
+draws a sane row. Bottom rather than beside or across the middle of the card: a 4:3 card has far more
+spare width around a short word than spare height, so a row along the bottom stays clear even of a word
+long enough to wrap across most of the card.
 
 This isn't the position-in-deck indicator v2 deliberately doesn't have; it says how well the reader knows
 *this* card, not where they are in the session. It's designed to be reused by a future dictionary-view

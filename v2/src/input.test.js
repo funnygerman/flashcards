@@ -12,8 +12,8 @@ describe("keyIntent", () => {
     expect(["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", " ", "Enter"].map(keyIntent)).toEqual([
       "next",
       "previous",
-      "harder",
       "easier",
+      "harder",
       "flip",
       "flip",
     ]);
@@ -28,15 +28,15 @@ describe("swipeIntent", () => {
   const far = SWIPE_THRESHOLD + 1;
 
   it("maps a swipe to the same intent as the matching arrow key", () => {
-    expect(swipeIntent(far, 0)).toBe("next"); /* left to right */
-    expect(swipeIntent(-far, 0)).toBe("previous"); /* right to left */
-    expect(swipeIntent(0, -far)).toBe("harder"); /* up */
-    expect(swipeIntent(0, far)).toBe("easier"); /* down */
+    expect(swipeIntent(-far, 0)).toBe("next"); /* right to left */
+    expect(swipeIntent(far, 0)).toBe("previous"); /* left to right */
+    expect(swipeIntent(0, -far)).toBe("easier"); /* up */
+    expect(swipeIntent(0, far)).toBe("harder"); /* down */
   });
 
   it("lets the dominant axis decide a diagonal", () => {
-    expect(swipeIntent(far, far - 10)).toBe("next");
-    expect(swipeIntent(far - 10, far)).toBe("easier");
+    expect(swipeIntent(-far, far - 10)).toBe("next");
+    expect(swipeIntent(far - 10, far)).toBe("harder");
   });
 
   it("treats anything under the threshold as a tap, which flips", () => {
@@ -79,8 +79,8 @@ describe("bindInput", () => {
   it("reports a drag as a swipe and a click as a flip", () => {
     const { element, intents } = listen();
 
-    pointer(element, "pointerdown", 10, 10);
-    pointer(element, "pointerup", 10 + SWIPE_THRESHOLD + 5, 12);
+    pointer(element, "pointerdown", 10 + SWIPE_THRESHOLD + 5, 10);
+    pointer(element, "pointerup", 10, 12); /* right to left */
 
     pointer(element, "pointerdown", 50, 50);
     pointer(element, "pointerup", 52, 51);

@@ -86,10 +86,14 @@ map onto this one set.
 | Intent | Key | Gesture |
 |---|---|---|
 | `flip` | `Space`, `Enter` | tap or click |
-| `next` | `→` | swipe left to right |
-| `previous` | `←` | swipe right to left |
-| `harder` | `↑` | swipe up |
-| `easier` | `↓` | swipe down |
+| `next` | `→` | swipe right to left |
+| `previous` | `←` | swipe left to right |
+| `easier` | `↑` | swipe up |
+| `harder` | `↓` | swipe down |
+
+`next` exits to the left and arrives from the right — the swipe drags the card away in the direction
+travelled, and the same motion carries over to the keyboard: pressing `→` for "forward" arrives from
+ahead, the way paging forward through a sequence usually looks. `previous` is the mirror image.
 
 **V2-4.2** A pointer gesture shorter than the swipe threshold is a tap. The threshold is 40 px.
 
@@ -126,14 +130,15 @@ nothing to focus first and nothing the reader can click that takes the keyboard 
 not called again.
 
 **V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier in
-the same visit. Five swipes up then two swipes down then one swipe up is three events: `harder`,
-`easier`, `harder`.
+the same visit. Five swipes up then two swipes down then one swipe up is three events: `easier`,
+`harder`, `easier`.
 
 **V2-5.6** Moving to another card clears the grade. The next card starts ungraded, and the grade the
 previous card carried is not remembered.
 
 **V2-5.7** A grade is visible on the card for as long as it is held: the card's border thickens on the
-edge the gesture went towards — the top edge for `harder`, the bottom for `easier`.
+edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder`
+(swipe down).
 
 **V2-5.8** The mark uses no colour, so it carries in both themes and does not depend on colour vision to
 be seen.
@@ -216,8 +221,8 @@ pull-to-refresh.
 
 **V2-8.1** Flipping rotates the card about its vertical axis, showing the other face.
 
-**V2-8.2** Paging slides the card out in the direction of travel and the next one in from the opposite
-edge.
+**V2-8.2** Paging slides the current card out one edge and the next one in from the other — left for
+`next`, right for `previous` (V2-4.1), regardless of whether a key or a swipe triggered it.
 
 **V2-8.3** Paging returns the card to its front face.
 
@@ -302,8 +307,8 @@ dictionary (V2-6.4): an empty schedule, not a thrown error.
 
 ## 12. Progress indicator
 
-**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a column of `steps` squares
-beside the card, the bottom `of(card)` of them filled. Omitted, the card is exactly as bare as it always
+**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` stars along the
+card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it always
 was.
 
 **V2-12.2** The library draws a count out of a count. It has no notion of what the count means — not a
@@ -312,21 +317,33 @@ displays without interpreting. A deck feeds it from whatever review state it kee
 example, not the definition.
 
 **V2-12.3** This is not the position indicator V2-10.3 excludes. A position indicator would say where the
-reader is in the deck; this says how well the reader knows the one card in front of them. Both could use
-dots, but they answer different questions and neither implies the other.
+reader is in the deck; this says how well the reader knows the one card in front of them. Both could use a
+row of marks, but they answer different questions and neither implies the other.
 
-**V2-12.4** The column sits outside the card, never on it. Text hints naming the grading gestures were
-tried directly on the card faces and reverted as overloaded — stacking a level indicator on top of the
-existing border mark (V2-5.7) would have repeated that. Keeping it off the card entirely was the fix.
+**V2-12.4** It sits on the card, along the bottom edge, clear of the centred text and the border mark's
+edges (V2-5.7). A 4:3 card has far more spare width around a short word than spare height, so a row here
+stays clear even of a word long enough to wrap across most of the card — verified against both v2's
+longest realistic word and a synthetic one well beyond it. Two earlier placements were tried and replaced:
+first beside the card (after text hints naming the grading gestures directly on the card faces had been
+tried and reverted as overloaded — dropping the words, not leaving the card, was what actually fixed
+that), then centred on the card's left edge, which a sufficiently long word could still reach.
 
 **V2-12.5** The value `of(card)` returns is clamped into `0..steps` before it is drawn, so a card with no
 data yet (an unclamped or missing value) does not crash the count, and out-of-range host data does not
-under- or overflow the column.
+under- or overflow the row.
 
-**V2-12.6** The column re-reads `of(card)` — and so can change — at exactly two moments: a new card
-arriving (V2-8.2), and a grade being recorded (V2-5.3). It never reads on a tick or a timer; if a host's
-own data changes for a reason outside those two events, the column does not learn about it until the
-next one.
+**V2-12.6** The row re-reads `of(card)` — and so can change — at exactly two moments: a new card arriving
+(V2-8.2), and a grade being recorded (V2-5.3). It never reads on a tick or a timer; if a host's own data
+changes for a reason outside those two events, the row does not learn about it until the next one.
+
+**V2-12.7** The row is drawn above the card rather than inside the element that flips: it has to read the
+same on either face, and must not itself flip — or mirror — when the card does.
+
+**V2-12.8** Stars, not squares: `★`/`☆` read as a level without needing a legend the way plain marks
+don't. `steps` is set to match the number of distinct values `of(card)` can actually take — review.js's
+box count (§11), not a conventional five — so every real change in the underlying data moves the display
+by exactly one star; a coarser scale would let two different values compress onto the same star count,
+making one of those changes look like nothing happened.
 
 ---
 

@@ -59,19 +59,26 @@ const offscreen = (percent) => [
 ];
 
 /**
- * The progress column: `steps` squares stacked to the left of the card, the
- * bottom `filled` of them solid. What "filled" means is entirely the host's
+ * The progress row: `steps` stars along the card's bottom edge, the first
+ * `filled` of them solid. What "filled" means is entirely the host's
  * business — the view only ever draws a count out of a count, never a box or
  * a schedule.
+ *
+ * A sibling of `.fc-card`, not a child of it: `.fc-card` is what rotates for
+ * the flip, and this must not — it stays put and legible on whichever face is
+ * showing, rather than flipping (and mirroring) with the card.
  */
-function createProgress(root, steps) {
-  const column = createElement("div", "fc-progress", root);
-  const dots = Array.from({ length: steps }, () => createElement("span", "fc-dot", column));
-  dots.reverse(); /* built top to bottom, filled from the bottom up */
+function createProgress(slider, steps) {
+  const row = createElement("div", "fc-progress", slider);
+  const stars = Array.from({ length: steps }, () => createElement("span", "fc-star", row));
 
   return {
     set(filled) {
-      dots.forEach((dot, i) => dot.classList.toggle("is-filled", i < filled));
+      stars.forEach((star, i) => {
+        const isFilled = i < filled;
+        star.classList.toggle("is-filled", isFilled);
+        star.textContent = isFilled ? "★" : "☆";
+      });
     },
   };
 }
@@ -79,10 +86,10 @@ function createProgress(root, steps) {
 /** `steps` is omitted where no host has asked for a progress column at all. */
 export function createView(container, steps) {
   const root = createElement("div", "fc", container);
-
-  const progress = steps ? createProgress(root, steps) : null;
-
   const slider = createElement("div", "fc-slide", root);
+
+  const progress = steps ? createProgress(slider, steps) : null;
+
   const card = createElement("div", "fc-card", slider);
   const front = createFace(card, "front");
   const back = createFace(card, "back");
@@ -126,9 +133,12 @@ export function createView(container, steps) {
     flip: () => setFlipped(!flipped),
 
     /**
-     * Page to `data`: the card leaves in the direction of travel and the next
-     * one arrives from the opposite edge. Returns a promise while it animates,
-     * null when the swap was instant.
+     * Page to `data`: next exits to the left and the following card enters
+     * from the right — the reverse for previous — matching a swipe that
+     * drags the card away in the direction travelled (right-to-left is
+     * next) and, for the keyboard, the usual sense that "forward" arrives
+     * from ahead. Returns a promise while it animates, null when the swap
+     * was instant.
      */
     slide(direction, data) {
       const swap = () => {
@@ -137,7 +147,7 @@ export function createView(container, steps) {
         show(data);
       };
 
-      const out = animate(slider, offscreen(direction * 100));
+      const out = animate(slider, offscreen(direction * -100));
       if (!out) {
         swap();
         return null;
@@ -145,7 +155,7 @@ export function createView(container, steps) {
 
       return out.then(() => {
         swap();
-        return animate(slider, offscreen(direction * -100).reverse());
+        return animate(slider, offscreen(direction * 100).reverse());
       });
     },
 

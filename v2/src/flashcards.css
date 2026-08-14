@@ -32,10 +32,8 @@ html:has(> body > .fc) body {
   --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
 
   box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: calc(var(--fc-card-w) * 0.03);
+  display: grid;
+  place-items: center;
   block-size: 100dvh;
   overflow: hidden;
   color: var(--fc-fg);
@@ -66,32 +64,36 @@ html:has(> body > .fc) body {
   }
 }
 
-/* The progress column: squares, not circles, stacked bottom-to-top — an
-   empty column reads as "nothing yet", not zero of an unknown total. Sits
-   outside the card entirely, on its own, so it never has to compete with the
-   card's content the way the on-card marks that came before it did. */
+/* The progress row: stars, filled left to right along the card's bottom
+   edge, centred. Bottom rather than beside the centred text: a 4:3 card has
+   far more spare width around a short word than spare height, so a row here
+   stays clear even of a word long enough to wrap across most of the card's
+   height (verified against v2's longest realistic case and beyond it). A
+   sibling of .fc-card rather than a child of it, so it sits above the
+   3D-rotating card without rotating (or mirroring) itself — z-index says so
+   explicitly, since .fc-card's own transform gives it a stacking context
+   that plain DOM order can't be relied on to lose to. */
 .fc-progress {
+  position: absolute;
+  z-index: 1;
+  inset-block-end: calc(var(--fc-card-w) * 0.06);
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: calc(var(--fc-card-w) * 0.012);
-  flex: none;
+  gap: calc(var(--fc-card-w) * 0.02);
 }
 
-.fc-dot {
-  inline-size: calc(var(--fc-card-w) * 0.022);
-  block-size: calc(var(--fc-card-w) * 0.022);
-  border: 1px solid var(--fc-line);
-  box-sizing: border-box;
-  transition: background-color 160ms ease;
+.fc-star {
+  color: var(--fc-line);
+  font-size: calc(var(--fc-card-w) * 0.045);
+  line-height: 1;
 }
 
-.fc-dot.is-filled {
-  background: var(--fc-line);
-}
-
-/* Paging moves this element; the flip rotates the one inside it. */
+/* Paging moves this element; the flip rotates the one inside it. position:
+   relative anchors .fc-progress, its other child, to this same box. */
 .fc-slide {
+  position: relative;
   inline-size: var(--fc-card-w);
   block-size: calc(var(--fc-card-w) * 3 / 4);
 }
@@ -140,13 +142,14 @@ html:has(> body > .fc) body {
 }
 
 /* The grade mark: the card's own border thickens on the edge the gesture went
-   towards. No new element, no colour, and the direction is its own legend.
-   box-sizing keeps the content still while the edge grows. */
-.fc-card.is-harder .fc-face {
+   towards — up is easier, down is harder (V2-4.1) — so the mark stays its
+   own legend rather than needing one. No new element, no colour. box-sizing
+   keeps the content still while the edge grows. */
+.fc-card.is-easier .fc-face {
   border-block-start-width: calc(var(--fc-card-w) * 0.014);
 }
 
-.fc-card.is-easier .fc-face {
+.fc-card.is-harder .fc-face {
   border-block-end-width: calc(var(--fc-card-w) * 0.014);
 }
 

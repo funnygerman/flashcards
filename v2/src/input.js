@@ -8,8 +8,8 @@
 const KEY_INTENTS = {
   ArrowRight: "next",
   ArrowLeft: "previous",
-  ArrowUp: "harder",
-  ArrowDown: "easier",
+  ArrowUp: "easier",
+  ArrowDown: "harder",
   " ": "flip",
   Enter: "flip",
 };
@@ -36,8 +36,8 @@ export function swipeIntent(dx, dy, threshold = SWIPE_THRESHOLD) {
   const distance = horizontal ? dx : dy;
 
   if (Math.abs(distance) < threshold) return "flip";
-  if (horizontal) return dx > 0 ? "next" : "previous";
-  return dy > 0 ? "easier" : "harder";
+  if (horizontal) return dx > 0 ? "previous" : "next";
+  return dy > 0 ? "harder" : "easier";
 }
 
 /**
