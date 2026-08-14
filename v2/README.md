@@ -47,7 +47,7 @@ Returns `{ destroy() }`. Options:
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
-| `progress` | `{ steps, of(card) }` — draws a column of `steps` squares beside the card, the bottom `of(card)` of them filled; omit it for a bare card |
+| `progress` | `{ steps, of(card) }` — draws a column of `steps` squares in the card's corner, the bottom `of(card)` of them filled; omit it for a bare card |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -95,10 +95,10 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 
 ## Progress indicator
 
-A column of squares to the left of the card, filled from the bottom, showing how far along the card in
-front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
-draws `steps` squares and fills the bottom `of(card)` of them; leave `progress` out entirely for the bare
-card v2 has always had.
+A column of squares in the card's bottom-left corner, filled from the bottom, showing how far along the
+card in front of the reader is — without the library knowing what "along" means. `progress: { steps,
+of(card) }` draws `steps` squares and fills the bottom `of(card)` of them; leave `progress` out entirely
+for the bare card v2 has always had.
 
 ```js
 import { mount } from "../src/flashcards.js";

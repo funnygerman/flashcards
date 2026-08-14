@@ -192,6 +192,16 @@ describe("mount", () => {
     expect(document.querySelector(".fc-progress")).toBe(null);
   });
 
+  it("keeps the progress column out of the element that flips, so it never rotates or mirrors", () => {
+    open({ progress: { steps: 5, of: () => 3 } });
+
+    const progress = document.querySelector(".fc-progress");
+    const card = document.querySelector(".fc-card");
+
+    expect(card.contains(progress)).toBe(false);
+    expect(progress.parentElement).toBe(card.parentElement); /* siblings under .fc-slide */
+  });
+
   it("draws a progress column of the given size, filled from the host's data", () => {
     open({ progress: { steps: 5, of: () => 3 } });
 

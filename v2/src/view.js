@@ -59,13 +59,17 @@ const offscreen = (percent) => [
 ];
 
 /**
- * The progress column: `steps` squares stacked to the left of the card, the
- * bottom `filled` of them solid. What "filled" means is entirely the host's
- * business — the view only ever draws a count out of a count, never a box or
- * a schedule.
+ * The progress column: `steps` squares stacked in the card's bottom-left
+ * corner, the bottom `filled` of them solid. What "filled" means is entirely
+ * the host's business — the view only ever draws a count out of a count,
+ * never a box or a schedule.
+ *
+ * A sibling of `.fc-card`, not a child of it: `.fc-card` is what rotates for
+ * the flip, and this must not — it stays put and legible on whichever face is
+ * showing, rather than flipping (and mirroring) with the card.
  */
-function createProgress(root, steps) {
-  const column = createElement("div", "fc-progress", root);
+function createProgress(slider, steps) {
+  const column = createElement("div", "fc-progress", slider);
   const dots = Array.from({ length: steps }, () => createElement("span", "fc-dot", column));
   dots.reverse(); /* built top to bottom, filled from the bottom up */
 
@@ -79,10 +83,10 @@ function createProgress(root, steps) {
 /** `steps` is omitted where no host has asked for a progress column at all. */
 export function createView(container, steps) {
   const root = createElement("div", "fc", container);
-
-  const progress = steps ? createProgress(root, steps) : null;
-
   const slider = createElement("div", "fc-slide", root);
+
+  const progress = steps ? createProgress(slider, steps) : null;
+
   const card = createElement("div", "fc-card", slider);
   const front = createFace(card, "front");
   const back = createFace(card, "back");
