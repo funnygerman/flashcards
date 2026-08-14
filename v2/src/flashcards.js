@@ -45,26 +45,34 @@ export function mount(element, cards, options = {}) {
     view.setProgress(filled);
   };
 
-  view.show(deck.current());
-  showProgress();
+  /* Every card's grade, for as long as this deck stays mounted — keyed by
+     card rather than by the one on screen, so paging away and back does not
+     forget it. It used to live in a single variable that `page` reset
+     unconditionally, which meant a revisited card looked ungraded again and
+     the same swipe could be replayed on it indefinitely — silently
+     reinflating a host's own data (e.g. review.js's box) with no new attempt
+     at recall in between. A card's grade, once given, now holds until it is
+     actually changed. */
+  const grades = new Map();
 
-  /* The grade the card in front of the reader is currently marked with. Held
-     here rather than in the view because it is what the reader has said, not
-     how it is drawn. */
-  let graded = null;
+  view.show(deck.current(), grades.get(deck.current()) ?? null);
+  showProgress();
 
   /* A card leaving ungraded is not nothing — the reader saw it and moved on,
      which is itself worth reporting once, as a neutral outcome, so a card
      they simply forgot to grade is not indistinguishable from one they never
-     saw at all. */
+     saw at all. A card graded earlier this session, even in a visit before
+     this one, does not count as leaving ungraded. */
   const page = (direction) => {
-    if (graded === null) onGrade?.(deck.current(), "neutral");
+    if (!grades.has(deck.current())) onGrade?.(deck.current(), "neutral");
 
-    graded = null;
+    const arriving = direction > 0 ? deck.next() : deck.previous();
+    const level = grades.get(arriving) ?? null;
 
-    /* The dots belong to the card that is about to be on screen, so they
-       update once it actually arrives — not the one sliding away. */
-    const sliding = view.slide(direction, direction > 0 ? deck.next() : deck.previous());
+    /* The dots and the mark belong to the card that is about to be on
+       screen, so they update once it actually arrives — not the one sliding
+       away. */
+    const sliding = view.slide(direction, arriving, level);
     if (!sliding) {
       showProgress();
       return null;
@@ -72,15 +80,17 @@ export function mount(element, cards, options = {}) {
     return sliding.then(showProgress);
   };
 
-  /* Grading keeps the card in place, so the same grade can arrive many times
-     over: repeating it says nothing new and is dropped. Grading the other way
-     is a change of mind, and counts. */
+  /* Repeating the grade a card already carries — even after paging away and
+     back — says nothing new and is dropped. Grading the other way is a
+     change of mind, and counts, including changing back to one it carried
+     before. */
   const grade = (level) => {
-    if (level === graded) return null;
+    const card = deck.current();
+    if (grades.get(card) === level) return null;
 
-    graded = level;
+    grades.set(card, level);
     view.mark(level);
-    onGrade?.(deck.current(), level);
+    onGrade?.(card, level);
     showProgress(); /* onGrade already ran, so the host's own data is current */
     return null;
   };

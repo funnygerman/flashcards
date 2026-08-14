@@ -64,7 +64,7 @@ html:has(> body > .fc) body {
   }
 }
 
-/* The progress row: stars, filled left to right along the card's bottom
+/* The progress row: squares, filled left to right along the card's bottom
    edge, centred. Bottom rather than beside the centred text: a 4:3 card has
    far more spare width around a short word than spare height, so a row here
    stays clear even of a word long enough to wrap across most of the card's
@@ -84,10 +84,16 @@ html:has(> body > .fc) body {
   gap: calc(var(--fc-card-w) * 0.02);
 }
 
-.fc-star {
-  color: var(--fc-line);
-  font-size: calc(var(--fc-card-w) * 0.045);
-  line-height: 1;
+.fc-dot {
+  inline-size: calc(var(--fc-card-w) * 0.022);
+  block-size: calc(var(--fc-card-w) * 0.022);
+  border: 1px solid var(--fc-line);
+  box-sizing: border-box;
+  transition: background-color 160ms ease;
+}
+
+.fc-dot.is-filled {
+  background: var(--fc-line);
 }
 
 /* Paging moves this element; the flip rotates the one inside it. position:

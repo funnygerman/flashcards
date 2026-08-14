@@ -68,8 +68,10 @@ swiped, and `→` follows the same motion, arriving from ahead the way paging fo
 Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
 top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
 grade the card already carries does nothing — the mark is already there and `onGrade` is not called
-again. Grading the other way replaces it and does count, including changing back. Moving to another card
-clears the mark.
+again, even after paging away and back: a card's grade is remembered for the rest of the session, and its
+mark reappears exactly as left if the reader revisits it. Grading the other way replaces it and does
+count, including changing back to one it carried before. A card that has never been graded starts, and
+stays, ungraded until it actually is.
 
 A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
 — so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.
@@ -95,9 +97,9 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 
 ## Progress indicator
 
-A row of stars along the card's bottom edge, filled from the left, showing how far along the card in
+A row of squares along the card's bottom edge, filled from the left, showing how far along the card in
 front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
-draws `steps` stars and fills the first `of(card)` of them; leave `progress` out entirely for the bare
+draws `steps` squares and fills the first `of(card)` of them; leave `progress` out entirely for the bare
 card v2 has always had.
 
 ```js
@@ -111,10 +113,15 @@ mount(document.body, cards, {
 
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
-number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the stars are a count), not
-the library's — and `steps: 7` matches the box count exactly rather than a conventional five, so every
-real grade moves the display by one star; a coarser scale could compress two different grades onto the
-same star count and make one of them look like nothing happened.
+number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the squares are a count), not
+the library's — and `steps: 7` matches the box count exactly rather than a conventional round number, so
+every real grade moves the display by one square; a coarser scale could compress two different grades
+onto the same count and make one of them look like nothing happened.
+
+Squares rather than stars: `★`/`☆` were tried and reverted after testing on a real phone. At a size that
+actually read as a star shape they were too big for the row, and any count other than the culturally
+fixed five read as a broken rating widget rather than a plain count — undoing the exact thing the `steps:
+7` choice above exists to protect. A square carries no such expectation, so seven of them is just seven.
 
 It re-reads `of(card)` at exactly two moments — a new card arriving, and a grade being recorded — clamped
 into `0..steps` either time, so a card with no data yet or a host returning something out of range still

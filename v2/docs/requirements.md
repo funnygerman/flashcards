@@ -129,12 +129,20 @@ nothing to focus first and nothing the reader can click that takes the keyboard 
 **V2-5.4** Repeating a grade the card already carries is not an event: it is dropped, and `onGrade` is
 not called again.
 
-**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier in
-the same visit. Five swipes up then two swipes down then one swipe up is three events: `easier`,
-`harder`, `easier`.
+**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier —
+even across a visit in between. Five swipes up then two swipes down then one swipe up is three events:
+`easier`, `harder`, `easier`; so is the same sequence with a trip to another card and back between each
+swipe.
 
-**V2-5.6** Moving to another card clears the grade. The next card starts ungraded, and the grade the
-previous card carried is not remembered.
+**V2-5.6** Moving to another card changes what's on screen, not what any card carries: a card's grade,
+once given, is remembered for the rest of the session, and its mark reappears exactly as left if the
+reader pages back to it. A card that has never been graded starts, and stays, ungraded until it actually
+is. (An earlier version of this library cleared the grade on every page turn; a card revisited after
+being graded looked untouched, and the same swipe — repeated on a returning visit rather than the same
+one V2-5.4 already covers — read as a new event each time. Against review.js's box (§11), that meant
+paging away and back was, by itself, indistinguishable from a fresh correct recall: a reader (or a stray
+extra keypress) could walk a card from the first box to the last in seconds, with no attempt at recall in
+between.)
 
 **V2-5.7** A grade is visible on the card for as long as it is held: the card's border thickens on the
 edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder`
@@ -147,16 +155,17 @@ be seen.
 computes no schedule — see §11 for the separate module a deck page can use for that.
 
 **V2-5.10** The on-card mark (V2-5.7) and a review schedule (§11) are independent. The mark is what the
-reader currently sees on the card in front of them and resets every time the deck pages (V2-5.6); the
-schedule, where a deck chooses to keep one, is what the reader saw last time and persists across visits.
-Neither reads the other.
+reader has said about each card so far this session, forgotten when the deck is unmounted or the page is
+reloaded; the schedule, where a deck chooses to keep one, is what the reader said last time and persists
+across page reloads too. Neither reads the other.
 
 **V2-5.11** A card the reader pages past without grading is reported once, as `onGrade(card, "neutral")`,
 at the moment it leaves — so a card the reader simply forgot to grade is not indistinguishable, to
 whatever is listening, from a card that was never shown at all.
 
-**V2-5.12** `neutral` never fires for a card the reader did grade during that viewing, and never fires
-for the card left on screen when the deck is destroyed — only an actual page turn reports it.
+**V2-5.12** `neutral` never fires for a card the reader has graded this session — including a grade given
+in an earlier visit, not just the current one — and never fires for the card left on screen when the deck
+is destroyed; only an actual page turn away from an ungraded card reports it.
 
 ---
 
@@ -307,9 +316,9 @@ dictionary (V2-6.4): an empty schedule, not a thrown error.
 
 ## 12. Progress indicator
 
-**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` stars along the
-card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it always
-was.
+**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` squares along
+the card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it
+always was.
 
 **V2-12.2** The library draws a count out of a count. It has no notion of what the count means — not a
 box, not a schedule, not review.js — the same way `category` (V2-2.4) is free-form data the library
@@ -339,11 +348,16 @@ changes for a reason outside those two events, the row does not learn about it u
 **V2-12.7** The row is drawn above the card rather than inside the element that flips: it has to read the
 same on either face, and must not itself flip — or mirror — when the card does.
 
-**V2-12.8** Stars, not squares: `★`/`☆` read as a level without needing a legend the way plain marks
-don't. `steps` is set to match the number of distinct values `of(card)` can actually take — review.js's
-box count (§11), not a conventional five — so every real change in the underlying data moves the display
-by exactly one star; a coarser scale would let two different values compress onto the same star count,
-making one of those changes look like nothing happened.
+**V2-12.8** `steps` is set to match the number of distinct values `of(card)` can actually take —
+review.js's box count (§11), not a conventional round number — so every real change in the underlying
+data moves the display by exactly one mark; a coarser scale would let two different values compress onto
+the same count, making one of those changes look like nothing happened.
+
+**V2-12.9** Squares, not stars: `★`/`☆` were tried and reverted after testing on a real phone. Two
+problems, both real: at a size that actually read as a star shape they were too big for the row, and any
+count other than the culturally fixed five read as a broken rating widget rather than a plain count — a
+problem V2-12.8 exists specifically to avoid, which stars undid by carrying their own count expectation. A
+square carries no such expectation, so seven of them is just seven.
 
 ---
 
@@ -351,9 +365,6 @@ making one of those changes look like nothing happened.
 
 Not requirements — decisions deferred until there is a reason to make them.
 
-- **Should a grade survive leaving the card?** V2-5.6 says no: come back to a card and it is ungraded
-  again. That mark is UI, not scheduling data — it is deliberately separate from the review schedule
-  (V2-5.10), which does persist across visits.
 - **Should sizing round to whole pixels?** The library it replaces computed integer pixels in
   JavaScript. CSS sizes to the subpixel, and no problem has been traced to the difference.
 - **Should the Leitner box count or interval schedule be configurable?** Fixed for now (V2-11.3). Nothing

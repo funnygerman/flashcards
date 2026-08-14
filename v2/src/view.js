@@ -59,10 +59,16 @@ const offscreen = (percent) => [
 ];
 
 /**
- * The progress row: `steps` stars along the card's bottom edge, the first
+ * The progress row: `steps` squares along the card's bottom edge, the first
  * `filled` of them solid. What "filled" means is entirely the host's
  * business — the view only ever draws a count out of a count, never a box or
  * a schedule.
+ *
+ * Squares rather than stars: stars were tried and reverted after testing on
+ * a real phone — at a size actually legible as a star shape they read as
+ * "too big", and any count other than the culturally fixed five reads as a
+ * broken rating widget rather than a plain count. A square carries no such
+ * expectation, so seven of them is just seven, not a wrong five.
  *
  * A sibling of `.fc-card`, not a child of it: `.fc-card` is what rotates for
  * the flip, and this must not — it stays put and legible on whichever face is
@@ -70,15 +76,11 @@ const offscreen = (percent) => [
  */
 function createProgress(slider, steps) {
   const row = createElement("div", "fc-progress", slider);
-  const stars = Array.from({ length: steps }, () => createElement("span", "fc-star", row));
+  const dots = Array.from({ length: steps }, () => createElement("span", "fc-dot", row));
 
   return {
     set(filled) {
-      stars.forEach((star, i) => {
-        const isFilled = i < filled;
-        star.classList.toggle("is-filled", isFilled);
-        star.textContent = isFilled ? "★" : "☆";
-      });
+      dots.forEach((dot, i) => dot.classList.toggle("is-filled", i < filled));
     },
   };
 }
@@ -101,9 +103,21 @@ export function createView(container, steps) {
     card.classList.toggle("is-flipped", flipped);
   };
 
-  const show = (data) => {
+  /**
+   * Show a card's grade by thickening the edge the gesture went towards: the
+   * top edge for `harder`, the bottom for `easier`, neither for `null`. The
+   * host is the one deciding what to pass here — this view has no memory of
+   * its own between one `show`/`slide` and the next.
+   */
+  const mark = (level) => {
+    card.classList.toggle("is-harder", level === "harder");
+    card.classList.toggle("is-easier", level === "easier");
+  };
+
+  const show = (data, level = null) => {
     renderFace(front, data.category, data.frontText, data.frontDetails);
     renderFace(back, data.category, data.backText, data.backDetails);
+    mark(level);
   };
 
   /** Face the front again without animating the rotation back. */
@@ -114,17 +128,6 @@ export function createView(container, steps) {
     card.classList.remove("fc-instant");
   };
 
-  /**
-   * Show the card's grade by thickening the edge the gesture went towards:
-   * the top edge for `harder`, the bottom for `easier`, neither for null. The
-   * mark stays until the grade changes or the card does, because grading no
-   * longer pages away — the reader has to be able to see what they marked.
-   */
-  const mark = (level) => {
-    card.classList.toggle("is-harder", level === "harder");
-    card.classList.toggle("is-easier", level === "easier");
-  };
-
   return {
     root,
     show,
@@ -133,18 +136,18 @@ export function createView(container, steps) {
     flip: () => setFlipped(!flipped),
 
     /**
-     * Page to `data`: next exits to the left and the following card enters
-     * from the right — the reverse for previous — matching a swipe that
-     * drags the card away in the direction travelled (right-to-left is
-     * next) and, for the keyboard, the usual sense that "forward" arrives
-     * from ahead. Returns a promise while it animates, null when the swap
-     * was instant.
+     * Page to `data`, arriving with grade `level` (the host's memory of
+     * what — if anything — this card carries, not this view's): next exits
+     * to the left and the following card enters from the right — the
+     * reverse for previous — matching a swipe that drags the card away in
+     * the direction travelled (right-to-left is next) and, for the
+     * keyboard, the usual sense that "forward" arrives from ahead. Returns
+     * a promise while it animates, null when the swap was instant.
      */
-    slide(direction, data) {
+    slide(direction, data, level = null) {
       const swap = () => {
         resetFlip();
-        mark(null);
-        show(data);
+        show(data, level);
       };
 
       const out = animate(slider, offscreen(direction * -100));

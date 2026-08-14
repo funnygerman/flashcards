@@ -49,13 +49,13 @@
       /* Review scheduling is not part of the library (V2-5.9) — a deck page
          wires it up itself, through the same onGrade callback any other
          host-side concern would use. The library's `progress` option is
-         equally review-agnostic: it just draws N of M stars, so box + 1 (box
-         is 0-indexed, the stars are a count) is this deck's own mapping, not
+         equally review-agnostic: it just draws N of M dots, so box + 1 (box
+         is 0-indexed, the dots are a count) is this deck's own mapping, not
          the library's. steps is 7, matching the Leitner box count exactly
-         (review.js) rather than a conventional 5 — every real grade then
-         moves the display by one star; a coarser scale could compress two
-         different grades into the same star count, and make one of them
-         look like nothing happened. */
+         (review.js) rather than a conventional five — every real grade then
+         moves the display by one dot; a coarser scale could compress two
+         different grades into the same count, and make one of them look
+         like nothing happened. */
       mount(document.body, cards, {
         onGrade: (card, level) => recordGrade(card.key, level),
         progress: {
