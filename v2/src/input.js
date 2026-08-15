@@ -21,10 +21,29 @@ export function keyIntent(key) {
   return KEY_INTENTS[key];
 }
 
+/** The keys that press a control. Only these are worth taking from the deck. */
+const ACTIVATION_KEYS = new Set(["Enter", " "]);
+
 /** Keys belong to the deck unless the reader is typing into something. */
 function isTyping(target) {
   const tag = target?.tagName;
   return Boolean(target?.isContentEditable) || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
+}
+
+/**
+ * A control the reader has focused — a link that goes somewhere, a button.
+ *
+ * It only takes the keys that would press it. A deck page may carry a link out
+ * of the deck (§13), and `Enter` on that focused link has to follow it, since
+ * `keydown` below calls preventDefault(); but the arrows mean nothing to a link
+ * and everything to the deck, so they stay the deck's. Taking every key here
+ * instead would leave the reader unable to page or grade after tapping the link
+ * and pressing Back — browsers restore focus to the anchor — with the swipes
+ * still working and nothing on screen to explain the silence.
+ */
+function isControl(target) {
+  const tag = target?.tagName;
+  return tag === "BUTTON" || (tag === "A" && Boolean(target.hasAttribute?.("href")));
 }
 
 /**
@@ -54,6 +73,7 @@ export function bindInput(element, onIntent) {
     keydown(event) {
       const intent = keyIntent(event.key);
       if (!intent || isTyping(event.target)) return;
+      if (isControl(event.target) && ACTIVATION_KEYS.has(event.key)) return;
 
       event.preventDefault();
       onIntent(intent);

@@ -76,6 +76,80 @@ describe("bindInput", () => {
     expect(intents).toEqual(["next"]);
   });
 
+  /* A deck page may carry a link out of the deck, and Enter on a focused link
+     has to follow it. The key handler calls preventDefault(), so a guard that
+     missed this would leave the reader flipping the card instead of going
+     anywhere. */
+  /** Press Enter on a fresh element, and report whether the deck swallowed it. */
+  const pressEnterOn = (tag, href) => {
+    const target = document.createElement(tag);
+    if (href) target.setAttribute("href", href);
+    document.body.append(target);
+
+    const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    target.remove();
+
+    return event.defaultPrevented;
+  };
+
+  it("leaves a key alone when it is aimed at something else on the page", () => {
+    const { intents } = listen();
+
+    expect(pressEnterOn("input")).toBe(false);
+    expect(pressEnterOn("textarea")).toBe(false);
+    expect(pressEnterOn("select")).toBe(false);
+    expect(pressEnterOn("button")).toBe(false);
+    expect(pressEnterOn("a", "#next")).toBe(false);
+
+    expect(intents).toEqual([]);
+  });
+
+  it("still takes a key aimed at anything that is not one of the reader's controls", () => {
+    const { intents } = listen();
+
+    /* An anchor with no href navigates nowhere and takes no focus, so it is not
+       a control and the deck keeps the key. */
+    expect(pressEnterOn("a")).toBe(true);
+    expect(pressEnterOn("p")).toBe(true);
+
+    expect(intents).toEqual(["flip", "flip"]);
+  });
+
+  /* A focused control only takes the keys that would press it. Taking every key
+     would leave the deck silent to the arrows after the reader tapped the link
+     and came back — browsers restore focus to the anchor — while the swipes
+     went on working, with nothing on screen to explain it. */
+  it("keeps the keys a focused control has no use for", () => {
+    const { intents } = listen();
+
+    const link = document.createElement("a");
+    link.setAttribute("href", "#somewhere");
+    document.body.append(link);
+
+    for (const key of ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"]) {
+      link.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+    link.remove();
+
+    expect(intents).toEqual(["next", "previous", "easier", "harder"]);
+  });
+
+  it("leaves a field's keys entirely alone, arrows included", () => {
+    const { intents } = listen();
+
+    const field = document.createElement("input");
+    document.body.append(field);
+
+    /* Unlike a control, a field uses the arrows itself — to move the caret. */
+    for (const key of ["ArrowRight", "ArrowLeft", "Enter"]) {
+      field.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+    field.remove();
+
+    expect(intents).toEqual([]);
+  });
+
   it("reports a drag as a swipe and a click as a flip", () => {
     const { element, intents } = listen();
 

@@ -166,10 +166,16 @@ function baseFor(current, day) {
  * stacking on it: easier then harder then easier leaves the card one box up
  * from where the day found it, not three moves away from it.
  *
- * `"neutral"` keeps the current box and simply renews it from now, so a card
- * that is only ever seen and never graded still gets a schedule instead of
- * staying permanently, indistinguishably due. It is not an opinion, so it
- * neither uses up the day's grade nor overwrites one already given.
+ * `"neutral"` keeps the current box and renews it from now, so a card that is
+ * only ever seen and never graded still gets a schedule instead of staying
+ * permanently, indistinguishably due. It is not an opinion, so it neither uses
+ * up the day's grade nor overwrites one already given — and it never moves a
+ * card's due date *later* than it already is. Renewing gives a card a schedule
+ * where it had none; it must not buy a card time. Since a session studies what
+ * is due (§13), a plain renewal would mean that merely looking at an overdue
+ * card and paging on hid it for a full interval — a box 5 card gone for a
+ * month for having been glanced at, and browsing the dictionary once emptying
+ * the review queue.
  */
 export function recordGrade(key, level, storage = pageStorage(), now = Date.now()) {
   const map = readMap(storage, STORAGE_KEY);
@@ -177,9 +183,11 @@ export function recordGrade(key, level, storage = pageStorage(), now = Date.now(
   const day = dayOf(now);
   const base = baseFor(current, day);
 
+  const renewed = schedule(current.box, now);
+
   const next = isGrade(level)
     ? { ...schedule(nextBox(level, base), now), baseBox: base, day, grade: level }
-    : { ...current, ...schedule(current.box, now) };
+    : { ...current, ...renewed, dueAt: Math.min(current.dueAt, renewed.dueAt) };
 
   map[key] = next;
   writeMap(storage, STORAGE_KEY, map);

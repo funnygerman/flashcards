@@ -7,9 +7,20 @@
     <link rel="stylesheet" href="../src/flashcards.css" />
   </head>
   <body>
+    <!-- The one element on the page that is not the card (V2-7.1): a way out of
+         this deck and into the dictionary (§13). Outside the mounted deck, so
+         input.js never reads a tap on it as a tap on the card. -->
+    <a class="fc-corner" href="../dictionary.html" title="Everything you have seen" aria-label="Everything you have seen">
+      <svg viewBox="0 0 20 20" aria-hidden="true">
+        <path d="M3 4.5h14M3 10h14M3 15.5h14" stroke-linecap="round" />
+      </svg>
+    </a>
+
     <script type="module">
       import { mount } from "../src/flashcards.js";
       import { BOX_COUNT, gradedToday, recordGrade, reviewState } from "../src/review.js";
+      import { chooseSession } from "../src/session.js";
+      import { allCards } from "../src/store.js";
 
       const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
@@ -72,7 +83,15 @@
          — and the library, seeing it arrive already graded, leaves it that
          way. One grade per card per day; changing one's mind is free until
          the card is left behind. */
-      mount(document.body, cards, {
+
+      /* A deck file with no cards of its own studies the whole dictionary
+         instead (§13) — which is all dictionary.html is. This one has cards,
+         so the fallback never fires here; it is written the same way in both
+         so there is one rule rather than a special case. chooseSession then
+         takes what is actually due, most overdue first. */
+      const source = cards.length > 0 ? cards : allCards();
+
+      mount(document.body, chooseSession(source), {
         onGrade: (card, level) => recordGrade(card.key, level),
         gradeOf: (card) => gradedToday(card.key),
         progress: {

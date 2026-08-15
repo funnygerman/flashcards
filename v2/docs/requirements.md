@@ -109,8 +109,18 @@ the end of that gesture and no other.
 **V2-4.6** Keys are bound to the document, not to a focusable element. One page is one deck, so there is
 nothing to focus first and nothing the reader can click that takes the keyboard away.
 
-**V2-4.7** Key presses are ignored while the reader is typing into an input, a textarea, a select, or a
-`contenteditable` element.
+**V2-4.7** Key presses are ignored when they are aimed at something else on the page: a field the reader
+is typing into (an input, a textarea, a select, a `contenteditable` element) or a control they have
+focused (a link with an `href`, a button). An anchor without an `href` navigates nowhere and takes no
+focus, so it is not a control and the deck keeps the key.
+
+The two cases differ in how much they take. A field takes every key, arrows included — it uses them to
+move the caret. A focused control takes only the keys that would press it, `Enter` and `Space`: the deck
+calls `preventDefault()` on what it takes, so without that much `Enter` on the link of V2-7.1 would flip
+the card instead of following it — but the arrows mean nothing to a link and everything to the deck.
+Taking every key for a control would leave the reader unable to page or grade after tapping the link and
+pressing Back, since browsers restore focus to the anchor, with the swipes still working and nothing on
+screen to explain the silence.
 
 **V2-4.8** The page does not scroll or select text under a gesture.
 
@@ -198,7 +208,7 @@ an empty dictionary. A deck must render whether or not storage works.
 **V2-6.5** An unusable entry under a card's key is replaced, so a bad write cannot break every future
 visit the same way.
 
-**V2-6.6** This dictionary is groundwork for a later dictionary view (V2-10.1). The review schedule
+**V2-6.6** This dictionary is what §13 studies: a page with no cards of its own reads it. The review schedule
 (§11) does not read it — it keys its own storage by the same card `key`, independently.
 
 **V2-6.7** `storage.js` — reading and writing a `{ [key]: value }` map safely — is shared by this module
@@ -208,7 +218,11 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 
 ## 7. Presentation
 
-**V2-7.1** The card is the only element on the page. No header, no footer, no chrome, no controls.
+**V2-7.1** The card is the only element on the page, apart from one link out of it (§13). No header, no
+footer, no chrome, no controls. The exception is navigation, not information: a deck and the dictionary
+are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
+them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
+page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
 
 **V2-7.2** No shadows, no rounded corners, no gradients.
 
@@ -285,7 +299,9 @@ These are known and deliberately absent. They are listed so their absence reads 
 **V2-10.1** *(implemented — see §11)* Review scheduling was deliberately absent from v2 at first, with
 `onGrade` as the seam it would attach to. §11 describes what was built there.
 
-**V2-10.2** A dictionary view over everything the reader has seen, with sorting and category filters.
+**V2-10.2** A *browsable* dictionary — a list of everything the reader has seen, with sorting and
+category filters. §13 studies the whole dictionary as a deck, which is a different thing and does not
+make this one built: there is still no way to look at the collection rather than work through it.
 
 **V2-10.3** Position indicators, a title screen, an info panel, and any configuration of the sizing
 ratios or the type scale.
@@ -330,6 +346,13 @@ built for exactly that signal. It also needs no dependency, which keeps V2-9.1 i
 interval is renewed from the moment it was seen. It is evidence of neither recall nor difficulty, so it
 moves the schedule in neither direction — but it still writes an entry, so a card that is only ever seen
 and never graded gets a schedule instead of staying permanently, indistinguishably due.
+
+The renewal never moves a card's due date *later* than it already is. Giving a card a schedule where it
+had none is the point; buying an already-scheduled card time is not. Since a session studies what is due
+(§13), a plain renewal meant that merely looking at an overdue card and paging on hid it for a full
+interval — a box 5 card gone for a month for having been glanced at, and browsing the dictionary once
+emptying the review queue. A card with no schedule still gets `{ box: 0, dueAt: now }`, which is what
+this requirement existed for in the first place, so the rule costs it nothing.
 
 **V2-11.6** A card's schedule is `{ box, dueAt }`, one entry per card `key`, in one storage key,
 `flashcards.review`, independent of the card dictionary (V2-6.6). The stored entry also carries what the
@@ -435,6 +458,50 @@ all. A reader who has never got a card right, or who has just failed one, should
 is what no progress looks like. (The row was seven squares of `box + 1` first, which left every such
 card showing one filled square — progress where there was none. Fixing it is what set the box count at
 six, so that the two scales could agree without either needing an offset; see V2-11.3.)
+
+---
+
+## 13. The dictionary deck
+
+**V2-13.1** The dictionary is a deck, not a list. Everything the reader has ever opened (§6) can be
+studied as one deck: the same card, the same five intents (V2-4.1), the same marks and the same grading
+rules. There is no table, no row and no filter.
+
+**V2-13.2** That framing is the point, not a shortcut. Because it is the same `mount()` call, "one grade
+per card per day" (V2-11.10) and "paging away settles it" (V2-5.13) hold here without a second
+implementation to keep in step, and a card is still judged with the card in front of the reader rather
+than from a list where its back is not showing.
+
+**V2-13.3** A deck page with no cards of its own studies the dictionary instead. `dictionary.html` is
+therefore an ordinary deck file with an empty card list — there is one rule, not a special page. Both
+pages read `allCards()` from store.js the same way.
+
+**V2-13.4** Review state selects which cards a session gets; it does not order them. `chooseSession()`
+takes everything due, the most overdue first, capped at `SESSION_LIMIT` (20); the deck is then shuffled
+on mount exactly as any deck is (V2-3.3). Ordering by due date and studying that order every session
+would teach the order along with the cards, and selection is enough for what matters: the reader never
+meets a card that is not due while due ones are still waiting.
+
+**V2-13.5** When nothing is due at all, the cards closest to being due stand in. A session has no end
+(V2-3.5) and an empty deck is an error (V2-3.6), so there is no "nothing due today" screen — there is
+always something to study, and it is always the most useful thing available. Ascending `dueAt` serves
+both cases: the longest-overdue card and the soonest-due card sit at the same end of it.
+
+**V2-13.6** `chooseSession` is host-side, like review.js and for the same reason (V2-11.1): the library
+shuffles whatever deck it is handed and knows nothing about boxes or due dates. It lives in its own
+module rather than in each deck file so that every page shares one rule with one set of tests.
+
+**V2-13.7** The dictionary is global and grouped by nothing. Cards are not attributed to the deck they
+came from: the same word can belong to several decks, so that would need a mapping rather than a field,
+and nothing here reads it. Deferred until a filter actually asks for it.
+
+**V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
+the agreed shape — there is no empty state (V2-13.5) — but it has two causes, not one. The first is a
+reader who has opened no deck yet, which passes as soon as they open one. The second does not: where
+site data is blocked, `allCards()` is empty on every visit, so the page the corner link points at never
+renders at all. V2-6.4 asks a deck to render whether or not storage works, and this page cannot, because
+without storage it has no cards to render. It is an error rather than an explanation, and the second
+cause in particular is worth revisiting if a real reader meets it.
 
 ---
 
