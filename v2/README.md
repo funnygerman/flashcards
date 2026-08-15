@@ -85,9 +85,11 @@ A card left ungraded when the reader pages past it is still reported, once, as `
 That isn't an opinion, so it settles nothing: grade the card properly later and it still counts.
 
 Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
-focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored
-while the reader is typing into an input, a textarea, a select, or anything `contenteditable`.
-Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
+focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored when
+they are aimed at something else: a field being typed into (input, textarea, select, `contenteditable`)
+or a focused control (a link with an `href`, a button) — the deck calls `preventDefault()` on the keys it
+takes, so without that second case `Enter` on the corner link would flip the card instead of following
+it. Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
 
 ## Card size
 
@@ -226,6 +228,43 @@ nothing else. An entry written before those fields existed still reads as a perf
 just counts as a card not yet graded today. `decks/everyday-german.html` wires the whole thing up as the
 example.
 
+## The dictionary
+
+Everything the reader has ever opened, studied as one deck:
+<http://localhost:8000/v2/dictionary.html>. Not a list and not a table — the same card, the same keys and
+gestures, the same marks, the same rules. A card is still judged with the card in front of you.
+
+That is the whole design. `dictionary.html` is an ordinary deck file whose card list is empty, and a deck
+file with no cards of its own studies the dictionary instead:
+
+```js
+import { chooseSession } from "../src/session.js";
+import { allCards } from "../src/store.js";
+
+const source = cards.length > 0 ? cards : allCards();
+
+mount(document.body, chooseSession(source), { onGrade, gradeOf, progress });
+```
+
+Both pages end in exactly those lines, so there is one rule rather than a special page — and because it
+is the same `mount()` call with the same wiring, one grade per card per day and *paging away settles it*
+mean the same thing in both without a second implementation to keep in step. Grade a card in the deck,
+open the dictionary, and the card is already there wearing its mark and refusing another grade today.
+
+`chooseSession` takes everything that is due, the most overdue first, capped at twenty; when nothing is
+due at all it takes the cards closest to being due instead, so there is always something to study and no
+"nothing due today" screen. It **selects** rather than orders — `mount()` still shuffles what it is
+handed (§ Interactions), because a fixed order studied every session teaches the order along with the
+cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
+waiting.
+
+The two pages link to each other with a small mark in the top corner — the one thing on the page that is
+not the card. It is the host page's element, not the library's: `mount()` neither draws it nor knows it
+is there, and it sits outside the mounted deck so a tap on it is never read as a tap on the card.
+
+Cards are not attributed to the deck they came from. The same word can belong to several decks, so that
+needs a mapping rather than a field, and nothing reads it yet.
+
 ## Layout
 
 ```text
@@ -234,11 +273,13 @@ src/flashcards.js    mount() — the only export a deck page needs
 src/deck.js          shuffle and a cursor that wraps
 src/store.js         the local-storage card dictionary
 src/review.js        Leitner review scheduling — separate from mount()
+src/session.js       which cards a sitting asks for — also separate from mount()
 src/storage.js       the local-storage map helpers store.js and review.js share
 src/view.js          the DOM, the flip, and the slide
 src/input.js         keys and swipes, mapped onto one set of intents
 src/flashcards.css   all of the styling
 decks/               one file per deck
+dictionary.html      a deck of everything, i.e. a deck file with no cards
 ```
 
 Tests live beside the modules they cover and run from the repository root with `npm test`.

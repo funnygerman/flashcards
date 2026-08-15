@@ -76,6 +76,46 @@ describe("bindInput", () => {
     expect(intents).toEqual(["next"]);
   });
 
+  /* A deck page may carry a link out of the deck, and Enter on a focused link
+     has to follow it. The key handler calls preventDefault(), so a guard that
+     missed this would leave the reader flipping the card instead of going
+     anywhere. */
+  /** Press Enter on a fresh element, and report whether the deck swallowed it. */
+  const pressEnterOn = (tag, href) => {
+    const target = document.createElement(tag);
+    if (href) target.setAttribute("href", href);
+    document.body.append(target);
+
+    const event = new KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    target.remove();
+
+    return event.defaultPrevented;
+  };
+
+  it("leaves a key alone when it is aimed at something else on the page", () => {
+    const { intents } = listen();
+
+    expect(pressEnterOn("input")).toBe(false);
+    expect(pressEnterOn("textarea")).toBe(false);
+    expect(pressEnterOn("select")).toBe(false);
+    expect(pressEnterOn("button")).toBe(false);
+    expect(pressEnterOn("a", "#next")).toBe(false);
+
+    expect(intents).toEqual([]);
+  });
+
+  it("still takes a key aimed at anything that is not one of the reader's controls", () => {
+    const { intents } = listen();
+
+    /* An anchor with no href navigates nowhere and takes no focus, so it is not
+       a control and the deck keeps the key. */
+    expect(pressEnterOn("a")).toBe(true);
+    expect(pressEnterOn("p")).toBe(true);
+
+    expect(intents).toEqual(["flip", "flip"]);
+  });
+
   it("reports a drag as a swipe and a click as a flip", () => {
     const { element, intents } = listen();
 

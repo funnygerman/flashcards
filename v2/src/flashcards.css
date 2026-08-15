@@ -64,6 +64,54 @@ html:has(> body > .fc) body {
   }
 }
 
+/* The one thing on the page that is not the card: a link out of this deck and
+   into another (§13 — the dictionary, and back again). A sibling of .fc rather
+   than a child of it, because input.js binds gestures to .fc: anything inside
+   would be read as a tap on the card and flip it.
+
+   Deliberately quiet — muted, no fill, no colour of its own — and in a corner
+   the card never reaches, since the card is capped at 75vw and 75dvh. It is
+   navigation, which is why it exists at all where V2-7.1 admits nothing else:
+   a reader on a phone has no other way to leave the deck.
+
+   Its colours are written out rather than taken from --fc-muted and --fc-line:
+   those are declared on .fc, and a sibling is not inside it to inherit them. */
+.fc-corner {
+  position: fixed;
+  z-index: 2;
+  inset-block-start: max(0.75rem, env(safe-area-inset-top));
+  inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+  display: grid;
+  place-items: center;
+  inline-size: 2.75rem; /* a comfortable touch target, larger than the mark */
+  block-size: 2.75rem;
+  color: #666;
+}
+
+.fc-corner svg {
+  inline-size: 1.1rem;
+  block-size: 1.1rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+}
+
+.fc-corner:hover,
+.fc-corner:focus-visible {
+  color: #111;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fc-corner {
+    color: #999;
+  }
+
+  .fc-corner:hover,
+  .fc-corner:focus-visible {
+    color: #f2f2f2;
+  }
+}
+
 /* The progress row: squares, filled left to right along the card's bottom
    edge, centred. Bottom rather than beside the centred text: a 4:3 card has
    far more spare width around a short word than spare height, so a row here

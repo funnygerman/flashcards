@@ -23,6 +23,22 @@ function storedCard(stored, key) {
 }
 
 /**
+ * Every card the dictionary holds, as a deck.
+ *
+ * This is what V2-6.6 said the dictionary was groundwork for: a page with no
+ * cards of its own studies all of them (§13). Unusable entries are skipped
+ * rather than handed on — the same posture syncCards takes when it reads one
+ * back — and storage that is absent, blocked or corrupt gives an empty deck.
+ */
+export function allCards(storage = pageStorage()) {
+  const stored = readMap(storage, STORAGE_KEY);
+
+  return Object.keys(stored)
+    .map((key) => storedCard(stored, key))
+    .filter(Boolean);
+}
+
+/**
  * Merge a deck into the dictionary and return the cards to display.
  *
  * A card the dictionary has not seen is written to it; a card it has seen is

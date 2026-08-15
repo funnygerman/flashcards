@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { STORAGE_KEY, syncCards } from "./store.js";
+import { STORAGE_KEY, allCards, syncCards } from "./store.js";
 
 /** An in-memory Storage stand-in; `fail` makes both operations throw. */
 function createStorage(initial = null, fail = false) {
@@ -98,5 +98,40 @@ describe("syncCards", () => {
 
   it("uses one storage key for the whole dictionary", () => {
     expect(STORAGE_KEY).toBe("flashcards.cards");
+  });
+});
+
+/* What V2-6.6 said the dictionary was groundwork for: a deck page with no cards
+   of its own studies all of them (§13). */
+describe("allCards", () => {
+  const other = { key: "brot-bread", frontText: "das Brot", backText: "bread" };
+
+  it("gives back every card the dictionary holds", () => {
+    const storage = createStorage();
+    syncCards([card, other], storage);
+
+    expect(allCards(storage)).toEqual([card, other]);
+  });
+
+  it("is empty for a reader who has opened nothing", () => {
+    expect(allCards(createStorage())).toEqual([]);
+  });
+
+  it("skips an unusable entry rather than handing it on", () => {
+    const storage = createStorage(JSON.stringify({ a: card, b: null, c: "not a card", d: other }));
+
+    expect(allCards(storage)).toEqual([card, other]);
+  });
+
+  it("degrades to an empty deck when storage is unusable", () => {
+    expect(allCards(createStorage(null, true))).toEqual([]);
+    expect(allCards(createStorage("{ not json"))).toEqual([]);
+  });
+
+  it("reads a card keyed like an Object property, not one inherited from it", () => {
+    const constructorCard = { key: "constructor", frontText: "der Konstruktor", backText: "constructor" };
+    const storage = createStorage(JSON.stringify({ constructor: constructorCard }));
+
+    expect(allCards(storage)).toEqual([constructorCard]);
   });
 });
