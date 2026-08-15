@@ -87,12 +87,6 @@ html:has(> body > .fc) body {
   color: #666;
 }
 
-/* display above beats the user agent's [hidden] rule on specificity, so a deck
-   with nothing to link to has to say so here. */
-.fc-corner[hidden] {
-  display: none;
-}
-
 .fc-corner svg {
   inline-size: 1.15rem;
   block-size: 1.15rem;

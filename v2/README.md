@@ -7,18 +7,33 @@ No build step, no dependencies, no framework: the browser loads `src/*.js` as it
 
 ## Using it
 
+A deck file holds its cards and one call:
+
 ```html
 <link rel="stylesheet" href="../src/flashcards.css" />
 
 <script type="module">
-  import { mount } from "../src/flashcards.js";
+  import { study } from "../src/study.js";
 
-  mount(document.body, [
+  study(document.body, [
     { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
     { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run" },
   ]);
 </script>
 ```
+
+`study()` assembles the whole thing: it picks the session, records grades against the schedule, brings a
+card's mark back after a reload, sizes the progress row from the box ladder, and adds the link out to
+the dictionary. It is composition, not library — `mount()` below still knows nothing about any of it, so
+a page that wants a bare card and no schedule imports that instead:
+
+```js
+import { mount } from "../src/flashcards.js";
+
+mount(document.body, cards); /* a card, five intents, and nothing else */
+```
+
+Everything after this section describes those pieces. You need none of it to write a deck.
 
 `decks/everyday-german.html` is a complete example. Serve it with `npm run serve` from the repository
 root and open <http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over
@@ -266,13 +281,9 @@ of what it leads to — and it is the one thing on the page that is not the card
 element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside the
 mounted deck so a tap on it is never read as a tap on the card.
 
-A deck shows it only when the dictionary holds a card that deck does not:
-
-```js
-import { holdsMoreThan } from "../src/store.js";
-
-document.querySelector(".fc-corner").hidden = !holdsMoreThan(cards);
-```
+`study()` adds it only when the dictionary holds a card that deck does not — `holdsMoreThan(cards)` —
+and draws what it leads to: two overlapping cards for the dictionary, which is many decks at once, one
+card for a deck.
 
 "How many decks are there" isn't a question storage can answer — it records cards, not decks — but it
 isn't the useful question either. What matters is whether that link would show you anything you can't
@@ -289,6 +300,7 @@ needs a mapping rather than a field, and nothing reads it yet.
 docs/requirements.md what v2 is, statement by statement (`V2-*`)
 src/flashcards.js    mount() — the only export a deck page needs
 src/deck.js          shuffle and a cursor that wraps
+src/study.js         study() — a deck page assembled; what a deck file calls
 src/store.js         the local-storage card dictionary
 src/review.js        Leitner review scheduling — separate from mount()
 src/session.js       which cards a sitting asks for — also separate from mount()
