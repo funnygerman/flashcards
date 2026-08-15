@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { STORAGE_KEY as CARDS_KEY } from "./store.js";
 import { STORAGE_KEY as REVIEW_KEY } from "./review.js";
-import { openDeck } from "./deck.js";
+import { DECK_KEY, lastDeck, openDeck } from "./deck.js";
 
 /* jsdom has no Web Animations API, so slides swap instantly and every
    assertion below can stay synchronous. */
@@ -178,6 +178,39 @@ describe("openDeck", () => {
 
       open([], to);
       expect(corner().querySelectorAll("rect")).toHaveLength(1);
+    });
+
+    /* Which deck "back" means is not fixed once there is more than one, so a
+       deck records itself and the dictionary reads that. */
+    it("remembers the deck the reader opened, so the dictionary can lead back to it", () => {
+      document.title = "Numbers and Time";
+      open();
+
+      expect(lastDeck(localStorage)).toEqual({ href: "/", label: "Numbers and Time" });
+    });
+
+    it("does not remember the dictionary as somewhere to come back to", () => {
+      document.title = "Everyday German";
+      open();
+
+      document.title = "Everything you have seen";
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
+      open([]);
+
+      expect(lastDeck(localStorage).label).toBe("Everyday German");
+    });
+
+    it("has no way back to offer before any deck has been opened", () => {
+      expect(lastDeck(localStorage)).toBe(null);
+    });
+
+    it("offers no way back rather than a broken one, if the record is unusable", () => {
+      localStorage.setItem(DECK_KEY, JSON.stringify({ href: 42 }));
+      expect(lastDeck(localStorage)).toBe(null);
+
+      localStorage.setItem(DECK_KEY, "{ not json");
+      expect(lastDeck(localStorage)).toBe(null);
     });
 
     it("sits outside the mounted deck, where a tap on it is not a tap on the card", () => {

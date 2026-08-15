@@ -524,6 +524,14 @@ It draws what it leads to, in the 4:3 of the real card: two cards overlapping fo
 is many decks at once, and one card for a deck. Which way round follows from the same fact that decides
 everything else on the page — whether it brought cards of its own.
 
+**V2-13.11** The dictionary leads back to the deck the reader last opened, recorded by `openDeck` as
+`{ href, label }` under `flashcards.deck`. Once there is more than one deck there is no such thing as
+*the* deck to name in its markup, and naming the one they came from is the only answer that stays true
+as decks are added. It is always there when it is needed: a dictionary with nothing in it cannot render
+at all (V2-13.8), so if there is something to come back from, some deck was opened to put it there. An
+unusable record offers no way back rather than a broken one, the same posture V2-11.8 takes. The
+dictionary does not record itself — it is not somewhere to come back to.
+
 ---
 
 ## 14. Assembling a deck page
@@ -558,6 +566,9 @@ beside. It stays an option rather than becoming fixed, because a deck can still 
 container (V2-7.11) — and it defaults to `body` rather than to a required wrapper element, because the
 stylesheet claims the page box through `html:has(> body > .fc)`: a wrapper would break that selector,
 and with it the reason a phone's address bar stays put under a vertical swipe (V2-7.10).
+
+**V2-14.7** Routing lives here, not in the library (V2-1.2): the corner's `href`, and the record of
+which deck to come back to (V2-13.11). `mount()` still neither draws a link nor knows one exists.
 
 **V2-14.5** The mark is built element by element rather than from markup. Card content is written as
 text and never parsed as HTML (V2-2.6); the rule holds for the page's own furniture too, rather than

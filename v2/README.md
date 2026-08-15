@@ -38,9 +38,13 @@ mount(document.body, cards); /* a card, five intents, and nothing else */
 
 Everything after this section describes those pieces. You need none of it to write a deck.
 
-`decks/everyday-german.html` is a complete example. Serve it with `npm run serve` from the repository
-root and open <http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over
-`file://`.
+`decks/everyday-german.html` and `decks/numbers-and-time.html` are complete examples. Serve them with
+`npm run serve` from the repository root and open
+<http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over `file://`.
+
+There are two decks rather than one because one deck's dictionary is that deck: the corner mark only
+appears on each of them once the other has been opened, and the dictionary only becomes worth having
+when it holds more than a single deck.
 
 Once this is on `main` it is published at
 <https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html>, and linked from the site root.
@@ -290,7 +294,7 @@ handed (§ Interactions), because a fixed order studied every session teaches th
 cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
 waiting.
 
-The two pages link to each other with a small mark in the top corner — two overlapping cards, a picture
+The pages link to each other with a small mark in the top corner — two overlapping cards, a picture
 of what it leads to — and it is the one thing on the page that is not the card. It is the host page's
 element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside the
 mounted deck so a tap on it is never read as a tap on the card.
@@ -298,6 +302,11 @@ mounted deck so a tap on it is never read as a tap on the card.
 `openDeck()` adds it only when the dictionary holds a card that deck does not — `holdsMoreThan(cards)` —
 and draws what it leads to: two overlapping cards for the dictionary, which is many decks at once, one
 card for a deck.
+
+The dictionary leads back to **the deck you came from**, which `openDeck()` records as it opens one.
+With more than one deck there's no such thing as *the* deck to name in its markup, and the record is
+always there when it's needed: a dictionary with nothing in it can't render at all, so if there's
+something to come back from, some deck was opened to put it there.
 
 "How many decks are there" isn't a question storage can answer — it records cards, not decks — but it
 isn't the useful question either. What matters is whether that link would show you anything you can't
