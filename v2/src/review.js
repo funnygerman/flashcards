@@ -28,9 +28,20 @@ export const STORAGE_KEY = "flashcards.review";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-/** Box index -> days until a card in that box is due again. */
-const INTERVALS_DAYS = [0, 1, 2, 4, 8, 16, 32];
+/**
+ * Box index -> days until a card in that box is due again.
+ *
+ * Six boxes, in human units rather than a doubling sequence: a day, a few
+ * days, a week, a fortnight, a month. Seven boxes doubling to 32 days came
+ * first; the sixth was dropped so the box count and the progress row could
+ * agree on an empty row meaning "nothing known yet" (V2-12.10), and the rungs
+ * widened to keep the ceiling at roughly a month rather than halving it.
+ */
+const INTERVALS_DAYS = [0, 1, 3, 7, 14, 30];
 const MAX_BOX = INTERVALS_DAYS.length - 1;
+
+/** The top box of the seven-box ladder this replaced (V2-11.14). */
+const RETIRED_BOX = MAX_BOX + 1;
 
 const isGrade = (level) => level === "easier" || level === "harder";
 const validBox = (box) => Number.isInteger(box) && box >= 0 && box <= MAX_BOX;
@@ -53,6 +64,21 @@ function schedule(box, now) {
 }
 
 /**
+ * A stored box read into this ladder, or null where it is not a box at all.
+ *
+ * The one box the seven-box ladder had and this one does not reads as the top
+ * box here: a card the reader had actually earned to the top stays at the top
+ * rather than starting over. Anything above that is still nonsense, and takes
+ * V2-11.8's posture — the entry is read as though the card had never been
+ * graded, which is the safe direction for corrupt data to fail in.
+ */
+function landed(box) {
+  if (validBox(box)) return box;
+
+  return box === RETIRED_BOX ? MAX_BOX : null;
+}
+
+/**
  * A stored entry read back as something this module can use, or null.
  *
  * The schedule and the record of today's grade are distrusted separately: an
@@ -61,13 +87,15 @@ function schedule(box, now) {
  * been graded today.
  */
 function readEntry(entry) {
-  if (!entry || typeof entry !== "object" || !validBox(entry.box) || !Number.isFinite(entry.dueAt)) {
-    return null;
-  }
+  if (!entry || typeof entry !== "object" || !Number.isFinite(entry.dueAt)) return null;
 
-  const { box, dueAt, baseBox, day, grade } = entry;
+  const box = landed(entry.box);
+  if (box === null) return null;
 
-  return validBox(baseBox) && typeof day === "string" && isGrade(grade)
+  const { dueAt, day, grade } = entry;
+  const baseBox = landed(entry.baseBox);
+
+  return baseBox !== null && typeof day === "string" && isGrade(grade)
     ? { box, dueAt, baseBox, day, grade }
     : { box, dueAt };
 }

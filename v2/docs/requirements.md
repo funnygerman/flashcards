@@ -306,14 +306,21 @@ it itself, through `onGrade`, the same way it would reach for any other host-sid
 **V2-11.2** A Leitner system: a card sits in a box numbered 0 upward. `easier` promotes it one box;
 `harder` returns it to box 0. There is no partial credit and no smaller step back — a wrong answer means
 starting over. `harder` resets a card in a high box as completely as one in a low box: a card the reader
-could not recall is not a 32-day card however it earned that box, and box 0 is due immediately, so it
-comes round again in the same session rather than disappearing for a week. (A gentler step down by one
+could not recall is not a month-away card however it earned that box, and box 0 is due immediately, so
+it comes round again in the same session rather than disappearing for a week. (A gentler step down by one
 box was considered and rejected on that last point. What made the reset feel punitive was not the reset:
 it was a grade given by accident, or changed and then stacked on, both of which V2-11.10 fixes.)
 
-**V2-11.3** Each box has a fixed interval, in days, before a card in it is due again: `[0, 1, 2, 4, 8,
-16, 32]`, box 0 due immediately. The last box is the cap; `easier` there is recorded but does not
-promote further.
+**V2-11.3** There are six boxes, and each has a fixed interval, in days, before a card in it is due
+again: `[0, 1, 3, 7, 14, 30]` — box 0 due immediately, then a day, a few days, a week, a fortnight, a
+month. The last box is the cap; `easier` there is recorded but does not promote further. Climbing the
+whole ladder takes five correct days spread across twenty-five.
+
+The intervals are human units rather than a doubling sequence, and there are six boxes rather than the
+seven doubling to 32 days that came first. The count changed so that the box could *be* the progress
+count outright (V2-12.10) instead of the count being the box plus one; the intervals widened at the same
+time so that dropping a rung would not halve the ceiling and leave a well-known card coming back twice as
+often for ever.
 
 **V2-11.4** Leitner, not a continuous model such as SM-2 or FSRS, because the signal this library
 produces is binary — `harder` or `easier`, never a graded quality — and Leitner is the classic scheduler
@@ -361,6 +368,12 @@ a deck page hands to `mount()` as `gradeOf` (V2-5.14), so a card graded before a
 wearing its mark, and settled: the daily rule and what the reader sees then agree, rather than the card
 looking untouched while the schedule quietly ignores the next swipe.
 
+**V2-11.14** The seven-box ladder this replaced had a box 6. A stored entry in it is read as box 5, the
+top box here — a card the reader had actually earned to the top belongs at the top, not back at the
+bottom. Only that one box: 7 upwards is still nonsense and takes V2-11.8's posture, which is the safe
+direction for corrupt data to fail in. The card's stored `dueAt` is left alone; it comes due when it was
+already going to.
+
 ---
 
 ## 12. Progress indicator
@@ -398,16 +411,24 @@ outside those two events, the row does not learn about it until the next one.
 **V2-12.7** The row is drawn above the card rather than inside the element that flips: it has to read the
 same on either face, and must not itself flip — or mirror — when the card does.
 
-**V2-12.8** `steps` is set to match the number of distinct values `of(card)` can actually take —
-review.js's box count (§11), not a conventional round number — so every real change in the underlying
-data moves the display by exactly one mark; a coarser scale would let two different values compress onto
-the same count, making one of those changes look like nothing happened.
+**V2-12.8** `steps` is set so that the row has exactly as many distinct states as `of(card)` has distinct
+values — for review.js's six boxes (§11), five squares, since an empty row is a state too. Not a
+conventional round number: every real change in the underlying data then moves the display by exactly
+one mark, where a coarser scale would let two different values compress onto the same count and make one
+of those changes look like nothing happened.
 
 **V2-12.9** Squares, not stars: `★`/`☆` were tried and reverted after testing on a real phone. Two
 problems, both real: at a size that actually read as a star shape they were too big for the row, and any
 count other than the culturally fixed five read as a broken rating widget rather than a plain count — a
 problem V2-12.8 exists specifically to avoid, which stars undid by carrying their own count expectation. A
-square carries no such expectation, so seven of them is just seven.
+square carries no such expectation, so five of them is just five — including, now that the row is five
+squares wide, not being read as a five-star rating.
+
+**V2-12.10** The count is the box itself, not the box plus one, so a card in box 0 fills no squares at
+all. A reader who has never got a card right, or who has just failed one, should see an empty row: that
+is what no progress looks like. (The row was seven squares of `box + 1` first, which left every such
+card showing one filled square — progress where there was none. Fixing it is what set the box count at
+six, so that the two scales could agree without either needing an offset; see V2-11.3.)
 
 ---
 
