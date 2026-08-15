@@ -476,16 +476,28 @@ than from a list where its back is not showing.
 therefore an ordinary deck file with an empty card list — there is one rule, not a special page, and it
 is applied in one place (§14) rather than written out on each.
 
-**V2-13.4** Review state selects which cards a session gets; it does not order them. `chooseSession()`
-takes everything due, the most overdue first, capped at `SESSION_LIMIT` (20); the deck is then shuffled
-on mount exactly as any deck is (V2-3.3). Ordering by due date and studying that order every session
-would teach the order along with the cards, and selection is enough for what matters: the reader never
-meets a card that is not due while due ones are still waiting.
+**V2-13.4** A deck and the dictionary select differently, because they mean different things. A deck is
+*study this material*: it offers all of its own cards, up to `SESSION_LIMIT` (20). The reader chose that
+deck, and handing them three cards out of nineteen because the other sixteen are not due yet is not what
+they asked for. The dictionary is *what is due across everything*: "all of it" is not a session, so
+there a card that is not due is held back while due ones wait.
 
-**V2-13.5** When nothing is due at all, the cards closest to being due stand in. A session has no end
-(V2-3.5) and an empty deck is an error (V2-3.6), so there is no "nothing due today" screen — there is
-always something to study, and it is always the most useful thing available. Ascending `dueAt` serves
-both cases: the longest-overdue card and the soonest-due card sit at the same end of it.
+Both take their cards in the same order — ascending `dueAt`, so the longest-overdue leads and, past the
+ones that are due, the soonest-due follows. A card never graded is due now (V2-11.7), so a large deck
+leads with what the reader has not seen. Review state therefore selects; it does not order what is
+studied, because the deck is shuffled on mount exactly as any deck is (V2-3.3) and a fixed order studied
+every session would teach the order along with the cards.
+
+**V2-13.5** When nothing at all is due, the dictionary falls back to the cards closest to being due. A
+session has no end (V2-3.5) and an empty deck is an error (V2-3.6), so there is no "nothing due today"
+screen — there is always something to study, and it is always the most useful thing available. A deck
+needs no such fallback: it was never filtering in the first place.
+
+**V2-13.10** Studying a deck therefore reaches cards ahead of their schedule, and grading one there
+still moves it (once that day, per V2-11.10). That is the cost of a deck meaning what it says: the
+schedule governs what the dictionary offers, and a reader working straight through a deck is choosing
+to study on their own terms rather than the box's. The daily rule is what keeps it from running away —
+a card moves at most one box a day however often it is met.
 
 **V2-13.6** `chooseSession` is host-side, like review.js and for the same reason (V2-11.1): the library
 shuffles whatever deck it is handed and knows nothing about boxes or due dates. It lives in its own

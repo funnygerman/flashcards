@@ -104,6 +104,32 @@ describe("openDeck", () => {
     expect(document.querySelectorAll(".fc-dot")).toHaveLength(5);
   });
 
+  /* A deck is "study this material", the dictionary is "what is due across
+     everything" — so opening a deck shows its cards whether or not the schedule
+     has come round to them. */
+  it("shows a deck's own cards even when none of them is due", () => {
+    const later = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(REVIEW_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, { box: 3, dueAt: later }]))));
+
+    open();
+    expect(document.querySelector(".fc-card")).not.toBe(null);
+    expect(front()).toBe("eins");
+  });
+
+  it("holds back a not-due card in the dictionary, where a deck would not", () => {
+    const later = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(CARDS_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, c]))));
+    localStorage.setItem(
+      REVIEW_KEY,
+      JSON.stringify({ a: { box: 3, dueAt: later }, b: { box: 3, dueAt: later }, c: { box: 0, dueAt: Date.now() } }),
+    );
+
+    open([]);
+    expect(front()).toBe("drei"); /* only c is due, so the session is just c */
+    press("ArrowRight");
+    expect(front()).toBe("drei"); /* and it wraps to itself */
+  });
+
   it("studies the whole dictionary when the page brings no cards of its own", () => {
     open(); /* opening a deck is what puts its cards in the dictionary */
     mounted.splice(0).forEach((deck) => deck.destroy());

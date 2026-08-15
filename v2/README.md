@@ -272,9 +272,20 @@ is the same `mount()` call with the same wiring, one grade per card per day and 
 mean the same thing in both without a second implementation to keep in step. Grade a card in the deck,
 open the dictionary, and the card is already there wearing its mark and refusing another grade today.
 
-`chooseSession` takes everything that is due, the most overdue first, capped at twenty; when nothing is
-due at all it takes the cards closest to being due instead, so there is always something to study and no
-"nothing due today" screen. It **selects** rather than orders — `mount()` still shuffles what it is
+A deck and the dictionary ask for different things, because they mean different things. **A deck offers
+all of its own cards**, up to twenty — you chose that deck, and being handed three cards out of nineteen
+because the rest aren't due yet isn't what you asked for. **The dictionary offers what's due**, out of
+everything you've ever opened, because "all of it" isn't a session; when nothing at all is due it falls
+back to the cards closest to being due, so there's no "nothing due today" screen.
+
+Both take their cards in the same order: most overdue first, and past those, soonest-due next. A card
+you've never graded counts as due now, so a large deck leads with what you haven't seen.
+
+The trade is that studying a deck reaches cards ahead of their schedule, and grading one there still
+moves it — the schedule governs what the *dictionary* offers you, and working straight through a deck is
+studying on your own terms instead. One grade per card per day is what stops that running away.
+
+`chooseSession` **selects** rather than orders — `mount()` still shuffles what it is
 handed (§ Interactions), because a fixed order studied every session teaches the order along with the
 cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
 waiting.

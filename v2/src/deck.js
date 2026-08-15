@@ -90,7 +90,10 @@ export function openDeck(cards, options = {}) {
   const own = cards.length > 0;
   const source = own ? cards : allCards(storage);
 
-  const deck = mount(element, chooseSession(source, { now, storage }), {
+  /* A deck studies all of its own cards; the dictionary studies what is due
+     out of everything (V2-13.4). The same fact decides both — whether this page
+     brought cards of its own. */
+  const deck = mount(element, chooseSession(source, { now, storage, onlyDue: !own }), {
     storage,
     random,
     onGrade: (card, level) => recordGrade(card.key, level, storage, now),

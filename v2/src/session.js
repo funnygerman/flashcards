@@ -5,12 +5,17 @@
  * library shuffles whatever deck it is handed and knows nothing about boxes or
  * due dates, so deciding *which* cards make up that deck belongs out here.
  *
+ * A deck studies all of its own cards; the dictionary studies what is due out
+ * of every card the reader has ever opened. Both take at most a sitting's
+ * worth, and both take it in the order of what wants studying most.
+ *
  * Review state selects rather than orders. Sorting the cards into due order and
  * handing that to mount() would not survive anyway — the deck is shuffled on
  * mount (V2-3.3), and it should be: a fixed order studied every session teaches
  * the order along with the cards. So this picks the set and lets the shuffle
- * arrange it, which is enough to keep the reader from meeting a card that is
- * not due while due ones are still waiting.
+ * arrange it, which is enough for what the order was for — keeping the cards
+ * that want studying most inside the sitting, rather than dictating which of
+ * them comes first.
  */
 
 import { isDue, reviewState } from "./review.js";
@@ -25,24 +30,31 @@ export const SESSION_LIMIT = 20;
 /**
  * The cards to study, out of `cards`.
  *
- * Everything due, the most overdue first; and when nothing is due at all, the
- * cards closest to being due instead — so there is always something to study
- * and it is always the most useful thing available. Both are the same ordering,
- * which is why one sort serves both: ascending `dueAt` puts the longest-overdue
- * card and the soonest-due card at the same end.
+ * Ordered by how much they want studying: ascending `dueAt`, which puts the
+ * longest-overdue card first and — past the ones that are due — the soonest-due
+ * next. A card the reader has never graded reads as box 0, due now (V2-11.7),
+ * so an unopened deck is entirely "due" and comes back in its own arbitrary
+ * order, and in a large deck the cards never seen lead the ones already
+ * scheduled into the future.
  *
- * A card the reader has never graded reads as box 0, due now (V2-11.7), so a
- * fresh deck is entirely "due" and comes back in its own arbitrary order.
+ * `onlyDue` is the difference between the two kinds of page (V2-13.4). A deck
+ * studies its own cards — all of them, up to a sitting's worth, because the
+ * reader chose that deck and being handed three cards out of nineteen is not
+ * what they asked for. The dictionary studies what is *due*, out of everything
+ * the reader has ever opened, because "all of it" is not a session; there,
+ * cards that are not due are held back unless nothing at all is due, in which
+ * case the nearest are better than an empty deck (V2-13.5).
  *
  * `storage` and `now` are injectable for the same reason they are in review.js.
  */
-export function chooseSession(cards, { now = Date.now(), limit = SESSION_LIMIT, storage } = {}) {
+export function chooseSession(cards, { now = Date.now(), limit = SESSION_LIMIT, storage, onlyDue = false } = {}) {
   /* Read each card's schedule once: reviewState goes to storage every call, and
      a sort asks about the same card many times over. */
   const state = new Map(cards.map((card) => [card, reviewState(card.key, storage, now)]));
-
   const sorted = [...cards].sort((a, b) => state.get(a).dueAt - state.get(b).dueAt);
-  const due = sorted.filter((card) => isDue(state.get(card), now));
 
+  if (!onlyDue) return sorted.slice(0, limit);
+
+  const due = sorted.filter((card) => isDue(state.get(card), now));
   return (due.length > 0 ? due : sorted).slice(0, limit);
 }
