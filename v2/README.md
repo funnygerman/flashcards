@@ -112,24 +112,33 @@ card v2 has always had.
 
 ```js
 import { mount } from "../src/flashcards.js";
-import { reviewState } from "../src/review.js";
+import { BOX_COUNT, reviewState } from "../src/review.js";
 
 mount(document.body, cards, {
-  progress: { steps: 7, of: (card) => reviewState(card.key).box + 1 },
+  progress: { steps: BOX_COUNT - 1, of: (card) => reviewState(card.key).box },
 });
 ```
 
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
-number works. The `+ 1` above is that deck's own mapping (box is 0-indexed, the squares are a count), not
-the library's — and `steps: 7` matches the box count exactly rather than a conventional round number, so
-every real grade moves the display by one square; a coarser scale could compress two different grades
-onto the same count and make one of them look like nothing happened.
+number works. Reading the box as the count outright is that deck's own mapping, not the library's — and
+`steps` is one square per box above the first rather than a conventional round number, so every real
+grade moves the display by one square; a coarser scale could compress two different grades onto the same
+count and make one of them look like nothing happened. One fewer square than there are boxes, because
+the box *is* the count: a card in box 0 fills none of them, which is what a card you've never got right
+should look like. The row was seven squares of `box + 1` first, which left every never-graded and every
+just-failed card showing one filled square — progress where there was none.
+
+`BOX_COUNT - 1` rather than a literal, so the ladder in `review.js` stays the only place the number of
+boxes is decided — change it there and the row resizes with it. The arithmetic lives in the deck, not in
+`mount()`: the library never learns what a box is, and importing `review.js` to find out is exactly the
+dependency the split exists to avoid.
 
 Squares rather than stars: `★`/`☆` were tried and reverted after testing on a real phone. At a size that
 actually read as a star shape they were too big for the row, and any count other than the culturally
-fixed five read as a broken rating widget rather than a plain count — undoing the exact thing the `steps:
-7` choice above exists to protect. A square carries no such expectation, so seven of them is just seven.
+fixed five read as a broken rating widget rather than a plain count — undoing the exact thing the `steps`
+choice above exists to protect. A square carries no such expectation, so five of them is just five, and
+not a five-star rating.
 
 It re-reads `of(card)` at exactly two moments — a grade being recorded, and one card being exchanged for
 another, in the same off-screen frame as that card's content and mark — clamped into `0..steps` either
@@ -167,10 +176,13 @@ mount(document.body, cards, {
 
 It's a Leitner system: a card sits in a box, `easier` promotes it one box towards a longer interval,
 `harder` sends it back to the first box due immediately — no partial credit, no smaller step back, and no
-gentler treatment for a card in a high box, because a card the reader couldn't recall isn't a 32-day
+gentler treatment for a card in a high box, because a card the reader couldn't recall isn't a month-away
 card however it earned that box. `neutral` neither promotes nor demotes; it just renews the card's
 current interval from now, so a card that is only ever paged past still gets a schedule instead of
-staying permanently, indistinguishably due. Box intervals are `[0, 1, 2, 4, 8, 16, 32]` days, fixed.
+staying permanently, indistinguishably due. There are six boxes and their intervals are
+`[0, 1, 3, 7, 14, 30]` days, fixed — a day, a few days, a week, a fortnight, a month — so climbing the
+whole ladder takes five correct days spread across twenty-five. An entry stored in the seventh box of
+the ladder this replaced reads as the top box of this one, rather than starting the card over.
 Leitner rather than a continuous model like SM-2 or FSRS, because the grade here is at most three
 outcomes, never a five-point quality — and Leitner is the classic scheduler for exactly that kind of
 signal; it also needs no dependency.

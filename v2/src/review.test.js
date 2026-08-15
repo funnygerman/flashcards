@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { STORAGE_KEY, gradedToday, isDue, recordGrade, reviewState } from "./review.js";
+import { BOX_COUNT, STORAGE_KEY, gradedToday, isDue, recordGrade, reviewState } from "./review.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -54,6 +54,23 @@ describe("reviewState", () => {
     storage = memoryStorage(JSON.stringify({ a: { box: 99, dueAt: NOW } }));
     expect(reviewState("a", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
   });
+
+  /* The seven-box ladder this replaced had a box 6. A card the reader had
+     actually earned to the top of it belongs at the top of this one, not back
+     at the bottom — but only that one box: 7 upwards is still nonsense. */
+  it("reads the retired seventh box as the top box of this ladder", () => {
+    storage = memoryStorage(JSON.stringify({ a: { box: 6, dueAt: NOW }, b: { box: 7, dueAt: NOW } }));
+
+    expect(reviewState("a", storage, NOW)).toEqual({ box: 5, dueAt: NOW });
+    expect(reviewState("b", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
+  });
+
+  it("grades a card in the retired seventh box from the top of this ladder", () => {
+    storage = memoryStorage(JSON.stringify({ a: { box: 6, dueAt: NOW } }));
+
+    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 5, dueAt: NOW + 30 * DAY });
+    expect(recordGrade("a", "harder", storage, NOW + DAY)).toEqual({ box: 0, dueAt: NOW + DAY });
+  });
 });
 
 describe("recordGrade", () => {
@@ -72,16 +89,16 @@ describe("recordGrade", () => {
 
   it("promotes one box on easier, with a longer interval each time", () => {
     expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
-    expect(recordGrade("a", "easier", storage, NOW + DAY)).toEqual({ box: 2, dueAt: NOW + 3 * DAY });
-    expect(recordGrade("a", "easier", storage, NOW + 2 * DAY)).toEqual({ box: 3, dueAt: NOW + 6 * DAY });
+    expect(recordGrade("a", "easier", storage, NOW + DAY)).toEqual({ box: 2, dueAt: NOW + 4 * DAY });
+    expect(recordGrade("a", "easier", storage, NOW + 2 * DAY)).toEqual({ box: 3, dueAt: NOW + 9 * DAY });
   });
 
   it("caps promotion at the last box", () => {
-    expect(promote(6).box).toBe(6);
+    expect(promote(5).box).toBe(5);
 
-    const atCap = recordGrade("a", "easier", storage, NOW + 6 * DAY);
-    expect(atCap.box).toBe(6);
-    expect(recordGrade("a", "easier", storage, NOW + 7 * DAY)).toEqual({ box: 6, dueAt: NOW + (7 + 32) * DAY });
+    const atCap = recordGrade("a", "easier", storage, NOW + 5 * DAY);
+    expect(atCap.box).toBe(5);
+    expect(recordGrade("a", "easier", storage, NOW + 6 * DAY)).toEqual({ box: 5, dueAt: NOW + (6 + 30) * DAY });
   });
 
   it("sends a card back to box 0, due immediately, on harder", () => {
@@ -99,7 +116,7 @@ describe("recordGrade", () => {
     promote(2); // one grade a day for two days: box 2
 
     const later = NOW + 2 * DAY; // later still, the reader sees it again and pages past it
-    expect(recordGrade("a", "neutral", storage, later)).toEqual({ box: 2, dueAt: later + 2 * DAY });
+    expect(recordGrade("a", "neutral", storage, later)).toEqual({ box: 2, dueAt: later + 3 * DAY });
   });
 
   it("keeps each card's schedule independent", () => {
@@ -125,6 +142,27 @@ describe("recordGrade", () => {
   it("uses one storage key for the whole schedule", () => {
     expect(STORAGE_KEY).toBe("flashcards.review");
   });
+
+  /* Six boxes, five squares: the box is the count outright, so a card that has
+     never been got right fills none of them (V2-12.10). The ladder is
+     [0, 1, 3, 7, 14, 30] days — a day, a few days, a week, a fortnight, a
+     month — and it takes five days spread over 25 to climb it. */
+  it("climbs six boxes, in days, to a month", () => {
+    const boxes = [];
+    for (let day = 0; day < 7; day += 1) boxes.push(recordGrade("a", "easier", storage, NOW + day * DAY));
+
+    expect(boxes.map((b) => b.box)).toEqual([1, 2, 3, 4, 5, 5, 5]);
+    expect(boxes.map((b, day) => (b.dueAt - (NOW + day * DAY)) / DAY)).toEqual([1, 3, 7, 14, 30, 30, 30]);
+  });
+
+  /* BOX_COUNT is what a deck sizes its progress row from, so it has to be the
+     ladder's own count and not a number that agrees with it today. */
+  it("publishes the box count, which is the ladder's top box plus one", () => {
+    expect(BOX_COUNT).toBe(6);
+
+    const top = promote(BOX_COUNT + 2).box; /* more days than the ladder is long */
+    expect(top).toBe(BOX_COUNT - 1);
+  });
 });
 
 describe("one grade per day", () => {
@@ -146,13 +184,13 @@ describe("one grade per day", () => {
 
     const today = NOW + 3 * DAY;
 
-    expect(recordGrade("a", "easier", storage, today)).toEqual({ box: 4, dueAt: today + 8 * DAY });
+    expect(recordGrade("a", "easier", storage, today)).toEqual({ box: 4, dueAt: today + 14 * DAY });
     expect(recordGrade("a", "harder", storage, today)).toEqual({ box: 0, dueAt: today });
 
     /* Not box 1: the second easier replaces the harder rather than following
        it, so the reader ends the day exactly one box up from box 3 — where
        saying "easier" once would have left them. */
-    expect(recordGrade("a", "easier", storage, today)).toEqual({ box: 4, dueAt: today + 8 * DAY });
+    expect(recordGrade("a", "easier", storage, today)).toEqual({ box: 4, dueAt: today + 14 * DAY });
   });
 
   it("does not promote a second time when the reader reloads and grades again", () => {
@@ -200,7 +238,7 @@ describe("one grade per day", () => {
 
     expect(gradedToday("a", storage, NOW)).toBe(null);
     expect(reviewState("a", storage, NOW)).toEqual({ box: 3, dueAt: NOW });
-    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 4, dueAt: NOW + 8 * DAY });
+    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 4, dueAt: NOW + 14 * DAY });
   });
 
   it("ignores a half-written record of today's grade without losing the schedule", () => {
