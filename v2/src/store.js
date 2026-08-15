@@ -39,6 +39,22 @@ export function allCards(storage = pageStorage()) {
 }
 
 /**
+ * Whether the dictionary holds a card that `cards` does not.
+ *
+ * What a deck page really wants to know before offering a link to the
+ * dictionary (§13): not "how many decks are there" — storage records cards, not
+ * decks (V2-13.7) — but "would that link show the reader anything they cannot
+ * see here?". False for the only deck a reader has ever opened, and false again
+ * where storage is unusable, since a dictionary that cannot be read has nothing
+ * to offer either.
+ */
+export function holdsMoreThan(cards, storage = pageStorage()) {
+  const own = new Set(cards.map((card) => card.key));
+
+  return allCards(storage).some((card) => !own.has(card.key));
+}
+
+/**
  * Merge a deck into the dictionary and return the cards to display.
  *
  * A card the dictionary has not seen is written to it; a card it has seen is

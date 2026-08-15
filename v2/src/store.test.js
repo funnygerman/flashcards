@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { STORAGE_KEY, allCards, syncCards } from "./store.js";
+import { STORAGE_KEY, allCards, holdsMoreThan, syncCards } from "./store.js";
 
 /** An in-memory Storage stand-in; `fail` makes both operations throw. */
 function createStorage(initial = null, fail = false) {
@@ -133,5 +133,51 @@ describe("allCards", () => {
     const storage = createStorage(JSON.stringify({ constructor: constructorCard }));
 
     expect(allCards(storage)).toEqual([constructorCard]);
+  });
+});
+
+/* Whether a deck page should offer a link to the dictionary at all: not "how
+   many decks are there" — storage records cards, not decks (V2-13.7) — but
+   "would that link show the reader anything they cannot see here?". */
+describe("holdsMoreThan", () => {
+  const other = { key: "brot-bread", frontText: "das Brot", backText: "bread" };
+
+  it("is false for the only deck a reader has ever opened", () => {
+    const storage = createStorage();
+    syncCards([card, other], storage);
+
+    expect(holdsMoreThan([card, other], storage)).toBe(false);
+  });
+
+  it("is true once another deck has left a card behind", () => {
+    const storage = createStorage();
+    syncCards([card, other], storage);
+
+    expect(holdsMoreThan([card], storage)).toBe(true);
+  });
+
+  it("is false before any deck has been opened", () => {
+    expect(holdsMoreThan([card], createStorage())).toBe(false);
+  });
+
+  /* A dictionary that cannot be read has nothing to offer either, so the link
+     stays away rather than leading to a page that cannot render (V2-13.8). */
+  it("is false when storage is unusable", () => {
+    expect(holdsMoreThan([card], createStorage(null, true))).toBe(false);
+    expect(holdsMoreThan([card], createStorage("{ not json"))).toBe(false);
+  });
+
+  it("ignores an unusable stored entry rather than counting it as more", () => {
+    const storage = createStorage(JSON.stringify({ [card.key]: card, junk: null }));
+
+    expect(holdsMoreThan([card], storage)).toBe(false);
+  });
+
+  it("counts a stored card the deck no longer carries", () => {
+    /* A card dropped from a deck file still sits in the dictionary, and is
+       still something this page cannot show. */
+    const storage = createStorage(JSON.stringify({ [other.key]: other }));
+
+    expect(holdsMoreThan([card], storage)).toBe(true);
   });
 });

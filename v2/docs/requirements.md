@@ -218,8 +218,8 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 
 ## 7. Presentation
 
-**V2-7.1** The card is the only element on the page, apart from one link out of it (§13). No header, no
-footer, no chrome, no controls. The exception is navigation, not information: a deck and the dictionary
+**V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
+is absent unless there is somewhere to go (V2-13.9). No header, no footer, no chrome, no controls. The exception is navigation, not information: a deck and the dictionary
 are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
 them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
 page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
@@ -496,12 +496,16 @@ came from: the same word can belong to several decks, so that would need a mappi
 and nothing here reads it. Deferred until a filter actually asks for it.
 
 **V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
-the agreed shape — there is no empty state (V2-13.5) — but it has two causes, not one. The first is a
-reader who has opened no deck yet, which passes as soon as they open one. The second does not: where
-site data is blocked, `allCards()` is empty on every visit, so the page the corner link points at never
-renders at all. V2-6.4 asks a deck to render whether or not storage works, and this page cannot, because
-without storage it has no cards to render. It is an error rather than an explanation, and the second
-cause in particular is worth revisiting if a real reader meets it.
+the agreed shape — there is no empty state (V2-13.5). V2-6.4 asks a deck to render whether or not
+storage works, and this page cannot, because without storage it has no cards to render. V2-13.9 keeps a
+reader from being led there, so what remains is a typed URL rather than a followed link.
+
+**V2-13.9** The link is offered only where the dictionary holds a card the current deck does not
+(`holdsMoreThan`). "How many decks are there" is not a question storage can answer — it records cards,
+not decks (V2-13.7) — but it is also not the question worth asking. What matters is whether that link
+would show the reader anything they cannot already see, and it does not for the only deck they have ever
+opened, nor where storage is unusable and the dictionary is empty on every visit. The link starts hidden
+and is revealed, rather than removed once drawn, so it is never seen to appear and then vanish.
 
 ---
 
