@@ -8,7 +8,7 @@
  * `key` is opaque here — it is the card's identity in local storage, nothing more.
  */
 
-import { createDeck } from "./deck.js";
+import { createOrder } from "./order.js";
 import { bindInput } from "./input.js";
 import { syncCards } from "./store.js";
 import { createView } from "./view.js";
@@ -36,7 +36,7 @@ export function mount(element, cards, options = {}) {
     throw new Error("flashcards: mount needs at least one card");
   }
 
-  const deck = createDeck(syncCards(cards, storage), random);
+  const deck = createOrder(syncCards(cards, storage), random);
   const view = createView(element, progress?.steps);
 
   /* Progress is the host's data, not the library's — read fresh every time

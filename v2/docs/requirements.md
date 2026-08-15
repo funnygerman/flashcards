@@ -473,8 +473,8 @@ implementation to keep in step, and a card is still judged with the card in fron
 than from a list where its back is not showing.
 
 **V2-13.3** A deck page with no cards of its own studies the dictionary instead. `dictionary.html` is
-therefore an ordinary deck file with an empty card list — there is one rule, not a special page. Both
-pages read `allCards()` from store.js the same way.
+therefore an ordinary deck file with an empty card list — there is one rule, not a special page, and it
+is applied in one place (§14) rather than written out on each.
 
 **V2-13.4** Review state selects which cards a session gets; it does not order them. `chooseSession()`
 takes everything due, the most overdue first, capped at `SESSION_LIMIT` (20); the deck is then shuffled
@@ -504,8 +504,52 @@ reader from being led there, so what remains is a typed URL rather than a follow
 (`holdsMoreThan`). "How many decks are there" is not a question storage can answer — it records cards,
 not decks (V2-13.7) — but it is also not the question worth asking. What matters is whether that link
 would show the reader anything they cannot already see, and it does not for the only deck they have ever
-opened, nor where storage is unusable and the dictionary is empty on every visit. The link starts hidden
-and is revealed, rather than removed once drawn, so it is never seen to appear and then vanish.
+opened, nor where storage is unusable and the dictionary is empty on every visit. It is added to the
+page once that is known, rather than written into the markup and hidden, so it is never in the document
+at a moment when it should not be seen.
+
+It draws what it leads to, in the 4:3 of the real card: two cards overlapping for the dictionary, which
+is many decks at once, and one card for a deck. Which way round follows from the same fact that decides
+everything else on the page — whether it brought cards of its own.
+
+---
+
+## 14. Assembling a deck page
+
+**V2-14.0** The vocabulary: `deck.js` is a deck — what a deck page calls, and the subject of this
+section. `order.js` is one deck's sequence, shuffled once and walked with a wrapping cursor (V2-3.3,
+V2-3.5), which nothing outside the library touches. The two were the other way round at first, which
+spent the word a deck author uses on a detail they never see.
+
+**V2-14.1** `openDeck(cards, options?)` opens a deck that keeps a schedule: it selects the session
+(§13), wires `onGrade` and `gradeOf` to review.js, sizes the progress row from the ladder, and adds the
+way out. A deck file holds its cards and this one call.
+
+**V2-14.2** It is composition, not library. `mount()` still knows nothing about boxes, due dates or the
+dictionary (V2-5.9, V2-11.1, V2-12.2), and a page that wants a bare card and no schedule imports it
+directly and gets exactly that. Putting this wiring inside `mount()` would make the library depend on
+review.js, which is the one dependency the split exists to prevent.
+
+**V2-14.3** What moved was never a choice a deck made differently. Every page repeated the same four
+imports, the same `onGrade`, the same `gradeOf` and the same box-to-squares mapping, and repetition free
+to drift did drift: a row of five squares was once written out beside a ladder of six boxes, which is
+what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot disagree with itself.
+
+**V2-14.4** `options` are `corner` — `{ href, label }` for the link out, omitted where a page has
+nowhere to go — `element`, and `storage`, `random` and `now`, which exist so this can be tested without
+globals, exactly as they do in the modules underneath. It returns the library's own handle, so
+`destroy()` (V2-3.7) still reaches the deck.
+
+**V2-14.6** `element` defaults to the document's body, so a deck page names none. One HTML file is one
+deck (V2-1.2) and the card is the only thing on the page (V2-7.1), so there is nothing for it to go
+beside. It stays an option rather than becoming fixed, because a deck can still be embedded in a smaller
+container (V2-7.11) — and it defaults to `body` rather than to a required wrapper element, because the
+stylesheet claims the page box through `html:has(> body > .fc)`: a wrapper would break that selector,
+and with it the reason a phone's address bar stays put under a vertical swipe (V2-7.10).
+
+**V2-14.5** The mark is built element by element rather than from markup. Card content is written as
+text and never parsed as HTML (V2-2.6); the rule holds for the page's own furniture too, rather than
+being relaxed wherever it happens to be safe.
 
 ---
 
