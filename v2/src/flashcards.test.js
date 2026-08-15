@@ -232,6 +232,42 @@ describe("mount", () => {
     expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(2);
   });
 
+  it("re-reads progress while the card is off screen, not once the slide has delivered it", async () => {
+    /* jsdom has no Web Animations API, so the slide everywhere else in this
+       file is instant and says nothing about ordering. A card arriving with a
+       different count from the one that left used to land and *then* have its
+       squares change, a fifth of a second later, which read as the page turn
+       itself having regraded the card. */
+    const events = [];
+    Element.prototype.animate = () => {
+      events.push("animate");
+      return { finished: Promise.resolve() };
+    };
+
+    try {
+      const slider = () => document.querySelector(".fc-slide").className;
+      open({
+        progress: {
+          steps: 5,
+          of: (card) => {
+            events.push(`read ${card.key} (${slider()})`);
+            return 1;
+          },
+        },
+      });
+
+      events.length = 0;
+      press("ArrowRight");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      /* Between the two legs, and with transitions suspended, so the mark and
+         the squares are already right when the card is seen again. */
+      expect(events).toEqual(["animate", "read b (fc-slide fc-instant)", "animate"]);
+    } finally {
+      delete Element.prototype.animate;
+    }
+  });
+
   it("re-reads progress immediately after a grade, since onGrade already ran", () => {
     const levels = { a: 0 };
     open({
@@ -262,32 +298,63 @@ describe("mount", () => {
     expect(card()).not.toContain("is-easier");
   });
 
-  it("remembers a card's grade across a revisit: the mark returns, and repeating the grade is dropped", () => {
+  it("counts a change of mind only while the card is still in front of the reader", () => {
+    const graded = [];
+    open({ onGrade: (card, level) => graded.push(level) });
+
+    press("ArrowDown");
+    press("ArrowUp"); // still on the card: a change of mind, and it counts
+    press("ArrowRight"); // leaving card a settles it at easier
+    press("ArrowLeft"); // back to card a
+
+    press("ArrowDown"); // too late: card a settled at easier when it was left
+    press("ArrowUp");
+    press("ArrowDown");
+
+    expect(graded).toEqual(["harder", "easier", "neutral"]); /* the neutral is card b */
+  });
+
+  it("keeps a card's grade once the reader has left it: the mark returns and further grades are dropped", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
     const card = () => document.querySelector(".fc-card").className;
 
     press("ArrowUp"); // card a: easier
-    press("ArrowRight"); // to card b, ungraded
+    press("ArrowRight"); // to card b, ungraded — and card a is settled
     press("ArrowLeft"); // back to card a
 
     expect(front(".fc-text").textContent).toBe("eins");
     expect(card()).toContain("is-easier");
 
-    press("ArrowUp"); // the same grade again: not a new event
-    expect(graded).toEqual([
-      ["a", "easier"],
-      ["b", "neutral"],
-    ]);
+    press("ArrowUp"); // the same grade again: nothing new to say
+    press("ArrowDown"); // and a change of mind now comes too late
 
-    press("ArrowDown"); // a change of mind: still counts, even after a revisit
+    expect(card()).toContain("is-easier");
+    expect(card()).not.toContain("is-harder");
     expect(graded).toEqual([
       ["a", "easier"],
       ["b", "neutral"],
-      ["a", "harder"],
     ]);
+  });
+
+  it("shows the mark of a card the host says is already graded, and lets no one change it", () => {
+    const graded = [];
+    open({
+      gradeOf: (card) => (card.key === "b" ? "harder" : null),
+      onGrade: (card, level) => graded.push([card.key, level]),
+    });
+    const card = () => document.querySelector(".fc-card").className;
+
+    expect(card()).not.toContain("is-harder"); // card a: the host has nothing to say about it
+
+    press("ArrowRight"); // to card b, graded before this deck was mounted
     expect(card()).toContain("is-harder");
-    expect(card()).not.toContain("is-easier");
+
+    press("ArrowUp");
+    expect(card()).toContain("is-harder");
+
+    press("ArrowRight"); // and it does not report as neutral, either
+    expect(graded).toEqual([["a", "neutral"]]);
   });
 
   it("does not report a card as neutral on a revisit if it was graded in an earlier visit", () => {

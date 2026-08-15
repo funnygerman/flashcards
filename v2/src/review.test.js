@@ -1,9 +1,13 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { STORAGE_KEY, isDue, recordGrade, reviewState } from "./review.js";
+import { STORAGE_KEY, gradedToday, isDue, recordGrade, reviewState } from "./review.js";
 
 const DAY = 24 * 60 * 60 * 1000;
-const NOW = Date.parse("2026-01-01T00:00:00Z");
+
+/* Midday, so that the local calendar day a grade lands on (review.js grades by
+   the reader's own day, not by UTC) is the same one in every time zone a test
+   might run in, and NOW + DAY is reliably the next one. */
+const NOW = Date.parse("2026-01-01T12:00:00Z");
 
 /** An in-memory Storage stand-in; `fail` makes both operations throw. */
 function memoryStorage(initial = null, fail = false) {
@@ -59,25 +63,32 @@ describe("recordGrade", () => {
     storage = memoryStorage();
   });
 
+  /** Grade a card once a day for `days` days running, and give back the last. */
+  const promote = (days, level = "easier") => {
+    let last;
+    for (let day = 0; day < days; day += 1) last = recordGrade("a", level, storage, NOW + day * DAY);
+    return last;
+  };
+
   it("promotes one box on easier, with a longer interval each time", () => {
     expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
-    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 2, dueAt: NOW + 2 * DAY });
-    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 3, dueAt: NOW + 4 * DAY });
+    expect(recordGrade("a", "easier", storage, NOW + DAY)).toEqual({ box: 2, dueAt: NOW + 3 * DAY });
+    expect(recordGrade("a", "easier", storage, NOW + 2 * DAY)).toEqual({ box: 3, dueAt: NOW + 6 * DAY });
   });
 
   it("caps promotion at the last box", () => {
-    for (let i = 0; i < 6; i += 1) recordGrade("a", "easier", storage, NOW);
-    const atCap = recordGrade("a", "easier", storage, NOW);
+    expect(promote(6).box).toBe(6);
 
+    const atCap = recordGrade("a", "easier", storage, NOW + 6 * DAY);
     expect(atCap.box).toBe(6);
-    const again = recordGrade("a", "easier", storage, NOW);
-    expect(again).toEqual(atCap);
+    expect(recordGrade("a", "easier", storage, NOW + 7 * DAY)).toEqual({ box: 6, dueAt: NOW + (7 + 32) * DAY });
   });
 
   it("sends a card back to box 0, due immediately, on harder", () => {
-    for (let i = 0; i < 4; i += 1) recordGrade("a", "easier", storage, NOW);
+    promote(4);
 
-    expect(recordGrade("a", "harder", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
+    const later = NOW + 4 * DAY;
+    expect(recordGrade("a", "harder", storage, later)).toEqual({ box: 0, dueAt: later });
   });
 
   it("keeps a never-graded card at box 0 and due now on neutral", () => {
@@ -85,10 +96,9 @@ describe("recordGrade", () => {
   });
 
   it("neither promotes nor demotes an already-graded card on neutral, but renews its interval", () => {
-    recordGrade("a", "easier", storage, NOW); // box 1
-    recordGrade("a", "easier", storage, NOW); // box 2, due at NOW + 2 * DAY
+    promote(2); // one grade a day for two days: box 2
 
-    const later = NOW + DAY; // a day later, the reader sees it again and pages past it
+    const later = NOW + 2 * DAY; // later still, the reader sees it again and pages past it
     expect(recordGrade("a", "neutral", storage, later)).toEqual({ box: 2, dueAt: later + 2 * DAY });
   });
 
@@ -96,10 +106,9 @@ describe("recordGrade", () => {
     recordGrade("a", "easier", storage, NOW);
     recordGrade("b", "harder", storage, NOW);
 
-    expect(JSON.parse(storage.read())).toEqual({
-      a: { box: 1, dueAt: NOW + DAY },
-      b: { box: 0, dueAt: NOW },
-    });
+    expect(Object.keys(JSON.parse(storage.read()))).toEqual(["a", "b"]);
+    expect(reviewState("a", storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
+    expect(reviewState("b", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
   });
 
   it("replaces a corrupt stored entry rather than building on it", () => {
@@ -115,6 +124,97 @@ describe("recordGrade", () => {
 
   it("uses one storage key for the whole schedule", () => {
     expect(STORAGE_KEY).toBe("flashcards.review");
+  });
+});
+
+describe("one grade per day", () => {
+  let storage;
+
+  beforeEach(() => {
+    storage = memoryStorage();
+  });
+
+  /* The reader's day is theirs to spend once. Everything below is the same
+     card being graded more than once in a day — by changing their mind on the
+     card, or by reloading the page and grading it again — and none of it may
+     move the card further than a single grade would have. */
+
+  it("moves a card one step from where the day found it, however often it is graded", () => {
+    recordGrade("a", "easier", storage, NOW); // box 1
+    recordGrade("a", "easier", storage, NOW + DAY); // box 2
+    recordGrade("a", "easier", storage, NOW + 2 * DAY); // box 3
+
+    const today = NOW + 3 * DAY;
+
+    expect(recordGrade("a", "easier", storage, today)).toEqual({ box: 4, dueAt: today + 8 * DAY });
+    expect(recordGrade("a", "harder", storage, today)).toEqual({ box: 0, dueAt: today });
+
+    /* Not box 1: the second easier replaces the harder rather than following
+       it, so the reader ends the day exactly one box up from box 3 — where
+       saying "easier" once would have left them. */
+    expect(recordGrade("a", "easier", storage, today)).toEqual({ box: 4, dueAt: today + 8 * DAY });
+  });
+
+  it("does not promote a second time when the reader reloads and grades again", () => {
+    const first = recordGrade("a", "easier", storage, NOW);
+
+    /* A reload keeps nothing but storage, so this is the same call again. */
+    expect(recordGrade("a", "easier", storage, NOW + 60_000)).toEqual({ ...first, dueAt: first.dueAt + 60_000 });
+    expect(reviewState("a", storage, NOW).box).toBe(1);
+  });
+
+  it("starts the next day from where the last one left the card", () => {
+    recordGrade("a", "easier", storage, NOW); // box 0 -> 1
+    recordGrade("a", "harder", storage, NOW); // still the same day: box 0 -> 0
+
+    const tomorrow = NOW + DAY;
+    expect(recordGrade("a", "easier", storage, tomorrow)).toEqual({ box: 1, dueAt: tomorrow + DAY });
+  });
+
+  it("does not spend the day on neutral, which is not an opinion", () => {
+    recordGrade("a", "neutral", storage, NOW);
+
+    expect(gradedToday("a", storage, NOW)).toBe(null);
+    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
+  });
+
+  it("keeps the day's grade when the card is only paged past afterwards", () => {
+    recordGrade("a", "easier", storage, NOW);
+    recordGrade("a", "neutral", storage, NOW);
+
+    expect(gradedToday("a", storage, NOW)).toBe("easier");
+    expect(reviewState("a", storage, NOW).box).toBe(1);
+  });
+
+  it("reports the grade a card carries today, and only today", () => {
+    expect(gradedToday("a", storage, NOW)).toBe(null);
+
+    recordGrade("a", "harder", storage, NOW);
+    expect(gradedToday("a", storage, NOW)).toBe("harder");
+    expect(gradedToday("a", storage, NOW + DAY)).toBe(null);
+    expect(gradedToday("b", storage, NOW)).toBe(null);
+  });
+
+  it("reads an entry written before grades were remembered as ungraded today", () => {
+    storage = memoryStorage(JSON.stringify({ a: { box: 3, dueAt: NOW } }));
+
+    expect(gradedToday("a", storage, NOW)).toBe(null);
+    expect(reviewState("a", storage, NOW)).toEqual({ box: 3, dueAt: NOW });
+    expect(recordGrade("a", "easier", storage, NOW)).toEqual({ box: 4, dueAt: NOW + 8 * DAY });
+  });
+
+  it("ignores a half-written record of today's grade without losing the schedule", () => {
+    const day = { box: 3, dueAt: NOW, day: "2026-01-01", grade: "easier" }; /* no baseBox */
+    storage = memoryStorage(JSON.stringify({ a: day }));
+
+    expect(gradedToday("a", storage, NOW)).toBe(null);
+    expect(reviewState("a", storage, NOW)).toEqual({ box: 3, dueAt: NOW });
+  });
+
+  it("keeps the schedule to box and dueAt, whatever else it remembers", () => {
+    recordGrade("a", "easier", storage, NOW);
+
+    expect(Object.keys(reviewState("a", storage, NOW))).toEqual(["box", "dueAt"]);
   });
 });
 

@@ -120,12 +120,27 @@ export function createView(container, steps) {
     mark(level);
   };
 
-  /** Face the front again without animating the rotation back. */
-  const resetFlip = () => {
-    card.classList.add("fc-instant");
+  /**
+   * Everything a page turn changes about the card, applied in one frame.
+   *
+   * `fc-instant` suspends every transition under the slider for the duration:
+   * the flip rotating back, the border mark thickening or thinning, and the
+   * progress squares filling. Each of those is worth animating when it happens
+   * on the card in front of the reader, and wrong here — a card arriving with
+   * a different grade from the one that left would otherwise land and *then*
+   * morph, reading as the page turn having changed it. The reflow flushes the
+   * new state while transitions are still off, so they resume from it rather
+   * than towards it.
+   */
+  const swap = (data, level, onSwap) => {
+    slider.classList.add("fc-instant");
+
     setFlipped(false);
-    void card.offsetWidth; /* flush the reset before transitions resume */
-    card.classList.remove("fc-instant");
+    show(data, level);
+    onSwap?.();
+
+    void slider.offsetWidth;
+    slider.classList.remove("fc-instant");
   };
 
   return {
@@ -143,21 +158,21 @@ export function createView(container, steps) {
      * the direction travelled (right-to-left is next) and, for the
      * keyboard, the usual sense that "forward" arrives from ahead. Returns
      * a promise while it animates, null when the swap was instant.
+     *
+     * `onSwap` runs at the moment the cards are exchanged, off screen and
+     * alongside the content and the mark: anything the host draws around the
+     * card — the progress row — belongs to the arriving card too, and has to
+     * change with it rather than after the slide has finished delivering it.
      */
-    slide(direction, data, level = null) {
-      const swap = () => {
-        resetFlip();
-        show(data, level);
-      };
-
+    slide(direction, data, level = null, onSwap) {
       const out = animate(slider, offscreen(direction * -100));
       if (!out) {
-        swap();
+        swap(data, level, onSwap);
         return null;
       }
 
       return out.then(() => {
-        swap();
+        swap(data, level, onSwap);
         return animate(slider, offscreen(direction * 100).reverse());
       });
     },
