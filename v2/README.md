@@ -261,9 +261,24 @@ handed (§ Interactions), because a fixed order studied every session teaches th
 cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
 waiting.
 
-The two pages link to each other with a small mark in the top corner — the one thing on the page that is
-not the card. It is the host page's element, not the library's: `mount()` neither draws it nor knows it
-is there, and it sits outside the mounted deck so a tap on it is never read as a tap on the card.
+The two pages link to each other with a small mark in the top corner — two overlapping cards, a picture
+of what it leads to — and it is the one thing on the page that is not the card. It is the host page's
+element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside the
+mounted deck so a tap on it is never read as a tap on the card.
+
+A deck shows it only when the dictionary holds a card that deck does not:
+
+```js
+import { holdsMoreThan } from "../src/store.js";
+
+document.querySelector(".fc-corner").hidden = !holdsMoreThan(cards);
+```
+
+"How many decks are there" isn't a question storage can answer — it records cards, not decks — but it
+isn't the useful question either. What matters is whether that link would show you anything you can't
+already see, and for the only deck you've ever opened it wouldn't. Where storage is blocked the
+dictionary is empty on every visit, so the link stays away there too, rather than leading to a page that
+can't render.
 
 Cards are not attributed to the deck they came from. The same word can belong to several decks, so that
 needs a mapping rather than a field, and nothing reads it yet.

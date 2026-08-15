@@ -9,10 +9,20 @@
   <body>
     <!-- The one element on the page that is not the card (V2-7.1): a way out of
          this deck and into the dictionary (§13). Outside the mounted deck, so
-         input.js never reads a tap on it as a tap on the card. -->
-    <a class="fc-corner" href="../dictionary.html" title="Everything you have seen" aria-label="Everything you have seen">
+         input.js never reads a tap on it as a tap on the card.
+
+         Two overlapping cards, in the same 4:3 as the real one and with the
+         same square corners (V2-7.2) — a picture of what it leads to. It was a
+         set of stacked lines first, which is every menu button ever drawn and
+         promised a menu this page does not have.
+
+         Hidden until the script below finds the dictionary holds more than this
+         deck. Starting hidden rather than removing it later means the reader
+         never sees it appear and then vanish. -->
+    <a class="fc-corner" href="../dictionary.html" title="Everything you have seen" aria-label="Everything you have seen" hidden>
       <svg viewBox="0 0 20 20" aria-hidden="true">
-        <path d="M3 4.5h14M3 10h14M3 15.5h14" stroke-linecap="round" />
+        <rect x="6.5" y="3.5" width="11" height="8.25" />
+        <rect class="fc-corner-near" x="2.5" y="8.25" width="11" height="8.25" />
       </svg>
     </a>
 
@@ -20,7 +30,7 @@
       import { mount } from "../src/flashcards.js";
       import { BOX_COUNT, gradedToday, recordGrade, reviewState } from "../src/review.js";
       import { chooseSession } from "../src/session.js";
-      import { allCards } from "../src/store.js";
+      import { allCards, holdsMoreThan } from "../src/store.js";
 
       const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
@@ -90,6 +100,13 @@
          so there is one rule rather than a special case. chooseSession then
          takes what is actually due, most overdue first. */
       const source = cards.length > 0 ? cards : allCards();
+
+      /* Offer the dictionary only when it holds something this deck does not.
+         For the only deck a reader has ever opened, that link would lead
+         straight back to these same cards; for a reader whose storage is
+         blocked it would lead to an empty page (V2-13.8). Either way, better
+         not to offer it. */
+      document.querySelector(".fc-corner").hidden = !holdsMoreThan(cards);
 
       mount(document.body, chooseSession(source), {
         onGrade: (card, level) => recordGrade(card.key, level),

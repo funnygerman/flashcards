@@ -87,12 +87,27 @@ html:has(> body > .fc) body {
   color: #666;
 }
 
+/* display above beats the user agent's [hidden] rule on specificity, so a deck
+   with nothing to link to has to say so here. */
+.fc-corner[hidden] {
+  display: none;
+}
+
 .fc-corner svg {
-  inline-size: 1.1rem;
-  block-size: 1.1rem;
+  inline-size: 1.15rem;
+  block-size: 1.15rem;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.5;
+}
+
+/* The nearer of the two cards is filled with the page's own background so that
+   it covers the one behind it, which is what makes them read as a stack rather
+   than as crossed rectangles. Written out rather than taken from --fc-bg for
+   the reason given above: that token is declared on .fc, and this is outside
+   it. */
+.fc-corner-near {
+  fill: #fff;
 }
 
 .fc-corner:hover,
@@ -121,6 +136,10 @@ html:has(> body > .fc) body {
   .fc-corner:hover,
   .fc-corner:focus-visible {
     color: #f2f2f2;
+  }
+
+  .fc-corner-near {
+    fill: #111;
   }
 }
 
