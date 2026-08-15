@@ -112,22 +112,27 @@ card v2 has always had.
 
 ```js
 import { mount } from "../src/flashcards.js";
-import { reviewState } from "../src/review.js";
+import { BOX_COUNT, reviewState } from "../src/review.js";
 
 mount(document.body, cards, {
-  progress: { steps: 5, of: (card) => reviewState(card.key).box },
+  progress: { steps: BOX_COUNT - 1, of: (card) => reviewState(card.key).box },
 });
 ```
 
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
 number works. Reading the box as the count outright is that deck's own mapping, not the library's — and
-`steps: 5` is set against review.js's six boxes rather than a conventional round
-number, so every real grade moves the display by one square; a coarser scale could compress two
-different grades onto the same count and make one of them look like nothing happened. Five squares for
-six boxes, because the box *is* the count: a card in box 0 fills none of them, which is what a card
-you've never got right should look like. The row was seven squares of `box + 1` first, which left every
-never-graded and every just-failed card showing one filled square — progress where there was none.
+`steps` is one square per box above the first rather than a conventional round number, so every real
+grade moves the display by one square; a coarser scale could compress two different grades onto the same
+count and make one of them look like nothing happened. One fewer square than there are boxes, because
+the box *is* the count: a card in box 0 fills none of them, which is what a card you've never got right
+should look like. The row was seven squares of `box + 1` first, which left every never-graded and every
+just-failed card showing one filled square — progress where there was none.
+
+`BOX_COUNT - 1` rather than a literal, so the ladder in `review.js` stays the only place the number of
+boxes is decided — change it there and the row resizes with it. The arithmetic lives in the deck, not in
+`mount()`: the library never learns what a box is, and importing `review.js` to find out is exactly the
+dependency the split exists to avoid.
 
 Squares rather than stars: `★`/`☆` were tried and reverted after testing on a real phone. At a size that
 actually read as a star shape they were too big for the row, and any count other than the culturally

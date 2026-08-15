@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { STORAGE_KEY, gradedToday, isDue, recordGrade, reviewState } from "./review.js";
+import { BOX_COUNT, STORAGE_KEY, gradedToday, isDue, recordGrade, reviewState } from "./review.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -153,6 +153,15 @@ describe("recordGrade", () => {
 
     expect(boxes.map((b) => b.box)).toEqual([1, 2, 3, 4, 5, 5, 5]);
     expect(boxes.map((b, day) => (b.dueAt - (NOW + day * DAY)) / DAY)).toEqual([1, 3, 7, 14, 30, 30, 30]);
+  });
+
+  /* BOX_COUNT is what a deck sizes its progress row from, so it has to be the
+     ladder's own count and not a number that agrees with it today. */
+  it("publishes the box count, which is the ladder's top box plus one", () => {
+    expect(BOX_COUNT).toBe(6);
+
+    const top = promote(BOX_COUNT + 2).box; /* more days than the ladder is long */
+    expect(top).toBe(BOX_COUNT - 1);
   });
 });
 

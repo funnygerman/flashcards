@@ -374,6 +374,12 @@ bottom. Only that one box: 7 upwards is still nonsense and takes V2-11.8's postu
 direction for corrupt data to fail in. The card's stored `dueAt` is left alone; it comes due when it was
 already going to.
 
+**V2-11.15** `BOX_COUNT` is exported, so a deck page can size a progress row against this ladder without
+restating its length. The interval list is then the only place the box count is decided: change it and
+the row follows. The library is not the place for this — it never learns what a box is (V2-12.2), and
+importing review.js to find out would undo V2-11.1 — so the arithmetic lives in the deck, next to the
+rest of its own mapping.
+
 ---
 
 ## 12. Progress indicator
@@ -412,10 +418,10 @@ outside those two events, the row does not learn about it until the next one.
 same on either face, and must not itself flip — or mirror — when the card does.
 
 **V2-12.8** `steps` is set so that the row has exactly as many distinct states as `of(card)` has distinct
-values — for review.js's six boxes (§11), five squares, since an empty row is a state too. Not a
-conventional round number: every real change in the underlying data then moves the display by exactly
-one mark, where a coarser scale would let two different values compress onto the same count and make one
-of those changes look like nothing happened.
+values — against review.js's boxes (§11), one square per box above the first, since an empty row is a
+state too. Not a conventional round number: every real change in the underlying data then moves the
+display by exactly one mark, where a coarser scale would let two different values compress onto the same
+count and make one of those changes look like nothing happened.
 
 **V2-12.9** Squares, not stars: `★`/`☆` were tried and reverted after testing on a real phone. Two
 problems, both real: at a size that actually read as a star shape they were too big for the row, and any

@@ -9,7 +9,7 @@
   <body>
     <script type="module">
       import { mount } from "../src/flashcards.js";
-      import { gradedToday, recordGrade, reviewState } from "../src/review.js";
+      import { BOX_COUNT, gradedToday, recordGrade, reviewState } from "../src/review.js";
 
       const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
@@ -51,16 +51,20 @@
          host-side concern would use. The library's `progress` option is
          equally review-agnostic: it just draws N of M dots, so the box being
          the count outright is this deck's own mapping, not the library's.
-         Five dots for review.js's six boxes: box 0 fills none of them, which
-         is what a card the reader has never got right should look like, and
-         each box above it fills one more, up to five for the top box. Six
-         boxes and six distinct rows, so every real grade still moves the
-         display by exactly one dot — a coarser scale could compress two
+         One dot per box above the first: box 0 fills none of them, which is
+         what a card the reader has never got right should look like, and each
+         box above it fills one more, up to a full row for the top box. That is
+         as many distinct rows as there are boxes, so every real grade moves
+         the display by exactly one dot — a coarser scale could compress two
          different grades into the same count and make one of them look like
-         nothing happened. (An earlier version drew seven dots for seven
-         boxes as box + 1, which left a card that had never been graded, or
-         had just been failed, showing one filled dot: progress where there
-         was none.)
+         nothing happened. (An earlier version drew seven dots for seven boxes
+         as box + 1, which left a card that had never been graded, or had just
+         been failed, showing one filled dot: progress where there was none.)
+
+         BOX_COUNT rather than a 5 written out here, so that the ladder in
+         review.js stays the only place the number of boxes is decided: change
+         it there and this row resizes with it, instead of quietly drawing the
+         wrong number of dots until someone notices.
 
          gradeOf is the other half of that wiring: review.js remembers what
          the reader said about a card today, so a card graded before this page
@@ -72,7 +76,7 @@
         onGrade: (card, level) => recordGrade(card.key, level),
         gradeOf: (card) => gradedToday(card.key),
         progress: {
-          steps: 5,
+          steps: BOX_COUNT - 1,
           of: (card) => reviewState(card.key).box,
         },
       });

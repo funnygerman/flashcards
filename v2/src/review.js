@@ -40,6 +40,15 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const INTERVALS_DAYS = [0, 1, 3, 7, 14, 30];
 const MAX_BOX = INTERVALS_DAYS.length - 1;
 
+/**
+ * How many boxes there are — the one number a deck page needs in order to size
+ * a progress row against this ladder without restating it (V2-11.15). The
+ * ladder is then the only place the count is written down: change
+ * INTERVALS_DAYS and the row follows, rather than silently disagreeing until
+ * someone notices two different grades drawing the same number of squares.
+ */
+export const BOX_COUNT = INTERVALS_DAYS.length;
+
 /** The top box of the seven-box ladder this replaced (V2-11.14). */
 const RETIRED_BOX = MAX_BOX + 1;
 
