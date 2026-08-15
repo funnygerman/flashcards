@@ -1,45 +1,61 @@
-# flashcards
-No app, no accounts, just flashcards in browser
+# Flashcards
 
-## The idea
-Prepare cards, open them and learn.
+Flashcards in the browser. One card on the screen and nothing else on it, a swipe to say whether you
+knew it, and a Leitner schedule deciding when you see it again.
 
-**Initially:** only learn collection you opened.
+No accounts, no server, no build step, no dependencies: the browser loads the sources in this repository
+as they are, and everything you have studied lives in your own `localStorage`.
 
-**Planned:** collections should be stored on device, so you can learn more and more words
+**Live:** [Everyday German](https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html) ·
+[Numbers and Time](https://funnygerman.github.io/flashcards/v2/decks/numbers-and-time.html) ·
+[everything you have seen](https://funnygerman.github.io/flashcards/v2/dictionary.html)
 
-## Repository Structure
+## Running it
 
-This repository contains two related parts:
-
-- **Library** — the reusable `FlashcardDeck` UI library.
-- **Application** — a reference application built using the library.
-
-The library is independent of the application's data storage and learning logic.
-
-```text
-flashcards/
-├── library/     # Reusable FlashcardDeck library
-├── app/         # Reference application
-├── content/     # Card authoring sources (CSV / JSON / ES modules)
-└── docs/        # Specifications, decisions, and task specs
+```sh
+npm ci
+npm run serve   # then open http://localhost:8000/v2/decks/everyday-german.html
 ```
 
-## Documentation
+ES modules do not load over `file://`, which is the only reason a server is needed at all.
 
-Development is specification-driven: requirements carry stable IDs, task specs cite those IDs, and tests name
-them. Start at [`docs/README.md`](docs/README.md).
+```sh
+npm test        # vitest, jsdom
+npm run lint    # eslint
+```
 
-| | |
-|---|---|
-| [Library requirements](docs/library/requirements.md) | `LIB-*` — presentation and interaction |
-| [Application requirements](docs/app/requirements.md) | `APP-*` — content and learning state |
-| [Tasks](docs/tasks/README.md) | Independently implementable units, with a dependency graph |
-| [Decisions](docs/decisions/README.md) | Why things are the way they are |
-| [Roadmap](docs/roadmap.md) | Specified, deliberately not built in 1.x |
+## A deck
 
-## Releases
+One HTML file is one deck: its cards, and one call.
 
-- **1.0** — deck page: open a deck by URL, shuffled session.
-- **1.1** — personal collection: every card you see is recorded, swiping up or down grades it, and the
-  collection is reviewable as a deck of its own.
+```html
+<script type="module">
+  import { openDeck } from "../src/deck.js";
+
+  openDeck([
+    { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
+    { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run" },
+  ]);
+</script>
+```
+
+## Where things are
+
+```text
+v2/README.md            how it works, and why it works that way
+v2/docs/requirements.md what it is, statement by statement (`V2-*`)
+v2/src/                 the library, the schedule, and the page that assembles them
+v2/decks/               one file per deck
+v2/dictionary.html      every card you have opened, as a deck
+scripts/dev-server.mjs  a static file server, because file:// cannot load modules
+```
+
+Start with [`v2/README.md`](v2/README.md).
+
+## History
+
+This is the second attempt. The first — a TypeScript library, a separate application, a content pipeline
+and a specification split across `LIB-*`, `APP-*` and a task graph — was retired once v2 did the same job
+in a tenth of the code with no build step. It is gone from the tree; `git log` has it if you want it.
+Everything that was still true about card sizing and content handling was carried across and is written
+down in `v2/docs/requirements.md`.

@@ -1,10 +1,8 @@
 name: Deploy to GitHub Pages
 
-# v1 (library/, app/) is being retired: this workflow no longer builds it or
-# publishes it. v2 needs no build — the sources the browser loads are the
-# ones in the repository, copied in as they are. See
-# docs/decisions/D5-continuous-pages-deployment.md for the history behind why
-# this workflow exists at all.
+# v2 needs no build: the sources the browser loads are the ones in the
+# repository, copied in as they are. Every push to main publishes, so what is
+# on main is what is live — there is no separate release step to forget.
 
 on:
   push:
@@ -42,8 +40,8 @@ jobs:
           rm -rf _site
           mkdir -p _site
 
-          # v2 has no build step, so the sources the browser loads are the ones
-          # in the repository. Its tests are not part of the site.
+          # No build step, so the sources the browser loads are the ones in
+          # the repository. The tests are not part of the site.
           cp -r v2 _site/v2
           rm -f _site/v2/src/*.test.js
 
