@@ -1,6 +1,0 @@
-{
-  "id": "fruit",
-  "title": "Fruit",
-  "description": "Two fruit cards.",
-  "cards": ["apfel-apple", "birne-pear"]
-}

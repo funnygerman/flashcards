@@ -3,34 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Flashcard library and learning application",
+  "description": "Flashcards in the browser: no build step, no dependencies, no accounts",
   "license": "MIT",
   "engines": {
     "node": ">=22"
   },
-  "workspaces": [
-    "library",
-    "app"
-  ],
   "scripts": {
-    "build": "npm run build --workspace @flashcards/library && npm run build --workspace @flashcards/app",
-    "clean": "rm -rf library/dist app/dist data *.tsbuildinfo",
-    "typecheck": "tsc -p tsconfig.json",
-    "lint": "eslint . && npm run typecheck",
-    "build:content": "node scripts/build-content.mjs",
+    "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "serve": "node scripts/dev-server.mjs",
-    "dev": "npm run build && (npm run watch & npm run serve)",
-    "watch": "tsc -p library/tsconfig.json --watch --preserveWatchOutput"
+    "serve": "node scripts/dev-server.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/node": "^26.2.0",
     "eslint": "^10.8.1",
     "jsdom": "^30.0.1",
-    "typescript": "^6.0.3",
-    "typescript-eslint": "^8.67.0",
     "vitest": "^4.1.10"
   }
 }

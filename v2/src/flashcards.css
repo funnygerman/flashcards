@@ -25,10 +25,10 @@ html:has(> body > .fc) body {
   --fc-muted: #666;
   --fc-line: #111;
 
-  /* Card size, per docs/library/requirements.md LIB-4.3 and LIB-4.6-4.7: a 4:3
-     card, as wide as 75vw allows, capped at 900px, and never taller than 75 %
-     of the viewport. CSS min() does the whole formula, so there is no sizing
-     engine and no resize listener to keep in step with it. */
+  /* Card size, per V2-7.3 and V2-7.4: a 4:3 card, as wide as 75vw allows,
+     capped at 900px, and never taller than 75 % of the viewport. CSS min()
+     does the whole formula, so there is no sizing engine and no resize
+     listener to keep in step with it. */
   --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
 
   box-sizing: border-box;
@@ -56,7 +56,7 @@ html:has(> body > .fc) body {
   }
 }
 
-/* LIB-4.8: landscape starts where the viewport is at least as wide as it is
+/* V2-7.5: landscape starts where the viewport is at least as wide as it is
    tall, the same boundary the old sizing engine drew with `vw >= vh`. */
 @media (min-aspect-ratio: 1 / 1) {
   .fc {
@@ -239,8 +239,8 @@ html:has(> body > .fc) body {
   border-block-end-width: calc(var(--fc-card-w) * 0.014);
 }
 
-/* LIB-4.11-4.12: type is a fraction of the card width, never of the viewport,
-   so the two can never disagree about how big the card is. */
+/* V2-7.7: type is a fraction of the card width, never of the viewport, so the
+   two can never disagree about how big the card is. */
 .fc-text {
   margin: 0;
   font-size: calc(var(--fc-card-w) * 0.085);

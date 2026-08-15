@@ -26,11 +26,6 @@ jobs:
 
       - run: npm ci
 
-      # library/ and app/ (v1) are being retired: nothing in CI builds or
-      # deploys them any more (see deploy.yml). Their lint/typecheck/test
-      # coverage stays on as a safety net for as long as they're still in the
-      # tree — tsconfig.json resolves @flashcards/library straight to source
-      # for typechecking, so none of this needs `npm run build` to have run.
       - run: npm run lint
 
       - run: npm test

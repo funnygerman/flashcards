@@ -1,4 +1,0 @@
-[
-  { "id": "haus-house", "front": { "text": "das Haus" }, "back": { "text": "house" }, "category": "noun" },
-  { "id": "hund-dog", "front": { "text": "der Hund" }, "back": { "text": "dog" }, "category": "noun" }
-]

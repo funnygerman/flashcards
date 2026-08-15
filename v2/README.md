@@ -118,8 +118,9 @@ unable to page. Call `destroy()` if you unmount a deck, or it goes on answering 
 
 ## Card size
 
-Unchanged from the old library's `LIB-4.3`–`LIB-4.12`: a **4:3** card, as wide as 75 % of the viewport
-allows, capped at 900 px, and never taller than 75 % of the viewport in portrait or 88 % in landscape.
+A **4:3** card, as wide as 75 % of the viewport allows, capped at 900 px, and never taller than 75 % of
+the viewport in portrait or 88 % in landscape — the sizing v2 inherited from the library it replaced,
+now written down as V2-7.3 through V2-7.8.
 Type is a fraction of the card's own width — `0.085` for the text, `0.05` for the details.
 
 Where the deck is the page, the stylesheet owns the page box too: the document is exactly the visible
