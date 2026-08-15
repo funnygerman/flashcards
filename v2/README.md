@@ -13,19 +13,22 @@ A deck file holds its cards and one call:
 <link rel="stylesheet" href="../src/flashcards.css" />
 
 <script type="module">
-  import { study } from "../src/study.js";
+  import { openDeck } from "../src/deck.js";
 
-  study(document.body, [
+  openDeck([
     { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
     { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run" },
   ]);
 </script>
 ```
 
-`study()` assembles the whole thing: it picks the session, records grades against the schedule, brings a
-card's mark back after a reload, sizes the progress row from the box ladder, and adds the link out to
-the dictionary. It is composition, not library — `mount()` below still knows nothing about any of it, so
-a page that wants a bare card and no schedule imports that instead:
+`openDeck()` assembles the whole thing: it picks the session, records grades against the schedule,
+brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the link
+out to the dictionary. There is no element to name — one HTML file is one deck, so the deck is the page;
+pass `element` if you want it somewhere smaller.
+
+It is composition, not library — `mount()` below still knows nothing about any of it, so a page that
+wants a bare card and no schedule imports that instead:
 
 ```js
 import { mount } from "../src/flashcards.js";
@@ -281,7 +284,7 @@ of what it leads to — and it is the one thing on the page that is not the card
 element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside the
 mounted deck so a tap on it is never read as a tap on the card.
 
-`study()` adds it only when the dictionary holds a card that deck does not — `holdsMoreThan(cards)` —
+`openDeck()` adds it only when the dictionary holds a card that deck does not — `holdsMoreThan(cards)` —
 and draws what it leads to: two overlapping cards for the dictionary, which is many decks at once, one
 card for a deck.
 
@@ -299,8 +302,8 @@ needs a mapping rather than a field, and nothing reads it yet.
 ```text
 docs/requirements.md what v2 is, statement by statement (`V2-*`)
 src/flashcards.js    mount() — the only export a deck page needs
-src/deck.js          shuffle and a cursor that wraps
-src/study.js         study() — a deck page assembled; what a deck file calls
+src/order.js         one deck's sequence: shuffle and a cursor that wraps
+src/deck.js          openDeck() — a deck assembled; what a deck page calls
 src/store.js         the local-storage card dictionary
 src/review.js        Leitner review scheduling — separate from mount()
 src/session.js       which cards a sitting asks for — also separate from mount()

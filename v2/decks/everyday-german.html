@@ -8,7 +8,7 @@
   </head>
   <body>
     <script type="module">
-      import { study } from "../src/study.js";
+      import { openDeck } from "../src/deck.js";
 
       const cards = [
         { key: "guten-morgen-good-morning", frontText: "guten Morgen", backText: "good morning", category: "phrase" },
@@ -48,10 +48,13 @@
       /* Everything else a deck page used to spell out — review scheduling
          through onGrade, the mark restored through gradeOf, the box drawn as a
          row of squares, which cards this sitting asks for, and the link out to
-         the dictionary — is study.js's business now. None of it was ever a
+         the dictionary — is deck.js's business now. None of it was ever a
          choice this deck made differently from any other, and spelling it out
-         per page only gave it room to drift. */
-      study(document.body, cards, {
+         per page only gave it room to drift.
+
+         No element is named either: one HTML file is one deck, so the deck is
+         the page. */
+      openDeck(cards, {
         corner: { href: "../dictionary.html", label: "Everything you have seen" },
       });
     </script>

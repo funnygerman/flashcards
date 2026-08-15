@@ -8,7 +8,7 @@
   </head>
   <body>
     <script type="module">
-      import { study } from "./src/study.js";
+      import { openDeck } from "./src/deck.js";
 
       /* The dictionary deck (§13): an ordinary deck page, and the only thing
          that makes it the dictionary is that it brings no cards of its own. A
@@ -19,7 +19,7 @@
          the card in front of the reader, so "one grade per card per day" and
          "paging away settles it" mean exactly what they mean in any other deck,
          without a second implementation to keep in step. */
-      study(document.body, [], {
+      openDeck([], {
         corner: { href: "decks/everyday-german.html", label: "Everyday German" },
       });
     </script>
