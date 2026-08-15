@@ -38,9 +38,13 @@ mount(document.body, cards); /* a card, five intents, and nothing else */
 
 Everything after this section describes those pieces. You need none of it to write a deck.
 
-`decks/everyday-german.html` is a complete example. Serve it with `npm run serve` from the repository
-root and open <http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over
-`file://`.
+`decks/everyday-german.html` and `decks/numbers-and-time.html` are complete examples. Serve them with
+`npm run serve` from the repository root and open
+<http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over `file://`.
+
+There are two decks rather than one because one deck's dictionary is that deck: the corner mark only
+appears on each of them once the other has been opened, and the dictionary only becomes worth having
+when it holds more than a single deck.
 
 Once this is on `main` it is published at
 <https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html>, and linked from the site root.
@@ -272,14 +276,25 @@ is the same `mount()` call with the same wiring, one grade per card per day and 
 mean the same thing in both without a second implementation to keep in step. Grade a card in the deck,
 open the dictionary, and the card is already there wearing its mark and refusing another grade today.
 
-`chooseSession` takes everything that is due, the most overdue first, capped at twenty; when nothing is
-due at all it takes the cards closest to being due instead, so there is always something to study and no
-"nothing due today" screen. It **selects** rather than orders — `mount()` still shuffles what it is
+A deck and the dictionary ask for different things, because they mean different things. **A deck offers
+all of its own cards**, up to twenty — you chose that deck, and being handed three cards out of nineteen
+because the rest aren't due yet isn't what you asked for. **The dictionary offers what's due**, out of
+everything you've ever opened, because "all of it" isn't a session; when nothing at all is due it falls
+back to the cards closest to being due, so there's no "nothing due today" screen.
+
+Both take their cards in the same order: most overdue first, and past those, soonest-due next. A card
+you've never graded counts as due now, so a large deck leads with what you haven't seen.
+
+The trade is that studying a deck reaches cards ahead of their schedule, and grading one there still
+moves it — the schedule governs what the *dictionary* offers you, and working straight through a deck is
+studying on your own terms instead. One grade per card per day is what stops that running away.
+
+`chooseSession` **selects** rather than orders — `mount()` still shuffles what it is
 handed (§ Interactions), because a fixed order studied every session teaches the order along with the
 cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
 waiting.
 
-The two pages link to each other with a small mark in the top corner — two overlapping cards, a picture
+The pages link to each other with a small mark in the top corner — two overlapping cards, a picture
 of what it leads to — and it is the one thing on the page that is not the card. It is the host page's
 element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside the
 mounted deck so a tap on it is never read as a tap on the card.
@@ -287,6 +302,11 @@ mounted deck so a tap on it is never read as a tap on the card.
 `openDeck()` adds it only when the dictionary holds a card that deck does not — `holdsMoreThan(cards)` —
 and draws what it leads to: two overlapping cards for the dictionary, which is many decks at once, one
 card for a deck.
+
+The dictionary leads back to **the deck you came from**, which `openDeck()` records as it opens one.
+With more than one deck there's no such thing as *the* deck to name in its markup, and the record is
+always there when it's needed: a dictionary with nothing in it can't render at all, so if there's
+something to come back from, some deck was opened to put it there.
 
 "How many decks are there" isn't a question storage can answer — it records cards, not decks — but it
 isn't the useful question either. What matters is whether that link would show you anything you can't

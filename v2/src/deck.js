@@ -19,8 +19,39 @@ import { BOX_COUNT, gradedToday, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
 import { mount } from "./flashcards.js";
+import { pageStorage, readMap, writeMap } from "./storage.js";
 
 const SVG = "http://www.w3.org/2000/svg";
+
+/** Where the reader last was, so the dictionary knows what "back" means. */
+export const DECK_KEY = "flashcards.deck";
+
+/**
+ * The deck the reader last opened, as `{ href, label }`, or null.
+ *
+ * The dictionary is reached from a deck and has to lead back to one, and with
+ * more than one deck in existence there is no such thing as *the* deck to name
+ * in its markup. Naming the one they came from is the only answer that stays
+ * true as decks are added — and it always exists when it is needed, because a
+ * dictionary with nothing in it cannot render at all (V2-13.8): if there is
+ * something to come back from, a deck was opened to put it there.
+ *
+ * This is routing, which the library holds none of (V2-1.2). It lives here, in
+ * the layer that assembles a page, and not in flashcards.js.
+ */
+export function lastDeck(storage = pageStorage()) {
+  const { href, label } = readMap(storage, DECK_KEY);
+
+  return typeof href === "string" && typeof label === "string" ? { href, label } : null;
+}
+
+/** An absolute path, so the record reads the same from any page on the site. */
+function rememberDeck(storage) {
+  const href = globalThis.location?.pathname;
+  const label = globalThis.document?.title;
+
+  if (href && label) writeMap(storage ?? pageStorage(), DECK_KEY, { href, label });
+}
 
 /** A 4:3 rectangle in the icon's 20×20 box — the card, at the size of a mark. */
 function card(x, y, className) {
@@ -90,7 +121,13 @@ export function openDeck(cards, options = {}) {
   const own = cards.length > 0;
   const source = own ? cards : allCards(storage);
 
-  const deck = mount(element, chooseSession(source, { now, storage }), {
+  /* Only a real deck is somewhere to come back to; the dictionary is not. */
+  if (own) rememberDeck(storage);
+
+  /* A deck studies all of its own cards; the dictionary studies what is due
+     out of everything (V2-13.4). The same fact decides both — whether this page
+     brought cards of its own. */
+  const deck = mount(element, chooseSession(source, { now, storage, onlyDue: !own }), {
     storage,
     random,
     onGrade: (card, level) => recordGrade(card.key, level, storage, now),

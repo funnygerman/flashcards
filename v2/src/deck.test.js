@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { STORAGE_KEY as CARDS_KEY } from "./store.js";
 import { STORAGE_KEY as REVIEW_KEY } from "./review.js";
-import { openDeck } from "./deck.js";
+import { DECK_KEY, lastDeck, openDeck } from "./deck.js";
 
 /* jsdom has no Web Animations API, so slides swap instantly and every
    assertion below can stay synchronous. */
@@ -104,6 +104,32 @@ describe("openDeck", () => {
     expect(document.querySelectorAll(".fc-dot")).toHaveLength(5);
   });
 
+  /* A deck is "study this material", the dictionary is "what is due across
+     everything" — so opening a deck shows its cards whether or not the schedule
+     has come round to them. */
+  it("shows a deck's own cards even when none of them is due", () => {
+    const later = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(REVIEW_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, { box: 3, dueAt: later }]))));
+
+    open();
+    expect(document.querySelector(".fc-card")).not.toBe(null);
+    expect(front()).toBe("eins");
+  });
+
+  it("holds back a not-due card in the dictionary, where a deck would not", () => {
+    const later = Date.now() + 30 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(CARDS_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, c]))));
+    localStorage.setItem(
+      REVIEW_KEY,
+      JSON.stringify({ a: { box: 3, dueAt: later }, b: { box: 3, dueAt: later }, c: { box: 0, dueAt: Date.now() } }),
+    );
+
+    open([]);
+    expect(front()).toBe("drei"); /* only c is due, so the session is just c */
+    press("ArrowRight");
+    expect(front()).toBe("drei"); /* and it wraps to itself */
+  });
+
   it("studies the whole dictionary when the page brings no cards of its own", () => {
     open(); /* opening a deck is what puts its cards in the dictionary */
     mounted.splice(0).forEach((deck) => deck.destroy());
@@ -152,6 +178,39 @@ describe("openDeck", () => {
 
       open([], to);
       expect(corner().querySelectorAll("rect")).toHaveLength(1);
+    });
+
+    /* Which deck "back" means is not fixed once there is more than one, so a
+       deck records itself and the dictionary reads that. */
+    it("remembers the deck the reader opened, so the dictionary can lead back to it", () => {
+      document.title = "Numbers and Time";
+      open();
+
+      expect(lastDeck(localStorage)).toEqual({ href: "/", label: "Numbers and Time" });
+    });
+
+    it("does not remember the dictionary as somewhere to come back to", () => {
+      document.title = "Everyday German";
+      open();
+
+      document.title = "Everything you have seen";
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
+      open([]);
+
+      expect(lastDeck(localStorage).label).toBe("Everyday German");
+    });
+
+    it("has no way back to offer before any deck has been opened", () => {
+      expect(lastDeck(localStorage)).toBe(null);
+    });
+
+    it("offers no way back rather than a broken one, if the record is unusable", () => {
+      localStorage.setItem(DECK_KEY, JSON.stringify({ href: 42 }));
+      expect(lastDeck(localStorage)).toBe(null);
+
+      localStorage.setItem(DECK_KEY, "{ not json");
+      expect(lastDeck(localStorage)).toBe(null);
     });
 
     it("sits outside the mounted deck, where a tap on it is not a tap on the card", () => {

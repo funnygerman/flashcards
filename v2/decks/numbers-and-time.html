@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Numbers and Time</title>
+    <link rel="stylesheet" href="../src/flashcards.css" />
+  </head>
+  <body>
+    <script type="module">
+      import { openDeck } from "../src/deck.js";
+
+      /* A second deck, on a subject the first one does not touch. Two decks are
+         what make the dictionary worth having — one deck's dictionary is that
+         deck — and they are what the corner mark is for: it appears on each of
+         them only once the other has been opened. */
+      const cards = [
+        { key: "eins-one", frontText: "eins", backText: "one", category: "number" },
+        { key: "zwei-two", frontText: "zwei", backText: "two", category: "number" },
+        { key: "drei-three", frontText: "drei", backText: "three", category: "number" },
+        { key: "vier-four", frontText: "vier", backText: "four", category: "number" },
+        { key: "fuenf-five", frontText: "fünf", backText: "five", category: "number" },
+        { key: "zehn-ten", frontText: "zehn", backText: "ten", category: "number" },
+        { key: "zwanzig-twenty", frontText: "zwanzig", backText: "twenty", category: "number" },
+        { key: "hundert-hundred", frontText: "hundert", backText: "a hundred", category: "number" },
+        { key: "montag-monday", frontText: "der Montag", backText: "Monday", category: "day" },
+        { key: "mittwoch-wednesday", frontText: "der Mittwoch", backText: "Wednesday", category: "day" },
+        { key: "samstag-saturday", frontText: "der Samstag", backText: "Saturday", backDetails: "also: der Sonnabend", category: "day" },
+        { key: "sonntag-sunday", frontText: "der Sonntag", backText: "Sunday", category: "day" },
+        { key: "heute-today", frontText: "heute", backText: "today", category: "time" },
+        { key: "morgen-tomorrow", frontText: "morgen", frontDetails: "lower case", backText: "tomorrow", backDetails: "der Morgen, capitalised, is the morning", category: "time" },
+        { key: "gestern-yesterday", frontText: "gestern", backText: "yesterday", category: "time" },
+        { key: "jetzt-now", frontText: "jetzt", backText: "now", category: "time" },
+        { key: "immer-always", frontText: "immer", backText: "always", category: "time" },
+        { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?", category: "phrase" },
+      ];
+
+      openDeck(cards, {
+        corner: { href: "../dictionary.html", label: "Everything you have seen" },
+      });
+    </script>
+  </body>
+</html>
