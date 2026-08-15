@@ -116,6 +116,40 @@ describe("bindInput", () => {
     expect(intents).toEqual(["flip", "flip"]);
   });
 
+  /* A focused control only takes the keys that would press it. Taking every key
+     would leave the deck silent to the arrows after the reader tapped the link
+     and came back — browsers restore focus to the anchor — while the swipes
+     went on working, with nothing on screen to explain it. */
+  it("keeps the keys a focused control has no use for", () => {
+    const { intents } = listen();
+
+    const link = document.createElement("a");
+    link.setAttribute("href", "#somewhere");
+    document.body.append(link);
+
+    for (const key of ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"]) {
+      link.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+    link.remove();
+
+    expect(intents).toEqual(["next", "previous", "easier", "harder"]);
+  });
+
+  it("leaves a field's keys entirely alone, arrows included", () => {
+    const { intents } = listen();
+
+    const field = document.createElement("input");
+    document.body.append(field);
+
+    /* Unlike a control, a field uses the arrows itself — to move the caret. */
+    for (const key of ["ArrowRight", "ArrowLeft", "Enter"]) {
+      field.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+    }
+    field.remove();
+
+    expect(intents).toEqual([]);
+  });
+
   it("reports a drag as a swipe and a click as a flip", () => {
     const { element, intents } = listen();
 

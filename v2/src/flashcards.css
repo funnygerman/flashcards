@@ -69,10 +69,9 @@ html:has(> body > .fc) body {
    than a child of it, because input.js binds gestures to .fc: anything inside
    would be read as a tap on the card and flip it.
 
-   Deliberately quiet — muted, no fill, no colour of its own — and in a corner
-   the card never reaches, since the card is capped at 75vw and 75dvh. It is
-   navigation, which is why it exists at all where V2-7.1 admits nothing else:
-   a reader on a phone has no other way to leave the deck.
+   Deliberately quiet — muted, no fill, no colour of its own. It is navigation,
+   which is why it exists at all where V2-7.1 admits nothing else: a reader on a
+   phone has no other way to leave the deck.
 
    Its colours are written out rather than taken from --fc-muted and --fc-line:
    those are declared on .fc, and a sibling is not inside it to inherit them. */
@@ -99,6 +98,19 @@ html:has(> body > .fc) body {
 .fc-corner:hover,
 .fc-corner:focus-visible {
   color: #111;
+}
+
+/* The card is capped at 75vw in portrait but at 88dvh × 4/3 in landscape, so a
+   small landscape window makes it wide and tall enough to reach up here: at
+   400 × 300 the touch area overlapped its top-right corner by 6 × 19 px, and a
+   tap there navigated instead of flipping. The mark shrinks to clear it. Below
+   the 44 px a finger wants, but this is a small desktop window rather than a
+   phone — a phone in landscape (844 × 390) is nowhere near the boundary. */
+@media (min-aspect-ratio: 1 / 1) and (max-width: 32rem) {
+  .fc-corner {
+    inline-size: 2rem;
+    block-size: 2rem;
+  }
 }
 
 @media (prefers-color-scheme: dark) {

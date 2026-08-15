@@ -87,9 +87,12 @@ That isn't an opinion, so it settles nothing: grade the card properly later and 
 Keys are bound to the document, not to a focusable card: one page is one deck, so there is nothing to
 focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored when
 they are aimed at something else: a field being typed into (input, textarea, select, `contenteditable`)
-or a focused control (a link with an `href`, a button) — the deck calls `preventDefault()` on the keys it
-takes, so without that second case `Enter` on the corner link would flip the card instead of following
-it. Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
+or a focused control (a link with an `href`, a button). The two take different amounts: a field takes
+every key, arrows included, because it uses them to move the caret; a control takes only `Enter` and
+`Space`, the keys that would press it. The deck calls `preventDefault()` on what it takes, so without
+that much, `Enter` on the corner link would flip the card instead of following it — but the arrows mean
+nothing to a link and everything to the deck, so tapping the link and pressing Back doesn't leave you
+unable to page. Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
 
 ## Card size
 
@@ -199,25 +202,25 @@ is what closes the loop in the other direction: pass it as `gradeOf` and a card 
 comes back wearing its mark, so what the reader sees and what the schedule will accept agree. The day is
 the reader's own calendar day, in their own time zone. `neutral` doesn't spend it.
 
+`neutral` never moves a card's due date *later* than it already is. Renewing gives a card a schedule
+where it had none; it must not buy a card time. Since a session studies what is due (§ The dictionary),
+a plain renewal would mean that glancing at an overdue card and paging on hid it for a whole interval —
+a box 5 card gone for a month for having been looked at.
+
+Deciding which cards a sitting asks for is `session.js`'s job, not something to hand-roll per deck:
+
+```js
+import { chooseSession } from "../src/session.js";
+
+mount(document.body, chooseSession(cards), { /* … */ });
+```
+
+`isDue` and `reviewState` are still exported for anything else you want to ask:
+
 ```js
 import { isDue, reviewState } from "../src/review.js";
 
 const due = cards.filter((card) => isDue(reviewState(card.key)));
-```
-
-For a large deck, cap how many cards a session asks for at once, prioritizing the most overdue: `mount()`
-already shuffles whatever it's given, so sorting by `dueAt` only decides *which* cards make the cut, not
-the order they're studied in.
-
-```js
-const SESSION_LIMIT = 20;
-
-const today = cards
-  .filter((card) => isDue(reviewState(card.key)))
-  .sort((a, b) => reviewState(a.key).dueAt - reviewState(b.key).dueAt)
-  .slice(0, SESSION_LIMIT);
-
-mount(document.body, today.length > 0 ? today : cards, { /* … */ });
 ```
 
 Everything ends up in one storage key, `localStorage["flashcards.review"]` — independent of the card

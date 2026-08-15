@@ -111,10 +111,16 @@ nothing to focus first and nothing the reader can click that takes the keyboard 
 
 **V2-4.7** Key presses are ignored when they are aimed at something else on the page: a field the reader
 is typing into (an input, a textarea, a select, a `contenteditable` element) or a control they have
-focused (a link with an `href`, a button). The deck calls `preventDefault()` on the keys it takes, so
-without the second case `Enter` on the link of V2-7.1 would flip the card instead of following the link.
-An anchor without an `href` navigates nowhere and takes no focus, so it is not a control and the deck
-keeps the key.
+focused (a link with an `href`, a button). An anchor without an `href` navigates nowhere and takes no
+focus, so it is not a control and the deck keeps the key.
+
+The two cases differ in how much they take. A field takes every key, arrows included — it uses them to
+move the caret. A focused control takes only the keys that would press it, `Enter` and `Space`: the deck
+calls `preventDefault()` on what it takes, so without that much `Enter` on the link of V2-7.1 would flip
+the card instead of following it — but the arrows mean nothing to a link and everything to the deck.
+Taking every key for a control would leave the reader unable to page or grade after tapping the link and
+pressing Back, since browsers restore focus to the anchor, with the swipes still working and nothing on
+screen to explain the silence.
 
 **V2-4.8** The page does not scroll or select text under a gesture.
 
@@ -341,6 +347,13 @@ interval is renewed from the moment it was seen. It is evidence of neither recal
 moves the schedule in neither direction — but it still writes an entry, so a card that is only ever seen
 and never graded gets a schedule instead of staying permanently, indistinguishably due.
 
+The renewal never moves a card's due date *later* than it already is. Giving a card a schedule where it
+had none is the point; buying an already-scheduled card time is not. Since a session studies what is due
+(§13), a plain renewal meant that merely looking at an overdue card and paging on hid it for a full
+interval — a box 5 card gone for a month for having been glanced at, and browsing the dictionary once
+emptying the review queue. A card with no schedule still gets `{ box: 0, dueAt: now }`, which is what
+this requirement existed for in the first place, so the rule costs it nothing.
+
 **V2-11.6** A card's schedule is `{ box, dueAt }`, one entry per card `key`, in one storage key,
 `flashcards.review`, independent of the card dictionary (V2-6.6). The stored entry also carries what the
 reader said today and where the card stood before they said it (V2-11.10), but `reviewState` gives back
@@ -482,10 +495,13 @@ module rather than in each deck file so that every page shares one rule with one
 came from: the same word can belong to several decks, so that would need a mapping rather than a field,
 and nothing here reads it. Deferred until a filter actually asks for it.
 
-**V2-13.8** Opening the dictionary before any deck has ever been opened throws from `mount()` (V2-3.6)
-and renders nothing. It is the only genuinely empty case — no cards in the file *and* an empty
-dictionary — and it is an error rather than an explanation, which is worth revisiting if a real reader
-ever meets it.
+**V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
+the agreed shape — there is no empty state (V2-13.5) — but it has two causes, not one. The first is a
+reader who has opened no deck yet, which passes as soon as they open one. The second does not: where
+site data is blocked, `allCards()` is empty on every visit, so the page the corner link points at never
+renders at all. V2-6.4 asks a deck to render whether or not storage works, and this page cannot, because
+without storage it has no cards to render. It is an error rather than an explanation, and the second
+cause in particular is worth revisiting if a real reader meets it.
 
 ---
 

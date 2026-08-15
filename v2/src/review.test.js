@@ -113,10 +113,29 @@ describe("recordGrade", () => {
   });
 
   it("neither promotes nor demotes an already-graded card on neutral, but renews its interval", () => {
-    promote(2); // one grade a day for two days: box 2
+    promote(2); // one grade a day for two days: box 2, due at NOW + DAY + 3 * DAY
 
-    const later = NOW + 2 * DAY; // later still, the reader sees it again and pages past it
-    expect(recordGrade("a", "neutral", storage, later)).toEqual({ box: 2, dueAt: later + 3 * DAY });
+    /* Seen again before it was due: the renewal cannot reach past the date the
+       card already had, so its own date stands. */
+    const later = NOW + 2 * DAY;
+    expect(recordGrade("a", "neutral", storage, later)).toEqual({ box: 2, dueAt: NOW + 4 * DAY });
+  });
+
+  /* Renewing gives a card a schedule where it had none; it must not buy a card
+     time. A session studies what is due (§13), so a plain renewal would mean
+     that glancing at an overdue card and paging on hid it for a full interval. */
+  it("never moves a card's due date later on neutral", () => {
+    promote(5); // box 5: a month between reviews
+    const due = NOW + 4 * DAY + 30 * DAY;
+
+    const overdue = due + 10 * DAY; // the reader comes back late, sees it, pages on
+    expect(recordGrade("a", "neutral", storage, overdue)).toEqual({ box: 5, dueAt: due });
+    expect(isDue(reviewState("a", storage, overdue), overdue)).toBe(true);
+  });
+
+  it("still schedules a card that has none at all on neutral", () => {
+    /* What V2-11.5 exists for, and what the rule above must not cost it. */
+    expect(recordGrade("fresh", "neutral", storage, NOW)).toEqual({ box: 0, dueAt: NOW });
   });
 
   it("keeps each card's schedule independent", () => {
