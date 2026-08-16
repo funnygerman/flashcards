@@ -45,7 +45,7 @@ const MAX_BOX = INTERVALS_DAYS.length - 1;
  * a progress row against this ladder without restating it (V2-11.15). The
  * ladder is then the only place the count is written down: change
  * INTERVALS_DAYS and the row follows, rather than silently disagreeing until
- * someone notices two different grades drawing the same number of squares.
+ * someone notices two different grades drawing the same number of marks.
  */
 export const BOX_COUNT = INTERVALS_DAYS.length;
 

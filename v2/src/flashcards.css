@@ -137,7 +137,7 @@ html:has(> body > .fc) body {
   }
 }
 
-/* The progress row: squares, filled left to right along the card's bottom
+/* The progress row: stars, filled left to right along the card's bottom
    edge, centred. Bottom rather than beside the centred text: a 4:3 card has
    far more spare width around a short word than spare height, so a row here
    stays clear even of a word long enough to wrap across most of the card's
@@ -154,19 +154,29 @@ html:has(> body > .fc) body {
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: calc(var(--fc-card-w) * 0.02);
+  gap: calc(var(--fc-card-w) * 0.012);
 }
 
+/* A star, drawn here rather than borrowed from a font (V2-12.9): the shape is a
+   mask and the colour is --fc-line, so it inverts with the theme like everything
+   else, and it is identical on every device rather than whatever the platform's
+   ★ glyph happens to look like. Two shapes, one outline and one solid; the
+   element stays the plain span view.js already creates, which is why nothing
+   above this line in the library knows the row is made of stars at all. */
 .fc-dot {
-  inline-size: calc(var(--fc-card-w) * 0.022);
-  block-size: calc(var(--fc-card-w) * 0.022);
-  border: 1px solid var(--fc-line);
-  box-sizing: border-box;
-  transition: background-color 160ms ease;
+  --fc-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z' fill='%23000'/%3E%3C/svg%3E");
+  --fc-star-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+
+  inline-size: calc(var(--fc-card-w) * 0.036);
+  block-size: calc(var(--fc-card-w) * 0.036);
+  background: var(--fc-line);
+  -webkit-mask: var(--fc-star-outline) center / contain no-repeat;
+  mask: var(--fc-star-outline) center / contain no-repeat;
 }
 
 .fc-dot.is-filled {
-  background: var(--fc-line);
+  -webkit-mask-image: var(--fc-star);
+  mask-image: var(--fc-star);
 }
 
 /* Paging moves this element; the flip rotates the one inside it. position:
@@ -192,13 +202,13 @@ html:has(> body > .fc) body {
 
 /* Set while one card is exchanged for another off screen. Everything under the
    slider that would otherwise ease into its new state — the flip rotating back,
-   the border mark (below) thickening or thinning, the progress squares filling —
-   is already correct by the time the arriving card is seen, rather than
-   animating towards it after it lands and reading as the page turn having
-   changed the card's grade. */
+   the border mark (below) thickening or thinning — is already correct by the
+   time the arriving card is seen, rather than animating towards it after it
+   lands and reading as the page turn having changed the card's grade. The
+   progress row was once listed here as well, back when a filled mark was a
+   colour fade; a mask swap is instant, so it has nothing left to suspend. */
 .fc-slide.fc-instant .fc-card,
-.fc-slide.fc-instant .fc-face,
-.fc-slide.fc-instant .fc-dot {
+.fc-slide.fc-instant .fc-face {
   transition: none;
 }
 

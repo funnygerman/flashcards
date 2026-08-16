@@ -236,7 +236,7 @@ describe("mount", () => {
     /* jsdom has no Web Animations API, so the slide everywhere else in this
        file is instant and says nothing about ordering. A card arriving with a
        different count from the one that left used to land and *then* have its
-       squares change, a fifth of a second later, which read as the page turn
+       marks change, a fifth of a second later, which read as the page turn
        itself having regraded the card. */
     const events = [];
     Element.prototype.animate = () => {
@@ -261,7 +261,7 @@ describe("mount", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       /* Between the two legs, and with transitions suspended, so the mark and
-         the squares are already right when the card is seen again. */
+         the marks are already right when the card is seen again. */
       expect(events).toEqual(["animate", "read b (fc-slide fc-instant)", "animate"]);
     } finally {
       delete Element.prototype.animate;

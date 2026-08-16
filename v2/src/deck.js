@@ -8,8 +8,8 @@
  * bare card and no schedule imports it directly and gets exactly that. What
  * lived in each deck file was never a choice any deck actually made
  * differently: the same four imports, the same onGrade, the same gradeOf, the
- * same box-to-squares mapping, copied per page and free to drift. It drifted
- * once already, a row of five squares written out beside a ladder of six boxes,
+ * same box-to-marks mapping, copied per page and free to drift. It drifted
+ * once already, a row of five marks written out beside a ladder of six boxes,
  * which is what put BOX_COUNT in review.js.
  *
  * So a deck file holds its cards and one call, and this holds the wiring.
@@ -133,9 +133,9 @@ export function openDeck(cards, options = {}) {
     onGrade: (card, level) => recordGrade(card.key, level, storage, now),
     gradeOf: (card) => gradedToday(card.key, storage, now),
 
-    /* The box is the count outright, so box 0 fills no squares — what a card
+    /* The box is the count outright, so box 0 fills no marks — what a card
        the reader has never got right should look like (V2-12.10) — and the row
-       is one square per box above the first, sized from the ladder itself so
+       is one mark per box above the first, sized from the ladder itself so
        that changing the ladder resizes the row (V2-11.15). */
     progress: {
       steps: BOX_COUNT - 1,

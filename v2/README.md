@@ -70,7 +70,7 @@ Returns `{ destroy() }`. Options:
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
 | `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives marked and settled (§ Interactions) |
-| `progress` | `{ steps, of(card) }` — draws a column of `steps` squares in the card's corner, the bottom `of(card)` of them filled; omit it for a bare card |
+| `progress` | `{ steps, of(card) }` — draws a row of `steps` stars along the card's bottom edge, the first `of(card)` of them filled; omit it for a bare card |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -133,9 +133,9 @@ engine with a throttled resize listener. The numbers come out the same: 900×675
 
 ## Progress indicator
 
-A row of squares along the card's bottom edge, filled from the left, showing how far along the card in
+A row of stars along the card's bottom edge, filled from the left, showing how far along the card in
 front of the reader is — without the library knowing what "along" means. `progress: { steps, of(card) }`
-draws `steps` squares and fills the first `of(card)` of them; leave `progress` out entirely for the bare
+draws `steps` marks and fills the first `of(card)` of them; leave `progress` out entirely for the bare
 card v2 has always had.
 
 ```js
@@ -150,23 +150,33 @@ mount(document.body, cards, {
 The library draws a count out of a count — it never sees a box or a schedule, the same way it never sees
 what `category` means (§ Cards). `review.js`'s box is one way to feed it; anything that reduces to a
 number works. Reading the box as the count outright is that deck's own mapping, not the library's — and
-`steps` is one square per box above the first rather than a conventional round number, so every real
-grade moves the display by one square; a coarser scale could compress two different grades onto the same
-count and make one of them look like nothing happened. One fewer square than there are boxes, because
+`steps` is one mark per box above the first rather than a conventional round number, so every real
+grade moves the display by one mark; a coarser scale could compress two different grades onto the same
+count and make one of them look like nothing happened. One fewer mark than there are boxes, because
 the box *is* the count: a card in box 0 fills none of them, which is what a card you've never got right
-should look like. The row was seven squares of `box + 1` first, which left every never-graded and every
-just-failed card showing one filled square — progress where there was none.
+should look like. The row was seven marks of `box + 1` first, which left every never-graded and every
+just-failed card showing one filled mark — progress where there was none.
 
 `BOX_COUNT - 1` rather than a literal, so the ladder in `review.js` stays the only place the number of
 boxes is decided — change it there and the row resizes with it. The arithmetic lives in the deck, not in
 `mount()`: the library never learns what a box is, and importing `review.js` to find out is exactly the
 dependency the split exists to avoid.
 
-Squares rather than stars: `★`/`☆` were tried and reverted after testing on a real phone. At a size that
-actually read as a star shape they were too big for the row, and any count other than the culturally
-fixed five read as a broken rating widget rather than a plain count — undoing the exact thing the `steps`
-choice above exists to protect. A square carries no such expectation, so five of them is just five, and
-not a five-star rating.
+What the mark looks like is the stylesheet's business, not the view's: `createProgress` makes plain
+`<span class="fc-dot">` elements and toggles one class on them, and `.fc-dot` in `flashcards.css` gives
+them a size, a `--fc-line` fill and a `mask` — one outline shape for empty, one solid for filled. The row
+has been squares, then stars, then squares again, then stars; only one of those changes ever touched a
+line of JavaScript.
+
+Stars, currently, and drawn as a mask rather than written as a `★`/`☆` glyph. Glyphs were tried first and
+reverted after testing on a real phone: at a size that read as a star shape they were too big for the row,
+and any count other than the culturally fixed five read as a broken rating widget. Squares answered both,
+carrying no count expectation at all — but once the row settled at five marks (§ Review schedule), the
+count objection was gone, and readers seeing the deck for the first time turned up what the squares had
+been costing: a row of identical squares reads as *pagination*, so an empty row says "nothing loaded"
+where five empty stars say "not rated yet". The mask answers the glyph objection by not being a glyph —
+the same shape on every platform, coloured from `--fc-line` so it inverts with the theme, and sized as a
+fraction of the card width (3.6 %) like everything else on the card.
 
 It re-reads `of(card)` at exactly two moments — a grade being recorded, and one card being exchanged for
 another, in the same off-screen frame as that card's content and mark — clamped into `0..steps` either
