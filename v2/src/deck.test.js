@@ -61,7 +61,7 @@ describe("openDeck", () => {
   });
 
   /* The wiring every deck page used to spell out, now asserted once: a grade
-     reaches review.js, and the row of squares follows the box it moved to. */
+     reaches review.js, and the row of marks follows the box it moved to. */
   it("records a grade against the review schedule", () => {
     open();
 
@@ -99,7 +99,7 @@ describe("openDeck", () => {
     expect(schedule("a").grade).toBe("easier");
   });
 
-  it("draws a row of one square per box above the first", () => {
+  it("draws a row of one mark per box above the first", () => {
     open();
     expect(document.querySelectorAll(".fc-dot")).toHaveLength(5);
   });

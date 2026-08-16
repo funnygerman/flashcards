@@ -21,7 +21,7 @@ import { createView } from "./view.js";
  *                  for a card the reader paged past without grading, so a
  *                  forgotten card is not silently skipped by whatever is
  *                  listening (e.g. review scheduling, see review.js).
- *                  `progress` draws a column of `steps` squares beside the
+ *                  `progress` draws a row of `steps` marks along the
  *                  card, `of(card)` filled — any host-supplied 0..steps
  *                  count, e.g. review.js's box; omit it for a bare card.
  *                  `gradeOf(card)` is the host's answer to "what has this card

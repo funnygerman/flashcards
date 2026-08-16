@@ -407,7 +407,7 @@ rest of its own mapping.
 
 ## 12. Progress indicator
 
-**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` squares along
+**V2-12.1** `mount()`'s `progress` option — `{ steps, of(card) }` — draws a row of `steps` marks along
 the card's bottom edge, the first `of(card)` of them filled. Omitted, the card is exactly as bare as it
 always was.
 
@@ -441,22 +441,35 @@ outside those two events, the row does not learn about it until the next one.
 same on either face, and must not itself flip — or mirror — when the card does.
 
 **V2-12.8** `steps` is set so that the row has exactly as many distinct states as `of(card)` has distinct
-values — against review.js's boxes (§11), one square per box above the first, since an empty row is a
+values — against review.js's boxes (§11), one mark per box above the first, since an empty row is a
 state too. Not a conventional round number: every real change in the underlying data then moves the
 display by exactly one mark, where a coarser scale would let two different values compress onto the same
 count and make one of those changes look like nothing happened.
 
-**V2-12.9** Squares, not stars: `★`/`☆` were tried and reverted after testing on a real phone. Two
-problems, both real: at a size that actually read as a star shape they were too big for the row, and any
-count other than the culturally fixed five read as a broken rating widget rather than a plain count — a
-problem V2-12.8 exists specifically to avoid, which stars undid by carrying their own count expectation. A
-square carries no such expectation, so five of them is just five — including, now that the row is five
-squares wide, not being read as a five-star rating.
+**V2-12.9** The mark is a star, and it is drawn by the stylesheet rather than by the view: `.fc-dot` is a
+plain `<span>` that CSS gives a size, a `--fc-line` fill and a `mask` — one outline shape, one solid — so
+the shape is a presentational decision the JavaScript never learns about. That separation is not
+theoretical: this row has been squares and stars and squares again, and only the last of those changes
+touched a line of JavaScript.
 
-**V2-12.10** The count is the box itself, not the box plus one, so a card in box 0 fills no squares at
+Squares came first, then `★`/`☆` glyphs, which were reverted after testing on a real phone: at a size
+that actually read as a star shape they were too big for the row, and any count other than the
+culturally fixed five read as a broken rating widget rather than a plain count. Squares were the answer
+to both, because a square carries no count expectation at all. The row then became five marks wide
+(V2-11.3), which removed the second objection outright, and testing on newcomers turned up a cost the
+squares had been paying all along: a row of identical squares reads as *pagination*, so an empty row
+looks like "nothing loaded" rather than "not rated yet" — which is the truth about a card nobody has
+answered. Stars say that without a legend; five squares never could.
+
+The glyph objection is answered by not using a glyph. A mask means the shape is the same on every
+platform instead of whatever that platform's `★` happens to look like, its colour comes from `--fc-line`
+so it inverts with the theme, and its size is a fraction of the card width (3.6 %) like everything else
+on the card, rather than a font's idea of a size.
+
+**V2-12.10** The count is the box itself, not the box plus one, so a card in box 0 fills no marks at
 all. A reader who has never got a card right, or who has just failed one, should see an empty row: that
-is what no progress looks like. (The row was seven squares of `box + 1` first, which left every such
-card showing one filled square — progress where there was none. Fixing it is what set the box count at
+is what no progress looks like. (The row was seven marks of `box + 1` first, which left every such
+card showing one filled mark — progress where there was none. Fixing it is what set the box count at
 six, so that the two scales could agree without either needing an offset; see V2-11.3.)
 
 ---
@@ -551,8 +564,8 @@ directly and gets exactly that. Putting this wiring inside `mount()` would make 
 review.js, which is the one dependency the split exists to prevent.
 
 **V2-14.3** What moved was never a choice a deck made differently. Every page repeated the same four
-imports, the same `onGrade`, the same `gradeOf` and the same box-to-squares mapping, and repetition free
-to drift did drift: a row of five squares was once written out beside a ladder of six boxes, which is
+imports, the same `onGrade`, the same `gradeOf` and the same box-to-marks mapping, and repetition free
+to drift did drift: a row of five marks was once written out beside a ladder of six boxes, which is
 what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot disagree with itself.
 
 **V2-14.4** `options` are `corner` — `{ href, label }` for the link out, omitted where a page has

@@ -162,7 +162,7 @@ describe("recordGrade", () => {
     expect(STORAGE_KEY).toBe("flashcards.review");
   });
 
-  /* Six boxes, five squares: the box is the count outright, so a card that has
+  /* Six boxes, five marks: the box is the count outright, so a card that has
      never been got right fills none of them (V2-12.10). The ladder is
      [0, 1, 3, 7, 14, 30] days — a day, a few days, a week, a fortnight, a
      month — and it takes five days spread over 25 to climb it. */

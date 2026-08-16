@@ -59,16 +59,15 @@ const offscreen = (percent) => [
 ];
 
 /**
- * The progress row: `steps` squares along the card's bottom edge, the first
+ * The progress row: `steps` marks along the card's bottom edge, the first
  * `filled` of them solid. What "filled" means is entirely the host's
  * business — the view only ever draws a count out of a count, never a box or
  * a schedule.
  *
- * Squares rather than stars: stars were tried and reverted after testing on
- * a real phone — at a size actually legible as a star shape they read as
- * "too big", and any count other than the culturally fixed five reads as a
- * broken rating widget rather than a plain count. A square carries no such
- * expectation, so seven of them is just seven, not a wrong five.
+ * What the mark *looks* like is the stylesheet's business and not this
+ * module's: these are plain spans, and `.fc-dot` shapes them (stars today,
+ * squares before that — see V2-12.9). Keeping the shape in CSS is what let
+ * that change happen without a line of JavaScript moving.
  *
  * A sibling of `.fc-card`, not a child of it: `.fc-card` is what rotates for
  * the flip, and this must not — it stays put and legible on whichever face is
@@ -124,13 +123,15 @@ export function createView(container, steps) {
    * Everything a page turn changes about the card, applied in one frame.
    *
    * `fc-instant` suspends every transition under the slider for the duration:
-   * the flip rotating back, the border mark thickening or thinning, and the
-   * progress squares filling. Each of those is worth animating when it happens
-   * on the card in front of the reader, and wrong here — a card arriving with
-   * a different grade from the one that left would otherwise land and *then*
-   * morph, reading as the page turn having changed it. The reflow flushes the
-   * new state while transitions are still off, so they resume from it rather
-   * than towards it.
+   * the flip rotating back, and the border mark thickening or thinning. Each
+   * is worth animating when it happens on the card in front of the reader, and
+   * wrong here — a card arriving with a different grade from the one that left
+   * would otherwise land and *then* morph, reading as the page turn having
+   * changed it. The reflow flushes the new state while transitions are still
+   * off, so they resume from it rather than towards it. The progress row was
+   * once in that list too; a filled mark is now a mask swap rather than a
+   * colour fade, so there is nothing left to suspend and `onSwap` running here
+   * is enough to make the row arrive already correct.
    */
   const swap = (data, level, onSwap) => {
     slider.classList.add("fc-instant");
