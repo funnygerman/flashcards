@@ -162,10 +162,19 @@ html:has(> body > .fc) body {
    else, and it is identical on every device rather than whatever the platform's
    ★ glyph happens to look like. Two shapes, one outline and one solid; the
    element stays the plain span view.js already creates, which is why nothing
-   above this line in the library knows the row is made of stars at all. */
+   above this line in the library knows the row is made of stars at all.
+
+   Both shapes are the same path, and the outline one is scaled to 0.9 about the
+   star's own centre (10 9.6, not the viewBox's) so that the two draw the same
+   silhouette. A stroke straddles the line it follows, half of it outside, so an
+   unscaled outline star is one stroke-width larger than the solid one all round
+   — on a 16.8 × 16 star with a 1.6 stroke, 10 % bigger in both directions, which
+   is plainly visible in a row that mixes the two. Shrinking the path by exactly
+   the stroke width puts the outer edge back where the fill's edge is; 0.9 is
+   (16 − 1.6) / 16, not a number arrived at by nudging. */
 .fc-dot {
   --fc-star: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z' fill='%23000'/%3E%3C/svg%3E");
-  --fc-star-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
+  --fc-star-outline: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z' transform='translate(10 9.6) scale(.9) translate(-10 -9.6)' fill='none' stroke='%23000' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E");
 
   inline-size: calc(var(--fc-card-w) * 0.036);
   block-size: calc(var(--fc-card-w) * 0.036);
