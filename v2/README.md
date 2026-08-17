@@ -276,6 +276,14 @@ dictionary and out of the schedule: swipe at one and it takes the mark, and the 
 flag in `localStorage["flashcards.hints"]` is written as the guide is dealt, so a reload part-way
 through does not start it again, and a reader who already has a schedule is never greeted at all.
 
+The guide wraps on its own while it's in progress — it's a separate ring from the deck, not the front of
+one ring running through both. Swiping right (`previous`) on the very first guide card wraps back to the
+guide's own last card, not out into real material: splicing the guide onto the front of one ring was
+tried first, and it meant that exact gesture — the first thing a reader might do, before the guide had
+said anything — landed on the deck's own last card. Paging forward into the deck and back out again
+doesn't retire the guide either; only paging past its actual last card does, and once that's happened
+there's no gesture that returns to it.
+
 There is no way to ask for it a second time yet. That's a gap, not a decision — see the open questions
 in the requirements.
 

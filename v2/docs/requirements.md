@@ -78,6 +78,24 @@ dictionary the way the deck's own cards do.
 **V2-3.5** The deck wraps in both directions: past the last card is the first, and back from the first is
 the last. A session has no end and no completion screen.
 
+Where a `lead` is present, this holds separately for the lead and for the deck rather than for one ring
+running through both. `lead` and `cards` are two independent sequences, and the cursor is on exactly one
+of them: wrapping past the lead's own last card, forward, is the one move that hands the cursor from one
+sequence to the other (V2-3.3); every other step, in either direction, wraps within whichever sequence is
+current. Splicing the lead onto the front of one ring that wraps end to end was tried first — a guide
+authored to be shown before anything else, on a reader's first touch — and it meant the *first* lead
+card's `previous` wrapped past the front of the whole ring and landed on the deck's own last card,
+showing real material before the guide had said a word: the very leak `lead` exists to prevent, arrived
+at from the direction nobody had guarded. Two independent rings close it: `previous` on a lead card can
+only ever reach another lead card, however many times it is pressed, however far the reader backs up.
+
+The handover forward is a completion, not a visit: paging into the deck and back out again — `next` then
+`previous` — returns to the lead still in progress, and it goes on wrapping within itself exactly as
+before. Only paging forward off its actual last card retires it. And the handover does not run in
+reverse: once the deck is current there is no step, in either direction, that returns to the lead. It has
+done its job for this mount, and getting back to it — if a host wants that at all — is that host's own
+concern (V2-15.6), not a path this module leaves open.
+
 **V2-3.6** Mounting an empty deck is an error, reported by throwing.
 
 **V2-3.7** `destroy()` removes the deck's DOM and unbinds every listener it added, including the
@@ -706,6 +724,15 @@ cost the interface nothing, because they *are* the interface.
 it is not written to the dictionary (V2-6.3), never turns up in it later, and carries no schedule. It
 can still be flipped, paged and marked — the mark is what card two is teaching — and the mark simply
 goes nowhere. Its `category` reads `guide`, so nobody mistakes one for something they are meant to know.
+
+**V2-15.5a** The guide wraps on its own while it is in progress, and does not admit a deck card until the
+reader has completed it (V2-3.5's two-ring behaviour). Swiping right on the very first guide card, before
+the reader has touched anything else, is the one gesture the guide cannot afford to answer with real
+material: the whole point is a controlled first look, and a deck card appearing there — before the guide
+has said a word — teaches nothing and is indistinguishable, to that reader, from the guide simply not
+covering what just happened. Paging into the deck and back out again does not count as completing it: the
+guide only hands over on being paged past forward, and once it has, there is no gesture that returns to
+it — it has done its job for this session.
 
 **V2-15.6** Whether the guide has been dealt is one flag in storage, `flashcards.hints`, written as it
 is dealt rather than when it is finished: a reader who reloads part-way through has met the guide, and

@@ -205,6 +205,39 @@ describe("openDeck", () => {
       expect(marks()).toBe("is-easier");
     });
 
+    /* Swiping right (previous) on the very first guide card used to wrap the
+       whole lead-plus-deck sequence as one ring, landing on the deck's own
+       last card — real material shown before the guide had said anything, on
+       the reader's very first gesture. */
+    it("does not leak a deck card to a reader who swipes right on the first guide card", () => {
+      open();
+
+      press("ArrowLeft"); // previous, on the first card of the guide
+      expect(front()).toBe("That is all of it."); // wraps within the guide, to its own last card
+    });
+
+    it("keeps wrapping within the guide while it is still in progress, however far back the reader goes", () => {
+      open();
+
+      press("ArrowRight"); // into guide card 2
+      press("ArrowLeft"); // back to guide card 1: visited, not completed
+      press("ArrowLeft"); // still guide-only
+
+      expect(front()).toBe("That is all of it.");
+    });
+
+    /* Once the reader has completed the guide going forward, it is retired for
+       the session: paging back from the deck's first card must not return to it. */
+    it("does not go back to the guide once the deck has taken over", () => {
+      open();
+
+      for (let i = 0; i < 4; i += 1) press("ArrowRight"); // completes the guide
+      expect(front()).toBe("eins");
+
+      press("ArrowLeft"); // wraps within the deck, not back into the guide
+      expect(front()).toBe("drei");
+    });
+
     it("does not lead the next session", () => {
       open();
       mounted.splice(0).forEach((deck) => deck.destroy());
