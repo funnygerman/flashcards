@@ -165,7 +165,7 @@ describe("openDeck", () => {
       expect(details()).toMatch(/press Space/i);
 
       press("ArrowRight");
-      expect(front()).toBe("That is how you move.");
+      expect(front()).toBe("Swipe up if you knew it.");
     });
 
     it("hands over to the reader's own cards at the end of it", () => {

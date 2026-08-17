@@ -241,23 +241,29 @@ graded at all, and for that reader the row of stars is never explained either.
 So a first session is led by four cards, which teach the deck by being one:
 
 ```text
-   Tap this card              →   You turned it over.
-   or press Space                 Swipe left for the next one — or press →
+   Tap this card                       →   You see the answer.
+   or press Space                          Swipe left for the next one — or press →
 
-   That is how you move.      →   Swipe up if you knew it.
-   Tap                            Down if you did not. Try it on this card —
-                                  the edge you swipe towards marks it.
+   Swipe up if you knew it.            →   Swipe down if you didn't know it.
+   Tap this card                           Swipe left for the next one — or press →
 
-   That mark is your answer.  →   Stars are days you got it right.
-   Tap                            One wrong answer clears them all.
+   Stars are days you got it right.    →   Wrong answer clears them all.
+   Tap this card                           Swipe left for the next one — or press →
 
-   That is all of it.         →   Swipe left to start.
-   Tap                            These four cards are not part of your deck.
+   That is all of it.                  →   These cards are not part of your deck.
+   Tap this card                           Swipe left to start learning
 ```
 
 Each card asks for the gesture it is teaching, and its other side is your own gesture answering: tap it
-and the back says you turned it over; swipe up where it says to and the mark appears on the edge it just
-named. Nobody is told what *would* happen — they do it, and the deck agrees with them.
+and the back is the answer; swipe up where it says to and the mark appears on the edge it just named.
+Nobody is told what *would* happen — they do it, and the deck agrees with them. Every front ends "tap
+this card" and every back "swipe left for the next one", on purpose: four cards is four turns of the
+same two gestures, and card two splits the grades across its faces so both get performed.
+
+Every line is short on purpose. Card text is sized for a word rather than a sentence, so a line that
+runs to three of them on a phone is a line nobody reads. Nothing explains the grade mark in words for
+that reason — dragging fills the edge you are pulling towards while your finger is still down, which
+says it without spending a line.
 
 An overlay of the same four instructions was built first and thrown out. An overlay is a second
 interface, in a register nothing else here uses: something to read, then dismiss, then act on. Cards

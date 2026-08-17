@@ -57,10 +57,22 @@ export const HINTS_KEY = "flashcards.hints";
  * that: a lid over the app, in a register the rest of the design does not use.
  * These four are the app. Each one asks for the gesture it is teaching, and its
  * other side is the reader's own gesture answering: tap this card, and the back
- * says you turned it over; swipe up, and the mark appears where the card said it
- * would. The reader is never told what would happen — they do it, and the deck
+ * is the answer; swipe up where it says to, and the mark appears on the edge it
+ * named. The reader is never told what would happen — they do it, and the deck
  * agrees with them. Learning the deck and using the deck become the same act,
  * and the guide costs the interface nothing, because it *is* the interface.
+ *
+ * Every front ends "tap this card" and every back "swipe left for the next
+ * one", which is repetition on purpose: four cards is four turns of the same
+ * two gestures, and a reader who starts reading at card three still knows how
+ * to go on. Card two splits the two grades across its faces — up on the front,
+ * down on the back — so both are performed rather than read about.
+ *
+ * Every line is short on purpose too. Card text is sized for a word, not a
+ * sentence (V2-7.7), so a line that runs to three of them on a phone is a line
+ * that will not be read. Nothing here explains the mark in words for that
+ * reason: a drag fills the edge it is going towards while the finger is still
+ * down (V2-4.10), which says it without spending a line.
  *
  * No `key` on any of them, which is what keeps them out of everything a card
  * normally touches: they are not written to the dictionary (V2-6.3), never
@@ -72,29 +84,29 @@ const GUIDE = [
     category: "guide",
     frontText: "Tap this card",
     frontDetails: "or press Space",
-    backText: "You turned it over.",
+    backText: "You see the answer.",
     backDetails: "Swipe left for the next one \u2014 or press \u2192",
   },
   {
     category: "guide",
-    frontText: "That is how you move.",
-    frontDetails: "Tap",
-    backText: "Swipe up if you knew it.",
-    backDetails: "Down if you did not. Try it on this card \u2014 the edge you swipe towards marks it.",
+    frontText: "Swipe up if you knew it.",
+    frontDetails: "Tap this card",
+    backText: "Swipe down if you didn't know it.",
+    backDetails: "Swipe left for the next one \u2014 or press \u2192",
   },
   {
     category: "guide",
-    frontText: "That mark is your answer.",
-    frontDetails: "Tap",
-    backText: "Stars are days you got it right.",
-    backDetails: "One wrong answer clears them all.",
+    frontText: "Stars are days you got it right.",
+    frontDetails: "Tap this card",
+    backText: "Wrong answer clears them all.",
+    backDetails: "Swipe left for the next one \u2014 or press \u2192",
   },
   {
     category: "guide",
     frontText: "That is all of it.",
-    frontDetails: "Tap",
-    backText: "Swipe left to start.",
-    backDetails: "These four cards are not part of your deck.",
+    frontDetails: "Tap this card",
+    backText: "These cards are not part of your deck.",
+    backDetails: "Swipe left to start learning",
   },
 ];
 
