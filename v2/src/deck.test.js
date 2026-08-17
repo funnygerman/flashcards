@@ -226,6 +226,29 @@ describe("openDeck", () => {
       expect(front()).toBe("That is all of it.");
     });
 
+    /* Reaching the guide's last card by wrapping backward from the first is
+       not completion: only cards 1 and 4 have actually been shown, 2 and 3
+       never appeared. Forward from there must not read as "the whole guide
+       was seen" just because the cursor happens to sit on the last one. */
+    it("does not complete the guide from a card reached by wrapping backward past it", () => {
+      open();
+
+      press("ArrowLeft"); // guide card 1 -> wraps to guide card 4
+      press("ArrowRight"); // forward from there
+
+      expect(front()).toBe("Tap this card"); // back to guide card 1, not the deck
+    });
+
+    it("completes normally once every guide card has actually been shown, shortcut attempt notwithstanding", () => {
+      open();
+
+      press("ArrowLeft"); // shortcut attempt: guide 1 -> guide 4
+      press("ArrowRight"); // refused, back to guide 1
+
+      for (let i = 0; i < 4; i += 1) press("ArrowRight"); // a genuine forward walk
+      expect(front()).toBe("eins");
+    });
+
     /* Once the reader has completed the guide going forward, it is retired for
        the session: paging back from the deck's first card must not return to it. */
     it("does not go back to the guide once the deck has taken over", () => {

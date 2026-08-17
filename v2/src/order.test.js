@@ -104,6 +104,57 @@ describe("createOrder with a lead", () => {
     expect(cards).toContain(order.current());
     expect(order.size).toBe(cards.length);
   });
+
+  /* Being on the last lead card is not by itself completion — it can be
+     reached by wrapping backward from the first one, without the cards in
+     between ever appearing on screen. A two-card lead can't show this: with
+     only a first and a last, wrapping backward from the first *is* showing
+     the whole lead. A longer one is needed to leave something out. */
+  describe("completion requires having actually seen every lead card", () => {
+    const longLead = [{ id: "g1" }, { id: "g2" }, { id: "g3" }, { id: "g4" }];
+
+    it("does not complete on a forward step off a card reached by wrapping backward", () => {
+      const order = createOrder(cards, () => 0, longLead);
+
+      order.previous(); /* g1 -> wraps to g4, having shown only g1 and g4 */
+      expect(order.current()).toBe(longLead[3]);
+
+      /* g2 and g3 were never on screen, so this is a plain wrap — back to
+         g1 — not a hand-off to the deck. */
+      expect(order.next()).toBe(longLead[0]);
+    });
+
+    it("still refuses to complete after wrapping back and forth a second time", () => {
+      const order = createOrder(cards, () => 0, longLead);
+
+      order.previous(); /* g4 */
+      order.next(); /* g1, per the test above */
+      order.previous(); /* g4 again */
+
+      expect(order.next()).toBe(longLead[0]); /* still just a wrap */
+    });
+
+    it("completes once a genuine forward walk has shown every card, even after an earlier shortcut attempt", () => {
+      const order = createOrder(cards, () => 0.999, longLead);
+
+      order.previous(); /* g4, shortcut attempt */
+      order.next(); /* back to g1, refused */
+
+      order.next(); /* g1 -> g2 */
+      order.next(); /* g2 -> g3 */
+      order.next(); /* g3 -> g4, now every card has been shown */
+      expect(cards).toContain(order.next()); /* g4 -> the deck, for real this time */
+    });
+
+    it("completes normally when the lead is walked forward without any shortcut", () => {
+      const order = createOrder(cards, () => 0.999, longLead);
+
+      order.next();
+      order.next();
+      order.next();
+      expect(cards).toContain(order.next());
+    });
+  });
 });
 
 describe("createOrder", () => {

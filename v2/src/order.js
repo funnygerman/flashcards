@@ -41,7 +41,17 @@ export function shuffle(items, random = Math.random) {
  * reach another lead card.
  *
  * The lead ring is left for the deck ring, permanently, the moment the reader
- * pages forward off its last card — completing it, not merely visiting it.
+ * pages forward off its last card *having actually seen every card in it* —
+ * completing it, not merely visiting it. Being on the last card is not by
+ * itself enough: `previous` from the first card wraps to the last one
+ * directly (the two rings' own boundary is a wrap too), and forward from
+ * there would otherwise satisfy "on the last card, going forward" after
+ * showing only the first and the last of however many the lead holds — a
+ * shortcut past the very thing a guide exists to do. So every lead card that
+ * has actually been shown is tracked, and the forward step off the last one
+ * only hands over once none are missing; short of that it is a plain wrap,
+ * same as any other step, landing back on the first card.
+ *
  * `previous` inside the lead wraps within the lead on its own, however many
  * times it is pressed, and once the deck ring is current there is no path
  * back to the lead: it has done its job for this mount and does not return
@@ -53,17 +63,25 @@ export function createOrder(cards, random = Math.random, lead = []) {
   let ring = lead.length > 0 ? lead : deck;
   let index = 0;
 
+  /* Every lead index the reader has actually had on screen. Seeded with the
+     first card, which is on screen from the moment this is called and before
+     any step is taken. Left to grow stale once the deck takes over — nothing
+     reads it again after that, the lead having done its one job. */
+  const seen = new Set(ring === lead ? [0] : []);
+
   const step = (delta) => {
-    /* Forward off the lead's last card is the one move that changes rings
-       rather than wrapping within one — every other step, in either
-       direction, is a plain wrapping cursor over whichever ring is current. */
-    if (delta > 0 && ring === lead && index === ring.length - 1) {
+    /* Forward off the lead's last card, having shown every one of them, is
+       the one move that changes rings rather than wrapping within one —
+       every other step, in either direction, is a plain wrapping cursor over
+       whichever ring is current. */
+    if (delta > 0 && ring === lead && index === ring.length - 1 && seen.size === ring.length) {
       ring = deck;
       index = 0;
       return ring[index];
     }
 
     index = (index + delta + ring.length) % ring.length;
+    if (ring === lead) seen.add(index);
     return ring[index];
   };
 
