@@ -137,6 +137,87 @@ html:has(> body > .fc) body {
   }
 }
 
+/* The first-run legend: the gestures, over the card, on a reader's first
+   session only (see deck.js). Above everything else on the page, including the
+   corner link, because for those few seconds it *is* the page.
+
+   pointer-events: none is what keeps it from being a dialog: the tap that
+   dismisses it lands on the card underneath and flips it, so the reader's first
+   interaction is a real one rather than a lid they had to lift first. Every
+   colour is written out rather than taken from --fc-*, as with the corner and
+   the message: those tokens are declared on .fc, and this is a sibling.
+
+   Sized in rem for the same reason the message is: it is not on the card, and
+   a legend that scaled with the card would be at its smallest exactly where the
+   card is smallest and the reader most likely to be new to it. */
+.fc-legend {
+  position: fixed;
+  z-index: 3;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 1.5rem;
+  padding: 1.5rem;
+
+  /* Nearly opaque, not half. The card behind stays a faint ghost — enough to
+     say "this is about that", not enough to compete: at 90 % the card's own
+     word is still dark enough to read straight through the legend's lines,
+     which makes both of them harder to read than either alone. */
+  background: rgb(255 255 255 / 96%);
+  color: #111;
+  font-family: system-ui, sans-serif;
+  pointer-events: none;
+}
+
+/* What to do, and what it means: the gesture reads towards the fold, its
+   meaning away from it, so the two columns can be scanned as one sentence
+   each. */
+.fc-legend dl {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 0.5rem 1rem;
+  margin: 0;
+  font-size: 1.1rem;
+  line-height: 1.3;
+}
+
+.fc-legend dt {
+  text-align: end;
+}
+
+.fc-legend dd {
+  margin: 0;
+  color: #666;
+}
+
+/* The two notes belong together and only loosely to the list above them. */
+.fc-legend-notes {
+  display: grid;
+  gap: 0.35rem;
+  max-inline-size: 22rem;
+}
+
+.fc-legend p {
+  margin: 0;
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  text-align: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fc-legend {
+    background: rgb(17 17 17 / 96%);
+    color: #f2f2f2;
+  }
+
+  .fc-legend dd,
+  .fc-legend p {
+    color: #999;
+  }
+}
+
 /* A line the page says for a moment and then stops saying: why a grading
    gesture was refused, which is the one thing the card cannot show for itself
    (see deck.js). A sibling of .fc for the same reason the corner is one —
@@ -296,11 +377,11 @@ html:has(> body > .fc) body {
    is what the border grows into: its top edge comes down by the full growth
    and it loses that much height, so centred text slid down half of it and the
    absolutely-positioned category label, anchored to the padding box, slid down
-   all of it. At 292 px of card (a 390 px phone) that is 1.5 px of text drift,
-   and at the 900 px cap 5.8 px of text and 11.6 px of category — a settled
-   grade reading as something still mid-animation, right after a gesture that
-   was itself a movement. A bar is painted over the card instead of being part
-   of its box, so nothing under it moves at all.
+   all of it. Measured: 1.5 px of text on a 390 px phone, and 5.5 px of text
+   with 11 px of category at the 900 px cap — a settled grade reading as
+   something still mid-animation, right after a gesture that was itself a
+   movement. A bar is painted over the card instead of being part of its box,
+   so nothing under it moves at all.
 
    Inset by the 1 px border on all three sides it touches, so the bar covers
    the corners the way the thickened border's mitre did and the card keeps one

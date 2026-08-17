@@ -15,7 +15,7 @@
  * So a deck file holds its cards and one call, and this holds the wiring.
  */
 
-import { BOX_COUNT, gradedToday, recordGrade, reviewState } from "./review.js";
+import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
 import { mount } from "./flashcards.js";
@@ -36,6 +36,31 @@ const SETTLED = "Already rated today — a card counts once a day";
 
 /** Where the reader last was, so the dictionary knows what "back" means. */
 export const DECK_KEY = "flashcards.deck";
+
+/** Whether the reader has been shown the gestures. One flag, nothing else. */
+export const HINTS_KEY = "flashcards.hints";
+
+/**
+ * What a first session says, before the reader has touched anything.
+ *
+ * Nothing on a card with no chrome on it advertises that swiping exists: a
+ * reader can tap, read the back, tap again and page with the arrows for ever
+ * without discovering grading at all — and for that reader the row of stars
+ * never gets explained either, which invites reading the whole card as a
+ * vertical feed whose row counts views. The gestures cannot be inferred. They
+ * have to be said, once.
+ */
+const LEGEND = [
+  ["Tap the card", "see the answer"],
+  ["Swipe up", "you knew it"],
+  ["Swipe down", "you did not"],
+  ["Swipe left or right", "another card"],
+];
+
+const LEGEND_NOTES = ["The stars show how well you know a card.", "Arrow keys do the same. Press ? for this again."];
+
+/** The key that brings the legend back — see V2-15.6, and the README. */
+const REPLAY_KEY = "?";
 
 /**
  * The deck the reader last opened, as `{ href, label }`, or null.
@@ -156,6 +181,118 @@ function createMessages(element) {
 }
 
 /**
+ * The legend itself: the gestures, as a list of what to do and what it means.
+ *
+ * Over the card and dimming the page, rather than tucked beside it. The quiet,
+ * out-of-the-way register is precisely the one that has already failed to
+ * communicate here — twice, counting the text hints on the card faces that
+ * V2-12.4 records as tried and reverted. This is shown once in a reader's life
+ * and leaves on their first touch, so it can afford to be unmissable in a way
+ * nothing permanent could.
+ *
+ * It takes no pointer events, so the tap that dismisses it is also the tap that
+ * flips the card: the reader's first interaction is a real one, not a dialog
+ * they had to get past first.
+ */
+function createLegend() {
+  const overlay = document.createElement("div");
+  const rows = document.createElement("dl");
+
+  overlay.className = "fc-legend";
+
+  for (const [gesture, meaning] of LEGEND) {
+    const term = document.createElement("dt");
+    const definition = document.createElement("dd");
+
+    term.textContent = gesture;
+    definition.textContent = meaning;
+    rows.append(term, definition);
+  }
+
+  const notes = document.createElement("div");
+  notes.className = "fc-legend-notes";
+
+  for (const text of LEGEND_NOTES) {
+    const note = document.createElement("p");
+
+    note.textContent = text;
+    notes.append(note);
+  }
+
+  overlay.append(rows, notes);
+  return overlay;
+}
+
+/**
+ * The legend's comings and goings.
+ *
+ * Shown on a reader's first session, dismissed by their first interaction of
+ * any kind, and then never again — one flag in storage says so. `?` brings it
+ * back at any time, which is v2's whole answer to "a help view": a way back for
+ * a reader who dismissed it before reading it, at the cost of no pixels on the
+ * page. It is not a discoverable control and is not meant to be one; the README
+ * is where it is written down.
+ *
+ * A reader who already has a schedule is not a first-timer, whatever the flag
+ * says — the flag was added after they started using v2, and being told to tap
+ * the card after a month of tapping it is not guidance. Unusable storage shows
+ * the legend again, the harmless direction to fail in (V2-6.4): a reader who
+ * cannot keep a flag cannot keep a schedule either.
+ */
+function createHints(element, storage) {
+  const store = () => storage ?? pageStorage();
+  const seen = () => readMap(store(), HINTS_KEY).legend === true || Object.keys(readMap(store(), REVIEW_KEY)).length > 0;
+
+  let overlay = null;
+
+  const hide = () => {
+    overlay?.remove();
+    overlay = null;
+  };
+
+  /* Dismissed by whatever the reader does first, rather than by a control of
+     its own: the legend is asking them to touch the card, so the touch that
+     answers it is also what puts it away. Capture, so it is seen even where
+     something else stops the event travelling; keydown and pointerdown, so
+     neither input source is left without a way out. */
+  const dismiss = (event) => {
+    if (!overlay || event.key === REPLAY_KEY) return; /* the key that shows it does not also hide it */
+
+    hide();
+    writeMap(store(), HINTS_KEY, { legend: true });
+  };
+
+  const show = () => {
+    if (overlay) return;
+
+    overlay = createLegend();
+    element.append(overlay);
+  };
+
+  const replay = (event) => {
+    if (event.key === REPLAY_KEY) show();
+  };
+
+  const bound = [
+    ["keydown", dismiss],
+    ["pointerdown", dismiss],
+  ];
+
+  for (const [type, handler] of bound) document.addEventListener(type, handler, true);
+  document.addEventListener("keydown", replay);
+
+  if (!seen()) show();
+
+  return {
+    destroy() {
+      for (const [type, handler] of bound) document.removeEventListener(type, handler, true);
+      document.removeEventListener("keydown", replay);
+      hide();
+    },
+  };
+}
+
+/**
  * Open a deck that keeps a schedule. Returns the library's handle.
  *
  * `cards` is the deck's own; a page that brings none studies the whole
@@ -217,6 +354,11 @@ export function openDeck(cards, options = {}) {
      where storage is unusable it would lead to a page that cannot render.
      Added after mounting rather than hidden in the markup, so it is never in
      the document at a moment when it should not be seen. */
+  /* After mounting, like the corner: there is no legend for a page that threw
+     rather than rendering a card, and the overlay belongs over a card that is
+     already there. */
+  const hints = createHints(element, storage);
+
   const link = corner && holdsMoreThan(cards, storage) ? createCorner(corner, own) : null;
   if (link) element.append(link);
 
@@ -227,6 +369,7 @@ export function openDeck(cards, options = {}) {
     destroy() {
       deck.destroy();
       messages.destroy();
+      hints.destroy();
       link?.remove();
     },
   };

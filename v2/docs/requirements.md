@@ -160,8 +160,8 @@ down).
 The mark changes nothing about the card's layout. It was the card's own border thickening at first,
 which moved the card's contents: `box-sizing: border-box` holds the outer box still, but the border
 grows into the content box, so centred text slid down half the growth and the category label — anchored
-to the padding box — slid down all of it (1.5 px of text on a phone, 5.8 px of text and 11.6 px of
-category at the 900 px cap). A settled grade that shifts the card reads as an animation still in
+to the padding box — slid down all of it: measured, 1.5 px of text on a 390 px phone, and 5.5 px of text
+with 11 px of category at the 900 px cap. A settled grade that shifts the card reads as an animation still in
 progress rather than as a state, which is exactly the wrong thing to say immediately after a gesture
 that was itself a movement. A bar is painted over the card rather than being part of its box.
 
@@ -236,9 +236,9 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 
 **V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
 is absent unless there is somewhere to go (V2-13.9) — and what §15 says for a moment and then stops
-saying. No header, no footer, no chrome, no controls. Nothing permanent is added: §15's element is in
-the document only while it has something to say. The exception is navigation, not information: a deck
-and the dictionary
+saying. No header, no footer, no chrome, no controls. Nothing permanent is added: §15's elements are in
+the document only while they have something to say, and one of the two never returns after a reader's
+first session. The exception is navigation, not information: a deck and the dictionary
 are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
 them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
 page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
@@ -323,7 +323,10 @@ category filters. §13 studies the whole dictionary as a deck, which is a differ
 make this one built: there is still no way to look at the collection rather than work through it.
 
 **V2-10.3** Position indicators, a title screen, an info panel, and any configuration of the sizing
-ratios or the type scale.
+ratios or the type scale. §15's first-run legend is not the title screen or the info panel this
+excludes: there is nothing to dismiss before studying — the tap that puts it away is the tap that flips
+the first card — it is shown once in a reader's life rather than on every visit, and there is no control
+anywhere on the page that opens it.
 
 **V2-10.4** Text that shrinks to fit its card. Card size is independent of text length (V2-7.8), so a
 card with far more text than the design assumes fills its card and may run under the category label.
@@ -615,8 +618,9 @@ being relaxed wherever it happens to be safe.
 **V2-15.1** The card shows its own result for every interaction that has one: it flips, it pages, it
 takes a mark, the row of stars changes. Where a reader's action has no visible result at all, the page
 says so in words instead. This is the whole of what §15 covers, and the reason V2-7.1 admits it: an
-interface with no chrome depends absolutely on every action being answered, and where v2 was silent a
-reader concluded that nothing was there.
+interface with no chrome depends absolutely on every action being answered, and the two places v2 was
+silent were the two places a reader concluded that nothing was there: a gesture with no result, and a
+gesture nobody had mentioned.
 
 **V2-15.2** A grading gesture refused because the card is settled (V2-5.15) puts a line of text below
 the card for a few seconds: that the card has already been rated today, and that a card counts once a
@@ -629,13 +633,47 @@ longer the reader's to change, and nothing about days or schedules (V2-5.9, V2-1
 region (V2-10.5), it takes no pointer events — a tap on the words is a tap on the card underneath, where
 the reader aimed it — and there is no element in the document until something needs saying.
 
-**V2-15.7** It belongs to the deck page (§14), not to the library. `mount()` neither draws it nor knows
-it exists, exactly as it does not know about the corner link (V2-7.1) — a bare `mount()` is still a bare
-card. It is built element by element rather than from markup, per V2-14.5.
+**V2-15.3** A reader's first session opens with the gestures written out: tap to see the answer, swipe
+up for known, down for not known, left or right for another card, and one line saying what the row of
+stars means. It is dismissed by the reader's first interaction of any kind, whatever it is, and does not
+return.
 
-**V2-15.8** The handle `openDeck()` returns takes it back down, along with the corner link, as well as
-everything `mount()`'s own `destroy()` removes (V2-3.7). Page furniture is no more the caller's to
-remember than the deck's own listeners are.
+Nothing on the card advertises that swiping exists. A reader who taps, reads the back, taps again and
+pages with the arrows can use v2 indefinitely without discovering grading at all — and for that reader
+the row of stars is permanently unexplained, which invites reading the card as a vertical feed whose row
+counts views. The gestures cannot be inferred from a card with no chrome on it; they have to be said
+once. Saying what the stars are in the same breath is what answers the second reading, rather than the
+row being redrawn again (V2-12.9).
+
+**V2-15.4** It is shown over the card and dims the page behind it, rather than sitting beside the card.
+The quiet, out-of-the-way register is the one that has already failed to communicate here — twice,
+counting the text hints on the card faces that V2-12.4 records as tried and reverted. Because it is
+shown once in a reader's life and leaves on their first touch, it can afford to be unmissable in a way
+nothing permanent could.
+
+It takes no pointer events, so the tap that dismisses it is the same tap that flips the card. The
+reader's first interaction is a real one, not a lid they had to lift first — which is also what keeps
+V2-4.2's "a tap is a flip" true on the very first tap of a session.
+
+**V2-15.5** Whether it has been seen is one flag in storage, `flashcards.hints`. A reader who already
+has a review schedule (§11) is not a first-timer whatever the flag says, and is not greeted: the flag
+was added to v2 after it had readers. Unusable or absent storage shows the legend again, the harmless
+direction to fail in — V2-6.4's posture, and a reader who cannot keep a flag cannot keep a schedule
+either.
+
+**V2-15.6** `?` shows it again, at any time. That is not a discoverable control and is not meant to be
+one: it is a way back for a reader who dismissed the legend before reading it, at the cost of no pixels
+on the page, and it is written down in the README rather than on screen. It is the whole of v2's answer
+to "a help view" — there is no panel, no button, and no page.
+
+**V2-15.7** Both belong to the deck page (§14), not to the library. `mount()` neither draws them nor
+knows they exist, exactly as it does not know about the corner link (V2-7.1) — a bare `mount()` is still
+a bare card. They are built element by element rather than from markup, per V2-14.5.
+
+**V2-15.8** The handle `openDeck()` returns takes them back down, along with the corner link, as well as
+everything `mount()`'s own `destroy()` removes (V2-3.7) — including the document-level listeners the
+legend binds to dismiss itself. Page furniture is no more the caller's to remember than the deck's own
+listeners are.
 
 ---
 

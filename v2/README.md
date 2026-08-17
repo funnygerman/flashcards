@@ -215,6 +215,38 @@ else here. The element isn't in the document until something needs saying, it ta
 a tap on the words is a tap on the card underneath — and it's a live region, the one thing v2 announces,
 because it's the one thing with no visible result to announce itself.
 
+### The first session
+
+The other silence is the first one: **nothing on the card says that swiping exists**. Tap, read the
+back, tap again, page with the arrows — a reader can do that for ever and never find out that the card
+can be graded at all, and for that reader the row of stars never gets explained either. A card with no
+chrome on it cannot be inferred from. So a reader's first session opens with the gestures written out
+over the card, and one line saying what the stars are:
+
+```text
+       Tap the card   see the answer
+          Swipe up    you knew it
+        Swipe down    you did not
+ Swipe left or right  another card
+
+     The stars show how well you know a card.
+     Arrow keys do the same. Press ? for this again.
+```
+
+It goes away on the reader's first interaction, whatever that is, and doesn't come back — one flag in
+`localStorage["flashcards.hints"]` says so, and a reader who already has a schedule isn't greeted at all,
+since the flag arrived after v2 had readers. It takes no pointer events, so the tap that dismisses it is
+the tap that flips the card: a real first interaction, not a lid to lift first.
+
+It's over the card and dims the page, rather than sitting quietly beside it, because quiet is exactly
+the register that already failed here — twice, counting the gesture hints on the card faces that were
+tried and reverted as overload (§ Progress indicator). Something shown once in a reader's life and
+dismissed by their first touch can afford to be unmissable in a way nothing permanent could.
+
+**`?` brings it back**, at any time. That's the whole of v2's help view: no panel, no button, no page —
+a way back for anyone who swiped it away before reading it, costing no pixels. It isn't discoverable and
+isn't meant to be; this paragraph is where it's documented.
+
 ## Local storage
 
 Every card the reader opens is written to `localStorage["flashcards.cards"]`, keyed by `key`, and is

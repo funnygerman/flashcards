@@ -144,6 +144,76 @@ describe("openDeck", () => {
     expect(() => openDeck([], { storage: localStorage })).toThrow(/at least one card/);
   });
 
+  /* Nothing on a card with no chrome advertises that swiping exists, so a first
+     session says it once and then never again. */
+  describe("the first-run legend", () => {
+    const legend = () => document.querySelector(".fc-legend");
+    const tap = () => document.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true }));
+
+    it("shows the gestures to a reader with no history", () => {
+      open();
+
+      expect(legend()).not.toBe(null);
+      expect(legend().textContent).toMatch(/swipe up/i);
+      expect(legend().textContent).toMatch(/swipe down/i);
+    });
+
+    it("goes away on the reader's first interaction, whatever it is", () => {
+      open();
+      tap();
+
+      expect(legend()).toBe(null);
+    });
+
+    /* It takes no pointer events, so the tap that dismisses it is the same tap
+       that flips the card — a real first interaction, not a lid to lift. */
+    it("does not stand between the reader and the card", () => {
+      open();
+      expect(document.querySelector(".fc").contains(legend())).toBe(false);
+    });
+
+    it("does not come back on the next visit", () => {
+      open();
+      press("ArrowRight");
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
+
+      open();
+      expect(legend()).toBe(null);
+    });
+
+    /* The flag was added after v2 had readers. A schedule already in storage
+       says this is not somebody's first session, whatever the flag says. */
+    it("does not greet a reader who already has a schedule", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 2, dueAt: Date.now() } }));
+      open();
+
+      expect(legend()).toBe(null);
+    });
+
+    it("comes back on ?, for a reader who dismissed it too soon", () => {
+      open();
+      tap();
+      expect(legend()).toBe(null);
+
+      press("?");
+      expect(legend()).not.toBe(null);
+
+      press("ArrowRight");
+      expect(legend()).toBe(null);
+    });
+
+    it("goes away with the deck, listeners and all", () => {
+      open();
+      mounted.splice(0).forEach((deck) => deck.destroy());
+
+      expect(legend()).toBe(null);
+
+      press("?");
+      expect(legend()).toBe(null);
+    });
+  });
+
   /* The one interaction that leaves the screen unchanged says so in words,
      because the card has no way to show it: the reader swiped, the gesture
      worked, and the schedule already has today's answer. */
