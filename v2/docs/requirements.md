@@ -198,6 +198,14 @@ host answers for wears its mark from the moment it appears and is settled per V2
 per card, and never about a card this session has already seen graded. This is the seam a deck page uses
 to make a grade survive a page reload (§11); the library still stores nothing itself (V2-5.9).
 
+**V2-5.15** A grading gesture dropped because the card is settled (V2-5.13, V2-5.14) is reported to the
+host as `onRefuse(card, "settled")`. A repeat of the grade the card already carries (V2-5.4) is not
+reported: the mark on the card is already the answer to what the reader asked for, so nothing is left
+unsaid. A settled card answers with nothing at all — the gesture worked, the card heard it, and the
+screen is identical to one nobody swiped at, which is indistinguishable from the gesture not existing.
+The library reports that it happened; what to say about it is the host's (§15), because "today" is the
+schedule's idea and `mount()` has none of it.
+
 ---
 
 ## 6. Storage
@@ -227,7 +235,10 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 ## 7. Presentation
 
 **V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
-is absent unless there is somewhere to go (V2-13.9). No header, no footer, no chrome, no controls. The exception is navigation, not information: a deck and the dictionary
+is absent unless there is somewhere to go (V2-13.9) — and what §15 says for a moment and then stops
+saying. No header, no footer, no chrome, no controls. Nothing permanent is added: §15's element is in
+the document only while it has something to say. The exception is navigation, not information: a deck
+and the dictionary
 are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
 them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
 page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
@@ -318,7 +329,9 @@ ratios or the type scale.
 card with far more text than the design assumes fills its card and may run under the category label.
 
 **V2-10.5** Announcing the flip or the grade to a screen reader. The card is a passive element with no
-live region.
+live region. A refused grade (V2-15.2) is announced, and is the exception that shows the rule: the flip
+and the grade each have a visible result that speaks for itself, and a refusal is defined by having
+none.
 
 ---
 
@@ -594,6 +607,35 @@ which deck to come back to (V2-13.11). `mount()` still neither draws a link nor 
 **V2-14.5** The mark is built element by element rather than from markup. Card content is written as
 text and never parsed as HTML (V2-2.6); the rule holds for the page's own furniture too, rather than
 being relaxed wherever it happens to be safe.
+
+---
+
+## 15. Saying what the card cannot show
+
+**V2-15.1** The card shows its own result for every interaction that has one: it flips, it pages, it
+takes a mark, the row of stars changes. Where a reader's action has no visible result at all, the page
+says so in words instead. This is the whole of what §15 covers, and the reason V2-7.1 admits it: an
+interface with no chrome depends absolutely on every action being answered, and where v2 was silent a
+reader concluded that nothing was there.
+
+**V2-15.2** A grading gesture refused because the card is settled (V2-5.15) puts a line of text below
+the card for a few seconds: that the card has already been rated today, and that a card counts once a
+day. Both settled cases say the same sentence — a card graded before a page reload (V2-5.14) and one
+graded and paged away from in this session (V2-5.13) have both been rated today, since a grade given in
+this session was recorded today. One message, and true of both.
+
+The wording belongs to the deck page, not to the library: `mount()` knows only that a card's grade is no
+longer the reader's to change, and nothing about days or schedules (V2-5.9, V2-11.1). It is a live
+region (V2-10.5), it takes no pointer events — a tap on the words is a tap on the card underneath, where
+the reader aimed it — and there is no element in the document until something needs saying.
+
+**V2-15.7** It belongs to the deck page (§14), not to the library. `mount()` neither draws it nor knows
+it exists, exactly as it does not know about the corner link (V2-7.1) — a bare `mount()` is still a bare
+card. It is built element by element rather than from markup, per V2-14.5.
+
+**V2-15.8** The handle `openDeck()` returns takes it back down, along with the corner link, as well as
+everything `mount()`'s own `destroy()` removes (V2-3.7). Page furniture is no more the caller's to
+remember than the deck's own listeners are.
 
 ---
 

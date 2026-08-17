@@ -16,7 +16,11 @@ import { createView } from "./view.js";
 /**
  * @param element   where the deck is rendered
  * @param cards     the deck, shown in a random order
- * @param options   `storage` and `random` are injectable for tests; `onGrade`
+ * @param options   `storage` and `random` are injectable for tests; `onRefuse`
+ *                  receives (card, "settled") when a grading gesture is
+ *                  dropped because the card's grade is no longer the reader's
+ *                  to change — the one case where the reader has done
+ *                  something and the card can say nothing back; `onGrade`
  *                  receives (card, "harder" | "easier" | "neutral") — "neutral"
  *                  for a card the reader paged past without grading, so a
  *                  forgotten card is not silently skipped by whatever is
@@ -30,7 +34,7 @@ import { createView } from "./view.js";
  *                  a card arrives wearing its mark and settled: see `locked`.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, progress, gradeOf } = options;
+  const { storage, random = Math.random, onGrade, onRefuse, progress, gradeOf } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -109,10 +113,24 @@ export function mount(element, cards, options = {}) {
   /* Repeating the grade a card already carries says nothing new and is
      dropped, and a card the reader has already left is settled (see `locked`).
      Otherwise grading the other way is a change of mind, and counts —
-     including changing back to one it carried earlier this visit. */
+     including changing back to one it carried earlier this visit.
+
+     The two silences are not the same silence, which is why only one of them
+     is reported. A repeat is answered by the mark already on the card: the
+     reader asked for exactly what they are looking at. A settled card answers
+     with nothing at all — the gesture worked, the card heard it, and the screen
+     is identical to one where nobody swiped, which is indistinguishable from
+     the gesture not existing at all. What to say about that is the host's
+     business (see deck.js); that it happened is this module's. */
   const grade = (level) => {
     const card = deck.current();
-    if (locked.has(card) || grades.get(card) === level) return null;
+
+    if (locked.has(card)) {
+      onRefuse?.(card, "settled");
+      return null;
+    }
+
+    if (grades.get(card) === level) return null;
 
     grades.set(card, level);
     view.mark(level);

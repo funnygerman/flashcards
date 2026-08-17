@@ -137,6 +137,44 @@ html:has(> body > .fc) body {
   }
 }
 
+/* A line the page says for a moment and then stops saying: why a grading
+   gesture was refused, which is the one thing the card cannot show for itself
+   (see deck.js). A sibling of .fc for the same reason the corner is one —
+   inside it, a tap on the words would be read as a tap on the card — and it
+   never takes a gesture in any case: pointer-events: none puts every tap on
+   the card underneath, where the reader aimed it.
+
+   Sized in rem rather than as a fraction of the card, unlike everything on the
+   card itself: this is not on the card, and it should read the same on a phone
+   in landscape — where the gap below the card is thinnest — as anywhere else.
+   Its colours are written out rather than taken from --fc-muted, because those
+   tokens are declared on .fc and a sibling does not inherit them. */
+.fc-message {
+  position: fixed;
+  z-index: 2;
+  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
+  inset-inline: 0;
+  margin: 0;
+  padding-inline: 1rem;
+  color: #666;
+  font-family: system-ui, sans-serif;
+  font-size: 0.8rem;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+
+.fc-message.is-shown {
+  opacity: 1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fc-message {
+    color: #999;
+  }
+}
+
 /* The progress row: stars, filled left to right along the card's bottom
    edge, centred. Bottom rather than beside the centred text: a 4:3 card has
    far more spare width around a short word than spare height, so a row here
@@ -319,7 +357,8 @@ html:has(> body > .fc) body {
 @media (prefers-reduced-motion: reduce) {
   .fc-card,
   .fc-face::before,
-  .fc-face::after {
+  .fc-face::after,
+  .fc-message {
     transition: none;
   }
 }

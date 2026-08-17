@@ -23,6 +23,17 @@ import { pageStorage, readMap, writeMap } from "./storage.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
+/** How long a transient line stays up: long enough to read twice. */
+const MESSAGE_MS = 2400;
+
+/**
+ * What a refused gesture says. The library reports that it refused and why
+ * (`onRefuse`, V2-5.15); the wording is this layer's, because "today" is the
+ * schedule's idea and mount() has none — it knows only that this card's grade
+ * is no longer the reader's to change.
+ */
+const SETTLED = "Already rated today — a card counts once a day";
+
 /** Where the reader last was, so the dictionary knows what "back" means. */
 export const DECK_KEY = "flashcards.deck";
 
@@ -98,6 +109,53 @@ function createCorner({ href, label }, stacked) {
 }
 
 /**
+ * A line of text that appears for a moment and then leaves again.
+ *
+ * The page is otherwise the card and nothing else (V2-7.1), and this does not
+ * change that: there is no element in the document until something needs
+ * saying, and none of the reader's attention is spent on it before then — the
+ * same posture the corner takes towards a link that leads nowhere.
+ *
+ * It exists because a refused gesture is the one thing the card cannot answer
+ * for itself. Every other interaction shows its own result: the card flips,
+ * pages, or takes a mark. A grade the schedule will not accept leaves the
+ * screen exactly as it was, so a reader who has just discovered the swipe is
+ * shown the same nothing as a reader who never swiped — and concludes the same
+ * thing from it.
+ *
+ * A live region rather than decoration, because it says something the reader
+ * cannot see anywhere else. V2-10.5 leaves the flip and the grade unannounced:
+ * both have a visible result that speaks for itself, which is exactly what
+ * this one lacks.
+ */
+function createMessages(element) {
+  let node = null;
+  let timer = null;
+
+  const say = (text) => {
+    if (!node) {
+      node = document.createElement("p");
+      node.className = "fc-message";
+      node.setAttribute("role", "status");
+      element.append(node);
+    }
+
+    node.textContent = text;
+    node.classList.add("is-shown");
+
+    clearTimeout(timer);
+    timer = setTimeout(() => node.classList.remove("is-shown"), MESSAGE_MS);
+  };
+
+  const destroy = () => {
+    clearTimeout(timer);
+    node?.remove();
+  };
+
+  return { say, destroy };
+}
+
+/**
  * Open a deck that keeps a schedule. Returns the library's handle.
  *
  * `cards` is the deck's own; a page that brings none studies the whole
@@ -124,6 +182,8 @@ export function openDeck(cards, options = {}) {
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
 
+  const messages = createMessages(element);
+
   /* A deck studies all of its own cards; the dictionary studies what is due
      out of everything (V2-13.4). The same fact decides both — whether this page
      brought cards of its own. */
@@ -132,6 +192,15 @@ export function openDeck(cards, options = {}) {
     random,
     onGrade: (card, level) => recordGrade(card.key, level, storage, now),
     gradeOf: (card) => gradedToday(card.key, storage, now),
+
+    /* Both settled cases are the same fact from the reader's side and get the
+       same sentence: a card graded before a page reload (gradeOf, V2-5.14) and
+       one graded and paged away from in this session (V2-5.13) have both been
+       rated today, since a grade in this session was recorded today by the line
+       above. One message, and true in both. */
+    onRefuse: (card, reason) => {
+      if (reason === "settled") messages.say(SETTLED);
+    },
 
     /* The box is the count outright, so box 0 fills no marks — what a card
        the reader has never got right should look like (V2-12.10) — and the row
@@ -148,7 +217,17 @@ export function openDeck(cards, options = {}) {
      where storage is unusable it would lead to a page that cannot render.
      Added after mounting rather than hidden in the markup, so it is never in
      the document at a moment when it should not be seen. */
-  if (corner && holdsMoreThan(cards, storage)) element.append(createCorner(corner, own));
+  const link = corner && holdsMoreThan(cards, storage) ? createCorner(corner, own) : null;
+  if (link) element.append(link);
 
-  return deck;
+  /* The library's handle takes back everything this page added as well as
+     everything mount() did (V2-3.7): the furniture assembled here is no more
+     the caller's to remember than the deck's own listeners are. */
+  return {
+    destroy() {
+      deck.destroy();
+      messages.destroy();
+      link?.remove();
+    },
+  };
 }

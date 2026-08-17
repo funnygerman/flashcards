@@ -144,6 +144,63 @@ describe("openDeck", () => {
     expect(() => openDeck([], { storage: localStorage })).toThrow(/at least one card/);
   });
 
+  /* The one interaction that leaves the screen unchanged says so in words,
+     because the card has no way to show it: the reader swiped, the gesture
+     worked, and the schedule already has today's answer. */
+  describe("a refused grade", () => {
+    const message = () => document.querySelector(".fc-message");
+
+    it("says nothing until there is something to say", () => {
+      open();
+      press("ArrowUp");
+
+      expect(message()).toBe(null);
+    });
+
+    it("explains itself when today's grade is already given", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+      open();
+
+      press("ArrowDown");
+
+      expect(message().textContent).toMatch(/already rated today/i);
+      expect(message().classList.contains("is-shown")).toBe(true);
+    });
+
+    it("says the same thing about a card graded and left in this session", () => {
+      open();
+
+      press("ArrowUp"); // card a
+      press("ArrowRight"); // leaving settles it
+      press("ArrowLeft"); // back to card a
+      press("ArrowDown");
+
+      expect(message().textContent).toMatch(/already rated today/i);
+    });
+
+    it("stays out of the deck, so the words are not a tap on the card", () => {
+      open();
+      press("ArrowUp");
+      press("ArrowRight");
+      press("ArrowLeft");
+      press("ArrowDown");
+
+      expect(document.querySelector(".fc").contains(message())).toBe(false);
+    });
+
+    it("goes away with the deck", () => {
+      open();
+      press("ArrowUp");
+      press("ArrowRight");
+      press("ArrowLeft");
+      press("ArrowDown");
+      expect(message()).not.toBe(null);
+
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      expect(message()).toBe(null);
+    });
+  });
+
   describe("the way out", () => {
     const to = { corner: { href: "../dictionary.html", label: "Everything you have seen" } };
 

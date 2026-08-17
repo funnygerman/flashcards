@@ -377,6 +377,56 @@ describe("mount", () => {
     ]);
   });
 
+  /* A settled card is the one interaction with no visible result: the gesture
+     is dropped and the screen is exactly as it was, which is what a reader who
+     has not discovered the swipe also sees. The host is told, so it can say so
+     (deck.js does); the library only reports that it happened. */
+  it("reports a grading gesture refused because the card is settled", () => {
+    const refused = [];
+    open({ onRefuse: (card, reason) => refused.push([card.key, reason]) });
+
+    press("ArrowUp"); // card a: easier, and it counts
+    press("ArrowRight"); // leaving settles it
+    press("ArrowLeft"); // back to card a
+
+    press("ArrowDown");
+    press("ArrowUp");
+
+    expect(refused).toEqual([
+      ["a", "settled"],
+      ["a", "settled"],
+    ]);
+  });
+
+  it("reports a card the host handed over already graded as settled too", () => {
+    const refused = [];
+    open({ gradeOf: () => "harder", onRefuse: (card, reason) => refused.push([card.key, reason]) });
+
+    press("ArrowUp");
+    expect(refused).toEqual([["a", "settled"]]);
+  });
+
+  /* Repeating the grade a card already carries is a different silence: the
+     mark on the card is already the answer to what the reader just asked for,
+     so there is nothing left unsaid and nothing to report. */
+  it("does not report a repeated grade as a refusal", () => {
+    const refused = [];
+    open({ onRefuse: (card, reason) => refused.push([card.key, reason]) });
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(refused).toEqual([]);
+  });
+
+  it("refuses a settled card without an onRefuse callback", () => {
+    open({ gradeOf: () => "easier" });
+
+    expect(() => press("ArrowDown")).not.toThrow();
+    expect(document.querySelector(".fc-card").className).toContain("is-easier");
+  });
+
   it("grades without an onGrade callback", () => {
     open();
 

@@ -69,6 +69,7 @@ Returns `{ destroy() }`. Options:
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
+| `onRefuse(card, reason)` | a grading gesture was dropped because the card is settled (`"settled"`), so the host can say why nothing happened — see § Saying what the card cannot show |
 | `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives marked and settled (§ Interactions) |
 | `progress` | `{ steps, of(card) }` — draws a row of `steps` stars along the card's bottom edge, the first `of(card)` of them filled; omit it for a bare card |
 | `storage` | where cards are remembered; defaults to `localStorage` |
@@ -193,6 +194,26 @@ long enough to wrap across most of the card.
 This isn't the position-in-deck indicator v2 deliberately doesn't have; it says how well the reader knows
 *this* card, not where they are in the session. It's designed to be reused by a future dictionary-view
 row, not just this single-card view, which is why it stayed generic rather than Leitner-shaped.
+
+## Saying what the card cannot show
+
+Every interaction shows its own result: the card flips, it pages, it takes a mark, the row of stars
+changes. One does not. A grading gesture the schedule won't accept — the card is settled, today's answer
+is already recorded — is dropped, and the screen is left exactly as it was, which is the same nothing a
+reader sees who never swiped at all. With no chrome to fall back on, that silence reads as "this
+gesture does not exist".
+
+So the page says it, in one line below the card, for a couple of seconds: *Already rated today — a card
+counts once a day*. Both settled cases get that same sentence, because both are true of it: a card
+graded before a page reload, and one graded and paged away from in this session, have each been rated
+today. A repeat of the grade a card already carries stays silent — the mark is already the answer to
+what the reader asked for.
+
+The wording is `deck.js`'s, not the library's. `mount()` reports `onRefuse(card, "settled")` and knows
+nothing about days or schedules; the deck page turns that into a sentence, the same split as everywhere
+else here. The element isn't in the document until something needs saying, it takes no pointer events —
+a tap on the words is a tap on the card underneath — and it's a live region, the one thing v2 announces,
+because it's the one thing with no visible result to announce itself.
 
 ## Local storage
 
