@@ -59,6 +59,7 @@ export default [
         KeyboardEvent: "readonly",
         MouseEvent: "readonly",
         setTimeout: "readonly",
+        clearTimeout: "readonly",
         DOMException: "readonly",
         globalThis: "readonly",
       },

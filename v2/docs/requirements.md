@@ -61,10 +61,17 @@ markup.
 **V2-3.1** `mount(element, cards, options?)` renders a deck into `element` and returns a handle with
 `destroy()`.
 
-**V2-3.2** `options` are `onGrade(card, level)`, `storage`, and `random`. `storage` and `random` exist so
-the library can be tested and embedded without reaching for globals.
+**V2-3.2** `options` are `onGrade(card, level)`, `onRefuse(card, reason)`, `gradeOf(card)`, `progress`,
+`lead`, `storage`, and `random`. `storage` and `random` exist so the library can be tested and embedded
+without reaching for globals.
 
 **V2-3.3** The deck is shuffled on mount. The caller's array is not reordered.
+
+`lead` is the one exception: cards handed to `mount()` under that option come first, in the order given,
+and are not shuffled. The shuffle exists so that a reader does not learn the deck's order along with its
+cards, which is a statement about material being studied — a guide whose cards taught the swipe before
+the tap would not be a guide (V2-15.3). A lead card is shown, not studied: it does not go through the
+dictionary the way the deck's own cards do.
 
 **V2-3.4** One card is on screen at a time.
 
@@ -124,7 +131,24 @@ screen to explain the silence.
 
 **V2-4.8** The page does not scroll or select text under a gesture.
 
-**V2-4.9** An intent arriving while a page turn is in flight is dropped rather than queued.
+**V2-4.9** An intent arriving while a page turn is in flight is dropped rather than queued. So is a
+drag: the card being dragged is already on its way off the screen and is no longer the reader's to move.
+
+**V2-4.10** A pointer gesture is answered while it is being made, not only when it is released. The card
+follows a horizontal drag one for one, because that drag is a page turn and the card is going that way;
+it gives a little against a vertical drag and springs back, because grading does not move the card
+(V2-8.4) — and the edge being dragged towards fills in proportion to how much of the threshold the drag
+has covered, reaching a full mark exactly where the gesture becomes a grade.
+
+This is the answer to the discoverability problem §15 also addresses, and the more durable half of it:
+words have to be read once and remembered, whereas a card that visibly responds to a finger says *there
+is something here* every time anybody touches it, in whatever language they read. It also makes the
+grading gestures learnable without committing to one — the reader sees the mark forming and can drag
+back below the threshold, which turns a guess into an experiment.
+
+**V2-4.11** A gesture that does not reach the threshold leaves nothing behind: the card returns to the
+middle and the edge empties. A drag fills an edge and never empties one, so dragging up on a card that
+is already marked easier does not shrink that mark on the way to redrawing it.
 
 ---
 
@@ -153,9 +177,17 @@ paging away and back was, by itself, indistinguishable from a fresh correct reca
 extra keypress) could walk a card from the first box to the last in seconds, with no attempt at recall in
 between.)
 
-**V2-5.7** A grade is visible on the card for as long as it is held: the card's border thickens on the
-edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder`
-(swipe down).
+**V2-5.7** A grade is visible on the card for as long as it is held: a bar is drawn along the edge the
+gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder` (swipe
+down).
+
+The mark changes nothing about the card's layout. It was the card's own border thickening at first,
+which moved the card's contents: `box-sizing: border-box` holds the outer box still, but the border
+grows into the content box, so centred text slid down half the growth and the category label — anchored
+to the padding box — slid down all of it: measured, 1.5 px of text on a 390 px phone, and 5.5 px of text
+with 11 px of category at the 900 px cap. A settled grade that shifts the card reads as an animation still in
+progress rather than as a state, which is exactly the wrong thing to say immediately after a gesture
+that was itself a movement. A bar is painted over the card rather than being part of its box.
 
 **V2-5.8** The mark uses no colour, so it carries in both themes and does not depend on colour vision to
 be seen.
@@ -190,6 +222,14 @@ host answers for wears its mark from the moment it appears and is settled per V2
 per card, and never about a card this session has already seen graded. This is the seam a deck page uses
 to make a grade survive a page reload (§11); the library still stores nothing itself (V2-5.9).
 
+**V2-5.15** A grading gesture dropped because the card is settled (V2-5.13, V2-5.14) is reported to the
+host as `onRefuse(card, "settled")`. A repeat of the grade the card already carries (V2-5.4) is not
+reported: the mark on the card is already the answer to what the reader asked for, so nothing is left
+unsaid. A settled card answers with nothing at all — the gesture worked, the card heard it, and the
+screen is identical to one nobody swiped at, which is indistinguishable from the gesture not existing.
+The library reports that it happened; what to say about it is the host's (§15), because "today" is the
+schedule's idea and `mount()` has none of it.
+
 ---
 
 ## 6. Storage
@@ -219,7 +259,11 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 ## 7. Presentation
 
 **V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
-is absent unless there is somewhere to go (V2-13.9). No header, no footer, no chrome, no controls. The exception is navigation, not information: a deck and the dictionary
+is absent unless there is somewhere to go (V2-13.9). No header, no footer, no chrome, no controls.
+Everything v2 has to say to a reader it says as cards or on the card: the guide is four cards (V2-15.3),
+and a refused gesture is answered on the card's own mark (V2-15.2). Neither adds an element to the page,
+which is why this requirement reads as it always did — an overlay for the guide was built first and it
+cost exactly this sentence. The exception is navigation, not information: a deck and the dictionary
 are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
 them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
 page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
@@ -262,10 +306,20 @@ pull-to-refresh.
 
 **V2-8.3** Paging returns the card to its front face.
 
-**V2-8.4** Grading animates the mark appearing, and nothing else — the card does not move.
+**V2-8.4** Grading animates the mark appearing, and nothing else — the card does not move. A drag is not
+grading: while a finger is down the card follows or resists it (V2-4.10), and what it returns to when the
+finger lifts is a card that has not moved.
 
 **V2-8.5** Every animation degrades to an instant change under `prefers-reduced-motion`, and where the
 Web Animations API is unavailable.
+
+**V2-8.7** A page turn that began as a drag starts its slide from wherever the drag left the card, not
+from the middle. Snapping back and setting off again is a visible hitch on every swipe, and it is the
+difference between the card being dragged away and a swipe being a button press with extra steps.
+
+**V2-8.8** Under `prefers-reduced-motion` a drag does not move the card at all; the edge still fills.
+The information is in the mark, and the travel is the part somebody asking for less motion is asking to
+be spared.
 
 **V2-8.6** One card is exchanged for another in a single off-screen frame: its content, its mark (V2-5.7)
 and the progress row around it (§12) all change together, between the two legs of the slide, with the
@@ -304,13 +358,18 @@ category filters. §13 studies the whole dictionary as a deck, which is a differ
 make this one built: there is still no way to look at the collection rather than work through it.
 
 **V2-10.3** Position indicators, a title screen, an info panel, and any configuration of the sizing
-ratios or the type scale.
+ratios or the type scale. §15's guide is none of those: there is no screen and no panel, nothing to
+dismiss before studying, and no control anywhere that opens it. It is four cards at the front of one
+session, and the reader works through them exactly as they work through any card.
 
 **V2-10.4** Text that shrinks to fit its card. Card size is independent of text length (V2-7.8), so a
 card with far more text than the design assumes fills its card and may run under the category label.
 
 **V2-10.5** Announcing the flip or the grade to a screen reader. The card is a passive element with no
-live region.
+live region — including for a refused grade (V2-15.2), which was briefly a live region while it was a
+separate line of text and stopped being one when it became part of the card. Moving it onto the mark
+bought the reply its meaning and cost it that announcement; the trade is recorded here rather than
+hidden, and a live region for it remains available if a reader ever needs one.
 
 ---
 
@@ -589,10 +648,94 @@ being relaxed wherever it happens to be safe.
 
 ---
 
+## 15. Saying what the card cannot show
+
+**V2-15.1** The card shows its own result for every interaction that has one: it flips, it pages, it
+takes a mark, the row of stars changes. Where a reader's action has no visible result at all, the page
+says so in words instead. This is the whole of what §15 covers, and the reason V2-7.1 admits it: an
+interface with no chrome depends absolutely on every action being answered, and the two places v2 was
+silent were the two places a reader concluded that nothing was there: a gesture with no result, and a
+gesture nobody had mentioned.
+
+**V2-15.2** A grading gesture refused because the card is settled (V2-5.15) is answered on the card
+itself: the grade mark grows into a band deep enough to hold type, says that the card has already been
+rated today, and shrinks back to a plain mark a few seconds later. Both settled cases say the same
+sentence — a card graded before a page reload (V2-5.14) and one graded and paged away from in this
+session (V2-5.13) have both been rated today, since a grade given in this session was recorded today.
+One message, and true of both.
+
+It is on the mark, and on the edge the mark is on, because the mark is what the reader is arguing with:
+they swiped against a grade they had already given, and the grade answers. A line of text floating below
+the card was tried first and reads as a notification about the page rather than as the card's own reply —
+the same difference as between a card that responds to a finger and a card with instructions printed
+next to it (V2-4.10).
+
+The wording belongs to the deck page, not to the library: `mount()` offers `say(text)` — one place to
+put a sentence, and no sentence of its own — because "today" is the schedule's idea and the library has
+none of it (V2-5.9, V2-11.1). The words are short by necessity: a band across a phone-sized card holds
+about four words, and the rule behind them is §15.6's to explain.
+
+Where the band goes follows the mark: the top edge for a card marked easier, the bottom for one marked
+harder. A card wearing no mark at all takes the bottom edge — unreachable today, since only a settled
+card is refused and a settled card always has a mark, but a band nobody can see would be a silent
+failure of the one thing here whose whole purpose is not to be silent.
+
+**V2-15.9** Whatever the band would otherwise cut in half steps aside while it is up: the category label
+for a band on the top edge, the progress row for one on the bottom. They come back when it goes.
+
+**V2-15.3** A reader's first session is led by four cards that teach the deck by being one. They come
+first and in their own order (V2-3.3's `lead`), and they are gone from every session after.
+
+Nothing on a card with no chrome advertises that swiping exists. A reader can tap, read the back, tap
+again and page with the arrows indefinitely without discovering grading at all — and for that reader the
+row of stars is never explained either, which invites reading the card as a vertical feed whose row
+counts views. The gestures cannot be inferred; they have to be said once.
+
+**V2-15.4** They are said as cards because a card is the one thing the reader has already been taught to
+use. Each one asks for the gesture it is teaching, and its other side is the reader's own gesture
+answering: tap this card, and the back says you turned it over; swipe up where it says to, and the mark
+appears on the edge it named. The reader is never told what would happen — they do it, and the deck
+agrees with them. Learning the deck and using the deck are the same act.
+
+This replaced an overlay of the same four instructions, which was built first and thrown out. An overlay
+is a second interface — something to read, then dismiss, then act on — in a register the rest of the
+design does not use, and it made V2-7.1 admit a full-screen element for the sake of one session. Cards
+cost the interface nothing, because they *are* the interface.
+
+**V2-15.5** No guide card has a `key`, which is what keeps it out of everything a card normally touches:
+it is not written to the dictionary (V2-6.3), never turns up in it later, and carries no schedule. It
+can still be flipped, paged and marked — the mark is what card two is teaching — and the mark simply
+goes nowhere. Its `category` reads `guide`, so nobody mistakes one for something they are meant to know.
+
+**V2-15.6** Whether the guide has been dealt is one flag in storage, `flashcards.hints`, written as it
+is dealt rather than when it is finished: a reader who reloads part-way through has met the guide, and
+starting it again from the top is not what they asked for. A reader who already has a review schedule
+(§11) is not a first-timer whatever the flag says, and is not greeted — the flag was added to v2 after
+it had readers. Unusable or absent storage deals the guide again, the harmless direction to fail in
+(V2-6.4): a reader who cannot keep a flag cannot keep a schedule either.
+
+There is no way to ask for the guide a second time. That is a known gap rather than a decision, and it
+is listed under open questions.
+
+**V2-15.7** Both belong to the deck page (§14), not to the library. The guide's words are the deck
+page's, and `lead` is a general facility that knows nothing about guides — the same division as
+`progress`, which draws a count without knowing it is a box. A bare `mount()` is still a bare card.
+
+**V2-15.8** The handle `openDeck()` returns takes down the corner link as well as everything `mount()`'s
+own `destroy()` removes (V2-3.7). Page furniture is no more the caller's to remember than the deck's own
+listeners are.
+
+---
+
 ## Open questions
 
 Not requirements — decisions deferred until there is a reason to make them.
 
+- **Should there be a way to see the guide again?** It leads one session and is then gone (V2-15.6), so
+  a reader who swiped through it without reading has no way back. A `?` key, or a mark in a corner, would
+  both work — and both were considered and left out rather than rejected: the first is undiscoverable and
+  the second is standing chrome (V2-7.1) for something wanted once. Deferred until somebody actually
+  asks for it twice.
 - **Should sizing round to whole pixels?** The library it replaces computed integer pixels in
   JavaScript. CSS sizes to the subpixel, and no problem has been traced to the difference.
 - **Should the Leitner box count or interval schedule be configurable?** Fixed for now (V2-11.3). Nothing

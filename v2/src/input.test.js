@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { SWIPE_THRESHOLD, bindInput, keyIntent, swipeIntent } from "./input.js";
+import { SWIPE_THRESHOLD, bindInput, keyIntent, swipeIntent, track } from "./input.js";
 
 /** jsdom has no PointerEvent; the handlers only read clientX/clientY/pointerId. */
 function pointer(element, type, x, y) {
@@ -45,6 +45,38 @@ describe("swipeIntent", () => {
   });
 });
 
+describe("track", () => {
+  const far = SWIPE_THRESHOLD + 1;
+
+  it("reads how far towards a swipe a drag has got", () => {
+    expect(track(0, 0).progress).toBe(0);
+    expect(track(0, -SWIPE_THRESHOLD / 2).progress).toBe(0.5);
+    expect(track(0, -far).progress).toBe(1);
+  });
+
+  it("does not run past a whole swipe, however far the finger goes", () => {
+    expect(track(0, -far * 10).progress).toBe(1);
+  });
+
+  /* The axis a drag is read on part-way through has to be the axis the release
+     is read on, or the card fills its top edge and then pages sideways. */
+  it("agrees with swipeIntent about which axis a drag is on", () => {
+    for (const [dx, dy] of [
+      [far, 0],
+      [-far, 0],
+      [0, far],
+      [0, -far],
+      [-far, far - 10],
+      [far - 10, far],
+    ]) {
+      const { horizontal } = track(dx, dy);
+      const sideways = ["next", "previous"].includes(swipeIntent(dx, dy));
+
+      expect(horizontal).toBe(sideways);
+    }
+  });
+});
+
 describe("bindInput", () => {
   const bound = [];
 
@@ -54,13 +86,18 @@ describe("bindInput", () => {
     document.body.append(element);
 
     const intents = [];
-    const unbind = bindInput(element, (intent) => intents.push(intent));
+    const tracked = [];
+    const unbind = bindInput(
+      element,
+      (intent) => intents.push(intent),
+      (gesture) => tracked.push(gesture),
+    );
     bound.push(() => {
       unbind();
       element.remove();
     });
 
-    return { element, intents, unbind };
+    return { element, intents, tracked, unbind };
   };
 
   afterEach(() => {
@@ -160,6 +197,67 @@ describe("bindInput", () => {
     pointer(element, "pointerup", 52, 51);
 
     expect(intents).toEqual(["next", "flip"]);
+  });
+
+  /* The card follows the finger, so the drag has to be reported as it happens
+     and not only when it is over. */
+  it("reports a gesture in progress, and its end", () => {
+    const { element, tracked } = listen();
+
+    pointer(element, "pointerdown", 100, 100);
+    pointer(element, "pointermove", 100, 80);
+    pointer(element, "pointermove", 100, 60);
+    pointer(element, "pointerup", 100, 60);
+
+    expect(tracked.map((gesture) => gesture && [gesture.dy, gesture.horizontal, gesture.progress])).toEqual([
+      [-20, false, 0.5],
+      [-40, false, 1],
+      null,
+    ]);
+  });
+
+  it("reports the end of a gesture the browser took away", () => {
+    const { element, tracked } = listen();
+
+    pointer(element, "pointerdown", 100, 100);
+    pointer(element, "pointermove", 100, 80);
+    element.dispatchEvent(new MouseEvent("pointercancel", { bubbles: true }));
+
+    expect(tracked.at(-1)).toBe(null);
+  });
+
+  it("does not report a move that belongs to no gesture", () => {
+    const { element, tracked } = listen();
+
+    pointer(element, "pointermove", 100, 80);
+
+    expect(tracked).toEqual([]);
+  });
+
+  /* A page turn starts its slide from where the drag left the card, so the
+     intent has to be reported while that offset is still known — clearing the
+     drag first would make the card jump back to the middle for a frame and set
+     off again from there. */
+  it("reports the intent before it reports the drag as over", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+
+    const order = [];
+    const unbind = bindInput(
+      element,
+      (intent) => order.push(`intent:${intent}`),
+      (gesture) => order.push(gesture ? "drag" : "released"),
+    );
+    bound.push(() => {
+      unbind();
+      element.remove();
+    });
+
+    pointer(element, "pointerdown", 100, 100);
+    pointer(element, "pointermove", 40, 100);
+    pointer(element, "pointerup", 40, 100);
+
+    expect(order).toEqual(["drag", "intent:next", "released"]);
   });
 
   it("ignores a right-click, which would otherwise read as a tap", () => {

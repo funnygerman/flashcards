@@ -15,7 +15,7 @@
  * So a deck file holds its cards and one call, and this holds the wiring.
  */
 
-import { BOX_COUNT, gradedToday, recordGrade, reviewState } from "./review.js";
+import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
 import { mount } from "./flashcards.js";
@@ -23,8 +23,92 @@ import { pageStorage, readMap, writeMap } from "./storage.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
+/**
+ * What a refused gesture says. The library reports that it refused and why
+ * (`onRefuse`, V2-5.15); the wording is this layer's, because "today" is the
+ * schedule's idea and mount() has none — it knows only that this card's grade
+ * is no longer the reader's to change.
+ *
+ * Short, because of where it goes: the card's own grade mark grows into a band
+ * and says it, and a band across a phone-sized card holds about this much. The
+ * rule behind it — one rating a day — is the help view's to explain; what the
+ * reader needs at the moment their swipe does nothing is why it did nothing.
+ */
+const SETTLED = "Already rated today";
+
 /** Where the reader last was, so the dictionary knows what "back" means. */
 export const DECK_KEY = "flashcards.deck";
+
+/** Whether the reader has been shown the guide. One flag, nothing else. */
+export const HINTS_KEY = "flashcards.hints";
+
+/**
+ * The guide: four cards that teach the deck by being one.
+ *
+ * Nothing on a card with no chrome on it advertises that swiping exists. A
+ * reader can tap, read the back, tap again and page with the arrows for ever
+ * without discovering grading at all — and for that reader the row of stars is
+ * never explained either. The gestures cannot be inferred; they have to be
+ * said, once.
+ *
+ * Said *as cards*, because a card is the one thing this app has already taught
+ * the reader to use. An overlay is a second interface — a thing to read, then
+ * dismiss, then act on — and it was tried here first and thrown out for exactly
+ * that: a lid over the app, in a register the rest of the design does not use.
+ * These four are the app. Each one asks for the gesture it is teaching, and its
+ * other side is the reader's own gesture answering: tap this card, and the back
+ * is the answer; swipe up where it says to, and the mark appears on the edge it
+ * named. The reader is never told what would happen — they do it, and the deck
+ * agrees with them. Learning the deck and using the deck become the same act,
+ * and the guide costs the interface nothing, because it *is* the interface.
+ *
+ * Every front ends "tap this card" and every back "swipe left for the next
+ * one", which is repetition on purpose: four cards is four turns of the same
+ * two gestures, and a reader who starts reading at card three still knows how
+ * to go on. Card two splits the two grades across its faces — up on the front,
+ * down on the back — so both are performed rather than read about.
+ *
+ * Every line is short on purpose too. Card text is sized for a word, not a
+ * sentence (V2-7.7), so a line that runs to three of them on a phone is a line
+ * that will not be read. Nothing here explains the mark in words for that
+ * reason: a drag fills the edge it is going towards while the finger is still
+ * down (V2-4.10), which says it without spending a line.
+ *
+ * No `key` on any of them, which is what keeps them out of everything a card
+ * normally touches: they are not written to the dictionary (V2-6.3), never
+ * turn up in it later, and carry no schedule. `category` names them so nobody
+ * mistakes one for a word they are supposed to know.
+ */
+const GUIDE = [
+  {
+    category: "guide",
+    frontText: "Tap this card",
+    frontDetails: "or press Space",
+    backText: "You see the answer.",
+    backDetails: "Swipe left for the next one \u2014 or press \u2192",
+  },
+  {
+    category: "guide",
+    frontText: "Swipe up if you knew it.",
+    frontDetails: "Tap this card",
+    backText: "Swipe down if you didn't know it.",
+    backDetails: "Swipe left for the next one \u2014 or press \u2192",
+  },
+  {
+    category: "guide",
+    frontText: "Stars are days you got it right.",
+    frontDetails: "Tap this card",
+    backText: "Wrong answer clears them all.",
+    backDetails: "Swipe left for the next one \u2014 or press \u2192",
+  },
+  {
+    category: "guide",
+    frontText: "That is all of it.",
+    frontDetails: "Tap this card",
+    backText: "These cards are not part of your deck.",
+    backDetails: "Swipe left to start learning",
+  },
+];
 
 /**
  * The deck the reader last opened, as `{ href, label }`, or null.
@@ -98,6 +182,27 @@ function createCorner({ href, label }, stacked) {
 }
 
 /**
+ * Whether this is a reader's first time here.
+ *
+ * One flag says so, and a review schedule already in storage overrules it: a
+ * reader with a schedule is not a first-timer whatever the flag says, because
+ * the flag was added to v2 after it had readers, and being taught to tap the
+ * card after a month of tapping it is not guidance. Unusable storage shows the
+ * guide again, which is the harmless direction to fail in (V2-6.4) — a reader
+ * who cannot keep a flag cannot keep a schedule either.
+ */
+function firstRun(storage) {
+  const store = storage ?? pageStorage();
+
+  return readMap(store, HINTS_KEY).guide !== true && Object.keys(readMap(store, REVIEW_KEY)).length === 0;
+}
+
+/** Remembered as the guide is dealt, so it leads one session and no other. */
+function rememberGuide(storage) {
+  writeMap(storage ?? pageStorage(), HINTS_KEY, { guide: true });
+}
+
+/**
  * Open a deck that keeps a schedule. Returns the library's handle.
  *
  * `cards` is the deck's own; a page that brings none studies the whole
@@ -121,6 +226,12 @@ export function openDeck(cards, options = {}) {
   const own = cards.length > 0;
   const source = own ? cards : allCards(storage);
 
+  /* Dealt in front of the session on a first run, and remembered as it is dealt
+     — a reload part-way through is a reader who has already met the guide, not
+     one who needs it again from the top. */
+  const guide = firstRun(storage) ? GUIDE : [];
+  if (guide.length) rememberGuide(storage);
+
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
 
@@ -130,8 +241,24 @@ export function openDeck(cards, options = {}) {
   const deck = mount(element, chooseSession(source, { now, storage, onlyDue: !own }), {
     storage,
     random,
-    onGrade: (card, level) => recordGrade(card.key, level, storage, now),
-    gradeOf: (card) => gradedToday(card.key, storage, now),
+    lead: guide,
+
+    /* A card with no key is not the reader's to be asked about again: the
+       dictionary does not store it (V2-6.3) and the schedule does not either,
+       which is the whole of what keeps the guide out of both. It can still be
+       swiped at and marked — that is the point of it — the mark simply goes
+       nowhere. */
+    onGrade: (card, level) => card.key && recordGrade(card.key, level, storage, now),
+    gradeOf: (card) => card.key && gradedToday(card.key, storage, now),
+
+    /* Both settled cases are the same fact from the reader's side and get the
+       same sentence: a card graded before a page reload (gradeOf, V2-5.14) and
+       one graded and paged away from in this session (V2-5.13) have both been
+       rated today, since a grade in this session was recorded today by the line
+       above. One message, and true in both. */
+    onRefuse: (card, reason) => {
+      if (reason === "settled") deck.say(SETTLED);
+    },
 
     /* The box is the count outright, so box 0 fills no marks — what a card
        the reader has never got right should look like (V2-12.10) — and the row
@@ -139,7 +266,7 @@ export function openDeck(cards, options = {}) {
        that changing the ladder resizes the row (V2-11.15). */
     progress: {
       steps: BOX_COUNT - 1,
-      of: (card) => reviewState(card.key, storage, now).box,
+      of: (card) => (card.key ? reviewState(card.key, storage, now).box : 0),
     },
   });
 
@@ -148,7 +275,18 @@ export function openDeck(cards, options = {}) {
      where storage is unusable it would lead to a page that cannot render.
      Added after mounting rather than hidden in the markup, so it is never in
      the document at a moment when it should not be seen. */
-  if (corner && holdsMoreThan(cards, storage)) element.append(createCorner(corner, own));
+  const link = corner && holdsMoreThan(cards, storage) ? createCorner(corner, own) : null;
+  if (link) element.append(link);
 
-  return deck;
+  /* The library's handle takes back everything this page added as well as
+     everything mount() did (V2-3.7): the furniture assembled here is no more
+     the caller's to remember than the deck's own listeners are. */
+  return {
+    ...deck,
+
+    destroy() {
+      deck.destroy();
+      link?.remove();
+    },
+  };
 }

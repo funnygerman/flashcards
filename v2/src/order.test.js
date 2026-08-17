@@ -24,6 +24,35 @@ describe("shuffle", () => {
   });
 });
 
+describe("createOrder with a lead", () => {
+  const lead = [{ id: "guide 1" }, { id: "guide 2" }];
+  const cards = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("puts the lead first, in the order it was given", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    expect(order.current()).toBe(lead[0]);
+    expect(order.next()).toBe(lead[1]);
+  });
+
+  it("hands over to the deck at the end of it", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    order.next();
+    expect(cards).toContain(order.next());
+  });
+
+  it("counts the lead as part of the sequence, and wraps around all of it", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    expect(order.size).toBe(5);
+
+    /* Back from the first is the last, which is one of the deck's own cards
+       rather than the guide: the lead is in front of everything, once. */
+    expect(cards).toContain(order.previous());
+  });
+});
+
 describe("createOrder", () => {
   const cards = ["a", "b", "c"];
   const unshuffled = () => 0.999; /* j === i on every step: order is preserved */

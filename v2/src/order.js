@@ -23,9 +23,16 @@ export function shuffle(items, random = Math.random) {
 /**
  * A shuffled sequence with a cursor that wraps in both directions: past the
  * last card is the first one again, and back from the first is the last.
+ *
+ * `lead` comes first and is *not* shuffled — cards whose order is the point,
+ * ahead of cards whose order must not be (V2-3.3). A guide that taught the
+ * swipe before the tap, or the stars before either, would not be a guide. It is
+ * the only exception, and it is one because the shuffle exists to stop the
+ * reader learning the deck's order along with its cards, which is a statement
+ * about material being studied and not about four cards explaining the app.
  */
-export function createOrder(cards, random = Math.random) {
-  const order = shuffle(cards, random);
+export function createOrder(cards, random = Math.random, lead = []) {
+  const order = [...lead, ...shuffle(cards, random)];
   let index = 0;
 
   const step = (delta) => {

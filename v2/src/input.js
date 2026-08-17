@@ -47,14 +47,30 @@ function isControl(target) {
 }
 
 /**
+ * A drag of (dx, dy), read: which axis it is on, and how much of the threshold
+ * it has covered — 0 at the start, 1 once it is a swipe rather than a tap.
+ *
+ * This is what a gesture *is*, part-way through and at the end alike, so both
+ * the running feedback and the intent below are read off it rather than each
+ * deciding separately what counts as horizontal (V2-9.3). The two disagreeing
+ * would mean a card filling its top edge under the finger and then paging
+ * sideways on release.
+ */
+export function track(dx, dy, threshold = SWIPE_THRESHOLD) {
+  const horizontal = Math.abs(dx) >= Math.abs(dy);
+  const distance = Math.abs(horizontal ? dx : dy);
+
+  return { dx, dy, horizontal, progress: Math.min(1, distance / threshold) };
+}
+
+/**
  * What a drag of (dx, dy) means. The dominant axis wins, and anything shorter
  * than the threshold is a tap — which is why a plain click flips the card.
  */
 export function swipeIntent(dx, dy, threshold = SWIPE_THRESHOLD) {
-  const horizontal = Math.abs(dx) >= Math.abs(dy);
-  const distance = horizontal ? dx : dy;
+  const { horizontal, progress } = track(dx, dy, threshold);
 
-  if (Math.abs(distance) < threshold) return "flip";
+  if (progress < 1) return "flip";
   if (horizontal) return dx > 0 ? "previous" : "next";
   return dy > 0 ? "harder" : "easier";
 }
@@ -65,8 +81,15 @@ export function swipeIntent(dx, dy, threshold = SWIPE_THRESHOLD) {
  * Keys are bound to the document rather than to a focusable card: one page is
  * one deck, so there is nothing else they could be meant for, and nothing the
  * reader can click that takes the keyboard away from the deck.
+ *
+ * `onTrack` is the gesture as it happens — `track()` above on every move, and
+ * `null` when the pointer is released or the gesture is cancelled. It is what
+ * lets the card answer a finger before the finger has decided anything; a host
+ * that does not want that leaves it out and gets the old release-only
+ * behaviour. There is no keyboard equivalent, because a key press has no
+ * part-way.
  */
-export function bindInput(element, onIntent) {
+export function bindInput(element, onIntent, onTrack) {
   let start = null;
 
   const keys = {
@@ -94,16 +117,29 @@ export function bindInput(element, onIntent) {
       if (typeof event.pointerId === "number") element.setPointerCapture?.(event.pointerId);
     },
 
+    pointermove(event) {
+      if (!start || event.pointerId !== start.id) return;
+
+      onTrack?.(track(event.clientX - start.x, event.clientY - start.y));
+    },
+
     pointerup(event) {
       if (!start || event.pointerId !== start.id) return;
 
       const { x, y } = start;
       start = null;
+
+      /* The intent first, then the end of the drag: a page turn takes the
+         card's dragged position with it as the place its slide starts from, and
+         clearing that first would make the card jump back to the middle for a
+         frame before setting off. */
       onIntent(swipeIntent(event.clientX - x, event.clientY - y));
+      onTrack?.(null);
     },
 
     pointercancel() {
       start = null;
+      onTrack?.(null);
     },
   };
 

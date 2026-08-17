@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { STORAGE_KEY } from "./store.js";
 import { mount } from "./flashcards.js";
@@ -20,6 +20,20 @@ const unshuffled = () => 0.999;
 function press(key, target = document) {
   target.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true }));
 }
+
+/* jsdom has no PointerEvent; the handlers only read clientX/clientY/pointerId. */
+const pointer = (type, x, y) =>
+  document.querySelector(".fc").dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true }));
+
+/** A gesture, in the three events a real one arrives as. */
+function drag(dx, dy, { release = true } = {}) {
+  pointer("pointerdown", 200, 200);
+  pointer("pointermove", 200 + dx, 200 + dy);
+  if (release) pointer("pointerup", 200 + dx, 200 + dy);
+}
+
+const slider = () => document.querySelector(".fc-slide");
+const edge = (side) => document.querySelector(".fc-card").style.getPropertyValue(`--fc-mark-${side}`);
 
 const front = (selector) => document.querySelector(`.fc-front ${selector}`);
 const back = (selector) => document.querySelector(`.fc-back ${selector}`);
@@ -375,6 +389,141 @@ describe("mount", () => {
       ["b", "neutral"], // and still ungraded on this pass too
       // no further "a" entry: it still carries the grade from before
     ]);
+  });
+
+  /* A settled card is the one interaction with no visible result: the gesture
+     is dropped and the screen is exactly as it was, which is what a reader who
+     has not discovered the swipe also sees. The host is told, so it can say so
+     (deck.js does); the library only reports that it happened. */
+  it("reports a grading gesture refused because the card is settled", () => {
+    const refused = [];
+    open({ onRefuse: (card, reason) => refused.push([card.key, reason]) });
+
+    press("ArrowUp"); // card a: easier, and it counts
+    press("ArrowRight"); // leaving settles it
+    press("ArrowLeft"); // back to card a
+
+    press("ArrowDown");
+    press("ArrowUp");
+
+    expect(refused).toEqual([
+      ["a", "settled"],
+      ["a", "settled"],
+    ]);
+  });
+
+  it("reports a card the host handed over already graded as settled too", () => {
+    const refused = [];
+    open({ gradeOf: () => "harder", onRefuse: (card, reason) => refused.push([card.key, reason]) });
+
+    press("ArrowUp");
+    expect(refused).toEqual([["a", "settled"]]);
+  });
+
+  /* Repeating the grade a card already carries is a different silence: the
+     mark on the card is already the answer to what the reader just asked for,
+     so there is nothing left unsaid and nothing to report. */
+  it("does not report a repeated grade as a refusal", () => {
+    const refused = [];
+    open({ onRefuse: (card, reason) => refused.push([card.key, reason]) });
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(refused).toEqual([]);
+  });
+
+  it("refuses a settled card without an onRefuse callback", () => {
+    open({ gradeOf: () => "easier" });
+
+    expect(() => press("ArrowDown")).not.toThrow();
+    expect(document.querySelector(".fc-card").className).toContain("is-easier");
+  });
+
+  /* The card answers a gesture while it is being made, which is the only thing
+     on a chrome-less card that can say the gesture exists at all. */
+  describe("a gesture in progress", () => {
+    it("fills the edge it is being dragged towards, in proportion", () => {
+      open();
+
+      drag(0, -20, { release: false }); /* half of the 40px threshold */
+      expect(Number(edge("top"))).toBeCloseTo(0.5);
+      expect(edge("bottom")).toBe("0");
+
+      drag(0, 60, { release: false }); /* past it, the other way */
+      expect(Number(edge("bottom"))).toBe(1);
+    });
+
+    it("gives the card a little against a vertical drag, and moves it with a horizontal one", () => {
+      open();
+
+      drag(0, -100, { release: false });
+      expect(slider().style.transform).toBe("translate(0, -22px)"); /* resistance, not travel */
+
+      drag(-100, 0, { release: false });
+      expect(slider().style.transform).toBe("translate(-100px, 0)"); /* on its way out */
+    });
+
+    it("puts the card back when the drag comes to nothing", () => {
+      open();
+
+      drag(0, -20); /* under the threshold: a tap, so no grade */
+      expect(slider().style.transform).toBe("");
+      expect(edge("top")).toBe("");
+    });
+
+    /* A drag fills an edge; it never empties one. Dragging up on a card that is
+       already marked easier must not shrink that mark on the way to redrawing
+       it. */
+    it("never draws less mark than the card already carries", () => {
+      open({ gradeOf: () => "easier" });
+
+      drag(0, -8, { release: false });
+      expect(Number(edge("top"))).toBe(1);
+    });
+
+    it("leaves the card alone while a page turn is in flight", () => {
+      const deck = open();
+      deck.say("busy"); /* something to notice if the drag reached the card */
+
+      drag(0, -20, { release: false });
+      expect(edge("top")).not.toBe("");
+    });
+  });
+
+  /* A refused grade has no visible result of its own, so the card says why —
+     on the mark itself, which is what the reader was arguing with. */
+  describe("say", () => {
+    it("puts the words on the card", () => {
+      const deck = open();
+
+      deck.say("Already rated today");
+      expect(document.querySelector(".fc-front").getAttribute("data-message")).toBe("Already rated today");
+    });
+
+    it("takes them off again after a moment", () => {
+      vi.useFakeTimers();
+
+      try {
+        const deck = open();
+        deck.say("Already rated today");
+
+        vi.advanceTimersByTime(5000);
+        expect(document.querySelector(".fc-front").getAttribute("data-message")).toBe(null);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("stops saying it as soon as another card is on screen", () => {
+      const deck = open();
+
+      deck.say("Already rated today");
+      press("ArrowRight");
+
+      expect(document.querySelector(".fc-front").getAttribute("data-message")).toBe(null);
+    });
   });
 
   it("grades without an onGrade callback", () => {

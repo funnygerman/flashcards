@@ -64,13 +64,16 @@ Once this is on `main` it is published at
 
 ### `mount(element, cards, options?)`
 
-Returns `{ destroy() }`. Options:
+Returns `{ say(text), destroy() }` — `say` puts a sentence on the card for a moment, on the grade mark
+(§ Saying what the card cannot show). Options:
 
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
+| `onRefuse(card, reason)` | a grading gesture was dropped because the card is settled (`"settled"`), so the host can say why nothing happened — see § Saying what the card cannot show |
 | `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives marked and settled (§ Interactions) |
 | `progress` | `{ steps, of(card) }` — draws a row of `steps` stars along the card's bottom edge, the first `of(card)` of them filled; omit it for a bare card |
+| `lead` | cards shown first, in the order given and unshuffled, ahead of the deck proper — a guide, or anything else whose sequence is the point |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -88,8 +91,21 @@ Returns `{ destroy() }`. Options:
 swiped, and `→` follows the same motion, arriving from ahead the way paging forward usually looks.
 `previous` mirrors it. The deck wraps in both directions, so it never runs out.
 
-Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
-top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
+**The card answers a gesture while you are making it.** Drag sideways and it goes with your finger, and
+the page turn carries on from wherever you let go rather than snapping back first. Drag up or down and
+it gives a little and springs back — grading doesn't move the card — while the edge you are pulling
+towards fills in, reaching a full mark exactly where the drag becomes a grade. Let go short of that and
+the edge empties again, so the gestures can be tried without being committed to.
+
+That is the durable half of the discoverability problem the first-run guide also answers. Words are read
+once and remembered or not; a card that visibly responds to a finger says *something is here* every time
+anybody touches it. Under `prefers-reduced-motion` the card stays put and only the mark fills.
+
+Grading keeps the card in place and marks it: a bar is drawn along the edge the gesture went towards —
+top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). The card's
+contents do not move under it. The mark used to be the card's own border thickening, which shifted the
+text and the category label down by a few pixels each time, so a settled grade looked like an animation
+still finishing rather than a state the card was in. Repeating a
 grade the card already carries does nothing; grading the other way replaces it and counts, including
 changing back to one it carried a moment ago. A card that has never been graded starts, and stays,
 ungraded until it actually is.
@@ -190,6 +206,78 @@ long enough to wrap across most of the card.
 This isn't the position-in-deck indicator v2 deliberately doesn't have; it says how well the reader knows
 *this* card, not where they are in the session. It's designed to be reused by a future dictionary-view
 row, not just this single-card view, which is why it stayed generic rather than Leitner-shaped.
+
+## Saying what the card cannot show
+
+Every interaction shows its own result: the card flips, it pages, it takes a mark, the row of stars
+changes. One does not. A grading gesture the schedule won't accept — the card is settled, today's answer
+is already recorded — is dropped, and the screen is left exactly as it was, which is the same nothing a
+reader sees who never swiped at all. With no chrome to fall back on, that silence reads as "this
+gesture does not exist".
+
+So the card says it, on the mark: **the grade mark grows into a band** on the edge it already marks,
+reads *Already rated today* in reverse, and shrinks back a couple of seconds later. Both settled cases
+get that same sentence, because both are true of it: a card graded before a page reload, and one graded
+and paged away from in this session, have each been rated today. A repeat of the grade a card already
+carries stays silent — the mark is already the answer to what the reader asked for.
+
+On the mark, rather than on a line of text under the card, because the mark is the thing being argued
+with: the reader swiped against a grade they had already given, and that grade is what answers. A
+floating line was tried first and reads as a notification about the page — the same difference as
+between a card that responds to your finger and a card with instructions printed beside it. Whatever the
+band would cut in half steps aside while it's up: the category label above, the star row below.
+
+The wording is `deck.js`'s, not the library's. `mount()` reports `onRefuse(card, "settled")` and offers
+`say(text)` — one place to put a sentence and no sentence of its own — because "today" is the schedule's
+idea and the library has none of it. Short by necessity: a band across a phone-sized card holds about
+four words.
+
+### The first session
+
+The other silence is the first one: **nothing on the card says that swiping exists**. Tap, read the
+back, tap again, page with the arrows — a reader can do that for ever and never find out the card can be
+graded at all, and for that reader the row of stars is never explained either.
+
+So a first session is led by four cards, which teach the deck by being one:
+
+```text
+   Tap this card                       →   You see the answer.
+   or press Space                          Swipe left for the next one — or press →
+
+   Swipe up if you knew it.            →   Swipe down if you didn't know it.
+   Tap this card                           Swipe left for the next one — or press →
+
+   Stars are days you got it right.    →   Wrong answer clears them all.
+   Tap this card                           Swipe left for the next one — or press →
+
+   That is all of it.                  →   These cards are not part of your deck.
+   Tap this card                           Swipe left to start learning
+```
+
+Each card asks for the gesture it is teaching, and its other side is your own gesture answering: tap it
+and the back is the answer; swipe up where it says to and the mark appears on the edge it just named.
+Nobody is told what *would* happen — they do it, and the deck agrees with them. Every front ends "tap
+this card" and every back "swipe left for the next one", on purpose: four cards is four turns of the
+same two gestures, and card two splits the grades across its faces so both get performed.
+
+Every line is short on purpose. Card text is sized for a word rather than a sentence, so a line that
+runs to three of them on a phone is a line nobody reads. Nothing explains the grade mark in words for
+that reason — dragging fills the edge you are pulling towards while your finger is still down, which
+says it without spending a line.
+
+An overlay of the same four instructions was built first and thrown out. An overlay is a second
+interface, in a register nothing else here uses: something to read, then dismiss, then act on. Cards
+cost the interface nothing, because they *are* the interface — and V2-7.1 goes back to meaning what it
+says, since the guide adds no element to the page at all.
+
+They come first and unshuffled — `mount()`'s `lead`, which knows nothing about guides, the way
+`progress` knows nothing about boxes. None of them has a `key`, which is what keeps them out of the
+dictionary and out of the schedule: swipe at one and it takes the mark, and the mark goes nowhere. One
+flag in `localStorage["flashcards.hints"]` is written as the guide is dealt, so a reload part-way
+through does not start it again, and a reader who already has a schedule is never greeted at all.
+
+There is no way to ask for it a second time yet. That's a gap, not a decision — see the open questions
+in the requirements.
 
 ## Local storage
 

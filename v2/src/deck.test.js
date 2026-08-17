@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { STORAGE_KEY as CARDS_KEY } from "./store.js";
 import { STORAGE_KEY as REVIEW_KEY } from "./review.js";
-import { DECK_KEY, lastDeck, openDeck } from "./deck.js";
+import { DECK_KEY, HINTS_KEY, lastDeck, openDeck } from "./deck.js";
 
 /* jsdom has no Web Animations API, so slides swap instantly and every
    assertion below can stay synchronous. */
@@ -28,9 +28,16 @@ const mounted = [];
 const open = (deck = cards, options = {}) =>
   mounted[mounted.push(openDeck(deck, { storage: localStorage, random: unshuffled, ...options })) - 1];
 
+/** A reader who has met the guide, which every test but its own assumes. */
+const seasoned = () => localStorage.setItem(HINTS_KEY, JSON.stringify({ guide: true }));
+
+/** ...and one who has not, so the guide leads their session. */
+const newcomer = () => localStorage.removeItem(HINTS_KEY);
+
 describe("openDeck", () => {
   beforeEach(() => {
     localStorage.clear();
+    seasoned();
   });
 
   afterEach(() => {
@@ -142,6 +149,157 @@ describe("openDeck", () => {
 
   it("refuses a page with no cards and nothing in the dictionary", () => {
     expect(() => openDeck([], { storage: localStorage })).toThrow(/at least one card/);
+  });
+
+  /* Nothing on a card with no chrome advertises that swiping exists, so a first
+     session is led by four cards that teach the deck by being one. */
+  describe("the first-run guide", () => {
+    const details = () => document.querySelector(".fc-front .fc-details").textContent;
+
+    beforeEach(newcomer);
+
+    it("deals the guide in front of the deck, in its own order", () => {
+      open();
+
+      expect(front()).toBe("Tap this card");
+      expect(details()).toMatch(/press Space/i);
+
+      press("ArrowRight");
+      expect(front()).toBe("Swipe up if you knew it.");
+    });
+
+    it("hands over to the reader's own cards at the end of it", () => {
+      open();
+
+      for (let i = 0; i < 4; i += 1) press("ArrowRight");
+      expect(front()).toBe("eins");
+    });
+
+    /* Guide cards have no key, which is what keeps them out of the dictionary
+       and out of the schedule. Nothing the reader does to one is recorded. */
+    it("leaves nothing behind in the dictionary", () => {
+      open();
+
+      press("ArrowUp"); /* grade the guide card the reader is on */
+      press("ArrowRight");
+
+      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["a", "b", "c"]);
+    });
+
+    it("leaves nothing behind in the schedule", () => {
+      open();
+
+      press("ArrowUp");
+      press("ArrowRight"); /* and a neutral for the next one it pages past */
+      press("ArrowRight");
+
+      expect(Object.keys(JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}"))).toEqual([]);
+    });
+
+    /* It can still be swiped at and marked — the mark is what the card is
+       teaching; it simply goes nowhere. */
+    it("marks a guide card the reader swipes on", () => {
+      open();
+
+      press("ArrowUp");
+      expect(marks()).toBe("is-easier");
+    });
+
+    it("does not lead the next session", () => {
+      open();
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
+
+      open();
+      expect(front()).toBe("eins");
+    });
+
+    /* Remembered as it is dealt: a reader who reloads part-way through has met
+       the guide, and starting it again from the top is not what they asked for. */
+    it("does not start again after a reload part-way through", () => {
+      open();
+      press("ArrowRight");
+
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
+
+      open();
+      expect(front()).toBe("eins");
+    });
+
+    /* The flag arrived after v2 had readers, so a schedule already in storage
+       says this is nobody's first session whatever the flag says. */
+    it("does not greet a reader who already has a schedule", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 2, dueAt: Date.now() } }));
+      open();
+
+      expect(front()).toBe("eins");
+    });
+
+    it("adds no element to the page: it is cards, and nothing else", () => {
+      open();
+
+      expect(document.querySelector(".fc-legend")).toBe(null);
+      expect(document.body.children).toHaveLength(1);
+    });
+  });
+
+  /* The one interaction that leaves the screen unchanged says so in words, on
+     the card's own grade mark: the reader swiped against a grade they already
+     gave, and that grade answers. */
+  describe("a refused grade", () => {
+    const message = () => document.querySelector(".fc-front").getAttribute("data-message");
+
+    it("says nothing until there is something to say", () => {
+      open();
+      press("ArrowUp");
+
+      expect(message()).toBe(null);
+    });
+
+    it("explains itself when today's grade is already given", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+      open();
+
+      press("ArrowDown");
+
+      expect(message()).toMatch(/already rated today/i);
+    });
+
+    it("says the same thing about a card graded and left in this session", () => {
+      open();
+
+      press("ArrowUp"); // card a
+      press("ArrowRight"); // leaving settles it
+      press("ArrowLeft"); // back to card a
+      press("ArrowDown");
+
+      expect(message()).toMatch(/already rated today/i);
+    });
+
+    /* The band grows out of the mark the card already wears, so the words land
+       on the edge carrying the grade the reader is arguing with. */
+    it("says it on the edge that carries the grade", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+      open();
+
+      press("ArrowDown");
+
+      expect(document.querySelector(".fc-card").className).toContain("is-easier");
+    });
+
+    it("stops saying it when the card is paged away", () => {
+      open();
+
+      press("ArrowUp");
+      press("ArrowRight");
+      press("ArrowLeft");
+      press("ArrowDown");
+      expect(message()).not.toBe(null);
+
+      press("ArrowRight");
+      expect(message()).toBe(null);
+    });
   });
 
   describe("the way out", () => {
