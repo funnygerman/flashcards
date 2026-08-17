@@ -35,21 +35,74 @@ describe("createOrder with a lead", () => {
     expect(order.next()).toBe(lead[1]);
   });
 
-  it("hands over to the deck at the end of it", () => {
+  it("hands over to the deck the moment the lead is completed forward", () => {
     const order = createOrder(cards, () => 0, lead);
 
-    order.next();
-    expect(cards).toContain(order.next());
+    order.next(); /* guide 1 -> guide 2 */
+    expect(cards).toContain(order.next()); /* guide 2 -> the deck's first card */
   });
 
-  it("counts the lead as part of the sequence, and wraps around all of it", () => {
+  /* The lead is its own ring, not the front of one ring that wraps end to
+     end: splicing it onto the deck was tried first, and it meant "previous"
+     on the very first lead card landed on the deck's own last card — real
+     material shown before the guide had said anything, the leak `lead`
+     exists to prevent, arrived at from the other direction. */
+  it("wraps within the lead on its own — previous never reaches the deck", () => {
     const order = createOrder(cards, () => 0, lead);
 
-    expect(order.size).toBe(5);
+    expect(order.previous()).toBe(lead[1]); /* guide 1 -> wraps to guide 2, not "c" */
+    expect(order.previous()).toBe(lead[0]);
+    expect(order.previous()).toBe(lead[1]); /* keeps wrapping, however many times */
+  });
 
-    /* Back from the first is the last, which is one of the deck's own cards
-       rather than the guide: the lead is in front of everything, once. */
-    expect(cards).toContain(order.previous());
+  it("still wraps within the lead after visiting and returning from it", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    order.next(); /* guide 1 -> guide 2 */
+    order.previous(); /* guide 2 -> guide 1: visited, not completed */
+
+    expect(order.previous()).toBe(lead[1]); /* still guide-only */
+  });
+
+  it("does not go back to the lead once the deck has taken over", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    order.next(); /* guide 1 -> guide 2 */
+    order.next(); /* guide 2 -> deck, completed */
+
+    expect(lead).not.toContain(order.previous());
+    expect(lead).not.toContain(order.previous());
+  });
+
+  it("wraps the deck on its own once the lead has handed over", () => {
+    /* An identity shuffle, so the deck ring is `cards` in the order given —
+       see "starts at the first card of the shuffled order" below for why
+       0.999 does that. */
+    const order = createOrder(cards, () => 0.999, lead);
+
+    order.next();
+    order.next(); /* into the deck, at its first card */
+
+    /* Previous from the deck's own first card wraps within the deck, to the
+       deck's own last card — not back into the lead. */
+    expect(order.previous()).toBe(cards.at(-1));
+  });
+
+  it("reports the size of whichever ring is current", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    expect(order.size).toBe(lead.length);
+
+    order.next();
+    order.next(); /* completes the lead */
+    expect(order.size).toBe(cards.length);
+  });
+
+  it("is the deck outright with no lead at all", () => {
+    const order = createOrder(cards, () => 0, []);
+
+    expect(cards).toContain(order.current());
+    expect(order.size).toBe(cards.length);
   });
 });
 
