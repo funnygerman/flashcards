@@ -103,8 +103,9 @@ export function createView(container, steps) {
   };
 
   /**
-   * Show a card's grade by thickening the edge the gesture went towards: the
-   * top edge for `harder`, the bottom for `easier`, neither for `null`. The
+   * Show a card's grade by marking the edge the gesture went towards: the
+   * top edge for `easier`, the bottom for `harder`, neither for `null`. What
+   * that mark is made of is the stylesheet's business, as with `.fc-dot`. The
    * host is the one deciding what to pass here — this view has no memory of
    * its own between one `show`/`slide` and the next.
    */

@@ -88,8 +88,11 @@ Returns `{ destroy() }`. Options:
 swiped, and `→` follows the same motion, arriving from ahead the way paging forward usually looks.
 `previous` mirrors it. The deck wraps in both directions, so it never runs out.
 
-Grading keeps the card in place and marks it: the border thickens on the edge the gesture went towards —
-top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). Repeating a
+Grading keeps the card in place and marks it: a bar is drawn along the edge the gesture went towards —
+top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). The card's
+contents do not move under it. The mark used to be the card's own border thickening, which shifted the
+text and the category label down by a few pixels each time, so a settled grade looked like an animation
+still finishing rather than a state the card was in. Repeating a
 grade the card already carries does nothing; grading the other way replaces it and counts, including
 changing back to one it carried a moment ago. A card that has never been graded starts, and stays,
 ungraded until it actually is.

@@ -211,13 +211,14 @@ html:has(> body > .fc) body {
 
 /* Set while one card is exchanged for another off screen. Everything under the
    slider that would otherwise ease into its new state — the flip rotating back,
-   the border mark (below) thickening or thinning — is already correct by the
+   the grade mark (below) growing or shrinking — is already correct by the
    time the arriving card is seen, rather than animating towards it after it
    lands and reading as the page turn having changed the card's grade. The
    progress row was once listed here as well, back when a filled mark was a
    colour fade; a mask swap is instant, so it has nothing left to suspend. */
 .fc-slide.fc-instant .fc-card,
-.fc-slide.fc-instant .fc-face {
+.fc-slide.fc-instant .fc-face::before,
+.fc-slide.fc-instant .fc-face::after {
   transition: none;
 }
 
@@ -235,7 +236,6 @@ html:has(> body > .fc) body {
   background: var(--fc-bg);
   text-align: center;
   backface-visibility: hidden;
-  transition: border-width 160ms ease;
 
   /* Card size does not react to text length, so a word longer than the card
      has to break rather than bleed out of both sides of it. */
@@ -246,16 +246,48 @@ html:has(> body > .fc) body {
   transform: rotateY(180deg);
 }
 
-/* The grade mark: the card's own border thickens on the edge the gesture went
-   towards — up is easier, down is harder (V2-4.1) — so the mark stays its
-   own legend rather than needing one. No new element, no colour. box-sizing
-   keeps the content still while the edge grows. */
-.fc-card.is-easier .fc-face {
-  border-block-start-width: calc(var(--fc-card-w) * 0.014);
+/* The grade mark: a bar along the edge the gesture went towards — up is easier,
+   down is harder (V2-4.1) — so the mark stays its own legend rather than
+   needing one. No colour, and no element in the DOM either; one pseudo-element
+   per edge, so that changing one's mind shrinks one bar while the other grows
+   rather than teleporting a single bar across the card.
+
+   A bar rather than the thickened border this used to be, because the border
+   moved the card's own contents. `box-sizing: border-box` holds the *outer*
+   box still — that much the old comment here had right — but the content box
+   is what the border grows into: its top edge comes down by the full growth
+   and it loses that much height, so centred text slid down half of it and the
+   absolutely-positioned category label, anchored to the padding box, slid down
+   all of it. At 292 px of card (a 390 px phone) that is 1.5 px of text drift,
+   and at the 900 px cap 5.8 px of text and 11.6 px of category — a settled
+   grade reading as something still mid-animation, right after a gesture that
+   was itself a movement. A bar is painted over the card instead of being part
+   of its box, so nothing under it moves at all.
+
+   Inset by the 1 px border on all three sides it touches, so the bar covers
+   the corners the way the thickened border's mitre did and the card keeps one
+   unbroken edge rather than growing a bar just inside it. */
+.fc-face::before,
+.fc-face::after {
+  content: "";
+  position: absolute;
+  inset-inline: -1px;
+  block-size: 0;
+  background: var(--fc-line);
+  transition: block-size 160ms ease;
 }
 
-.fc-card.is-harder .fc-face {
-  border-block-end-width: calc(var(--fc-card-w) * 0.014);
+.fc-face::before {
+  inset-block-start: -1px;
+}
+
+.fc-face::after {
+  inset-block-end: -1px;
+}
+
+.fc-card.is-easier .fc-face::before,
+.fc-card.is-harder .fc-face::after {
+  block-size: calc(var(--fc-card-w) * 0.014);
 }
 
 /* V2-7.7: type is a fraction of the card width, never of the viewport, so the
@@ -286,7 +318,8 @@ html:has(> body > .fc) body {
 
 @media (prefers-reduced-motion: reduce) {
   .fc-card,
-  .fc-face {
+  .fc-face::before,
+  .fc-face::after {
     transition: none;
   }
 }

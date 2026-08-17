@@ -153,9 +153,17 @@ paging away and back was, by itself, indistinguishable from a fresh correct reca
 extra keypress) could walk a card from the first box to the last in seconds, with no attempt at recall in
 between.)
 
-**V2-5.7** A grade is visible on the card for as long as it is held: the card's border thickens on the
-edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder`
-(swipe down).
+**V2-5.7** A grade is visible on the card for as long as it is held: a bar is drawn along the edge the
+gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder` (swipe
+down).
+
+The mark changes nothing about the card's layout. It was the card's own border thickening at first,
+which moved the card's contents: `box-sizing: border-box` holds the outer box still, but the border
+grows into the content box, so centred text slid down half the growth and the category label — anchored
+to the padding box — slid down all of it (1.5 px of text on a phone, 5.8 px of text and 11.6 px of
+category at the 900 px cap). A settled grade that shifts the card reads as an animation still in
+progress rather than as a state, which is exactly the wrong thing to say immediately after a gesture
+that was itself a movement. A bar is painted over the card rather than being part of its box.
 
 **V2-5.8** The mark uses no colour, so it carries in both themes and does not depend on colour vision to
 be seen.
