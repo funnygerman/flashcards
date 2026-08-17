@@ -124,7 +124,24 @@ screen to explain the silence.
 
 **V2-4.8** The page does not scroll or select text under a gesture.
 
-**V2-4.9** An intent arriving while a page turn is in flight is dropped rather than queued.
+**V2-4.9** An intent arriving while a page turn is in flight is dropped rather than queued. So is a
+drag: the card being dragged is already on its way off the screen and is no longer the reader's to move.
+
+**V2-4.10** A pointer gesture is answered while it is being made, not only when it is released. The card
+follows a horizontal drag one for one, because that drag is a page turn and the card is going that way;
+it gives a little against a vertical drag and springs back, because grading does not move the card
+(V2-8.4) — and the edge being dragged towards fills in proportion to how much of the threshold the drag
+has covered, reaching a full mark exactly where the gesture becomes a grade.
+
+This is the answer to the discoverability problem §15 also addresses, and the more durable half of it:
+words have to be read once and remembered, whereas a card that visibly responds to a finger says *there
+is something here* every time anybody touches it, in whatever language they read. It also makes the
+grading gestures learnable without committing to one — the reader sees the mark forming and can drag
+back below the threshold, which turns a guess into an experiment.
+
+**V2-4.11** A gesture that does not reach the threshold leaves nothing behind: the card returns to the
+middle and the edge empties. A drag fills an edge and never empties one, so dragging up on a card that
+is already marked easier does not shrink that mark on the way to redrawing it.
 
 ---
 
@@ -235,10 +252,11 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 ## 7. Presentation
 
 **V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
-is absent unless there is somewhere to go (V2-13.9) — and what §15 says for a moment and then stops
-saying. No header, no footer, no chrome, no controls. Nothing permanent is added: §15's elements are in
-the document only while they have something to say, and one of the two never returns after a reader's
-first session. The exception is navigation, not information: a deck and the dictionary
+is absent unless there is somewhere to go (V2-13.9) — and the first-run legend (§15), which is in the
+document for one session of a reader's life and never again. No header, no footer, no chrome, no
+controls. What v2 has to say about a refused gesture is said on the card rather than beside it
+(V2-15.2), so it adds no element at all. The exception is navigation, not information: a deck and the
+dictionary
 are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
 them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
 page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
@@ -281,10 +299,20 @@ pull-to-refresh.
 
 **V2-8.3** Paging returns the card to its front face.
 
-**V2-8.4** Grading animates the mark appearing, and nothing else — the card does not move.
+**V2-8.4** Grading animates the mark appearing, and nothing else — the card does not move. A drag is not
+grading: while a finger is down the card follows or resists it (V2-4.10), and what it returns to when the
+finger lifts is a card that has not moved.
 
 **V2-8.5** Every animation degrades to an instant change under `prefers-reduced-motion`, and where the
 Web Animations API is unavailable.
+
+**V2-8.7** A page turn that began as a drag starts its slide from wherever the drag left the card, not
+from the middle. Snapping back and setting off again is a visible hitch on every swipe, and it is the
+difference between the card being dragged away and a swipe being a button press with extra steps.
+
+**V2-8.8** Under `prefers-reduced-motion` a drag does not move the card at all; the edge still fills.
+The information is in the mark, and the travel is the part somebody asking for less motion is asking to
+be spared.
 
 **V2-8.6** One card is exchanged for another in a single off-screen frame: its content, its mark (V2-5.7)
 and the progress row around it (§12) all change together, between the two legs of the slide, with the
@@ -332,9 +360,10 @@ anywhere on the page that opens it.
 card with far more text than the design assumes fills its card and may run under the category label.
 
 **V2-10.5** Announcing the flip or the grade to a screen reader. The card is a passive element with no
-live region. A refused grade (V2-15.2) is announced, and is the exception that shows the rule: the flip
-and the grade each have a visible result that speaks for itself, and a refusal is defined by having
-none.
+live region — including for a refused grade (V2-15.2), which was briefly a live region while it was a
+separate line of text and stopped being one when it became part of the card. Moving it onto the mark
+bought the reply its meaning and cost it that announcement; the trade is recorded here rather than
+hidden, and a live region for it remains available if a reader ever needs one.
 
 ---
 
@@ -622,16 +651,31 @@ interface with no chrome depends absolutely on every action being answered, and 
 silent were the two places a reader concluded that nothing was there: a gesture with no result, and a
 gesture nobody had mentioned.
 
-**V2-15.2** A grading gesture refused because the card is settled (V2-5.15) puts a line of text below
-the card for a few seconds: that the card has already been rated today, and that a card counts once a
-day. Both settled cases say the same sentence — a card graded before a page reload (V2-5.14) and one
-graded and paged away from in this session (V2-5.13) have both been rated today, since a grade given in
-this session was recorded today. One message, and true of both.
+**V2-15.2** A grading gesture refused because the card is settled (V2-5.15) is answered on the card
+itself: the grade mark grows into a band deep enough to hold type, says that the card has already been
+rated today, and shrinks back to a plain mark a few seconds later. Both settled cases say the same
+sentence — a card graded before a page reload (V2-5.14) and one graded and paged away from in this
+session (V2-5.13) have both been rated today, since a grade given in this session was recorded today.
+One message, and true of both.
 
-The wording belongs to the deck page, not to the library: `mount()` knows only that a card's grade is no
-longer the reader's to change, and nothing about days or schedules (V2-5.9, V2-11.1). It is a live
-region (V2-10.5), it takes no pointer events — a tap on the words is a tap on the card underneath, where
-the reader aimed it — and there is no element in the document until something needs saying.
+It is on the mark, and on the edge the mark is on, because the mark is what the reader is arguing with:
+they swiped against a grade they had already given, and the grade answers. A line of text floating below
+the card was tried first and reads as a notification about the page rather than as the card's own reply —
+the same difference as between a card that responds to a finger and a card with instructions printed
+next to it (V2-4.10).
+
+The wording belongs to the deck page, not to the library: `mount()` offers `say(text)` — one place to
+put a sentence, and no sentence of its own — because "today" is the schedule's idea and the library has
+none of it (V2-5.9, V2-11.1). The words are short by necessity: a band across a phone-sized card holds
+about four words, and the rule behind them is §15.6's to explain.
+
+Where the band goes follows the mark: the top edge for a card marked easier, the bottom for one marked
+harder. A card wearing no mark at all takes the bottom edge — unreachable today, since only a settled
+card is refused and a settled card always has a mark, but a band nobody can see would be a silent
+failure of the one thing here whose whole purpose is not to be silent.
+
+**V2-15.9** Whatever the band would otherwise cut in half steps aside while it is up: the category label
+for a band on the top edge, the progress row for one on the bottom. They come back when it goes.
 
 **V2-15.3** A reader's first session opens with the gestures written out: tap to see the answer, swipe
 up for known, down for not known, left or right for another card, and one line saying what the row of

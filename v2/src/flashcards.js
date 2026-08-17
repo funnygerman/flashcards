@@ -151,16 +151,37 @@ export function mount(element, cards, options = {}) {
      leaving, so it is dropped rather than queued. */
   let sliding = null;
 
-  const unbind = bindInput(view.root, (intent) => {
-    if (sliding) return;
+  const unbind = bindInput(
+    view.root,
+    (intent) => {
+      if (sliding) return;
 
-    sliding = actions[intent]?.() ?? null;
-    sliding?.finally(() => {
-      sliding = null;
-    });
-  });
+      sliding = actions[intent]?.() ?? null;
+      sliding?.finally(() => {
+        sliding = null;
+      });
+    },
+
+    /* The card follows the gesture while it is being made. Dropped mid-slide
+       for the same reason an intent is (V2-4.9): the card being dragged is on
+       its way off the screen and is no longer the reader's to move. */
+    (gesture) => {
+      if (sliding) return;
+
+      if (gesture) view.drag(gesture);
+      else view.release();
+    },
+  );
 
   return {
+    /**
+     * Say something on the card, for a moment: the grade mark grows into a band
+     * on the edge it already marks and holds the words. What is worth saying is
+     * the host's business — the library has no sentence of its own, only the
+     * one place to put one. `onRefuse` is what usually prompts it.
+     */
+    say: (text) => view.announce(text),
+
     destroy() {
       unbind();
       view.destroy();

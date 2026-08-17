@@ -23,16 +23,18 @@ import { pageStorage, readMap, writeMap } from "./storage.js";
 
 const SVG = "http://www.w3.org/2000/svg";
 
-/** How long a transient line stays up: long enough to read twice. */
-const MESSAGE_MS = 2400;
-
 /**
  * What a refused gesture says. The library reports that it refused and why
  * (`onRefuse`, V2-5.15); the wording is this layer's, because "today" is the
  * schedule's idea and mount() has none — it knows only that this card's grade
  * is no longer the reader's to change.
+ *
+ * Short, because of where it goes: the card's own grade mark grows into a band
+ * and says it, and a band across a phone-sized card holds about this much. The
+ * rule behind it — one rating a day — is the help view's to explain; what the
+ * reader needs at the moment their swipe does nothing is why it did nothing.
  */
-const SETTLED = "Already rated today — a card counts once a day";
+const SETTLED = "Already rated today";
 
 /** Where the reader last was, so the dictionary knows what "back" means. */
 export const DECK_KEY = "flashcards.deck";
@@ -57,7 +59,11 @@ const LEGEND = [
   ["Swipe left or right", "another card"],
 ];
 
-const LEGEND_NOTES = ["The stars show how well you know a card.", "Arrow keys do the same. Press ? for this again."];
+/* What the stars are, said in terms of what moves them rather than as a vague
+   "how well you know it": a star is a day you got the card right, and one wrong
+   answer clears the row — which is the Leitner reset (V2-11.2), and the part a
+   reader is most likely to be surprised by. */
+const LEGEND_NOTES = ["A star for each day you get a card right. One wrong answer clears them all.", "Arrow keys do the same. Press ? for this again."];
 
 /** The key that brings the legend back — see V2-15.6, and the README. */
 const REPLAY_KEY = "?";
@@ -131,53 +137,6 @@ function createCorner({ href, label }, stacked) {
 
   link.append(svg);
   return link;
-}
-
-/**
- * A line of text that appears for a moment and then leaves again.
- *
- * The page is otherwise the card and nothing else (V2-7.1), and this does not
- * change that: there is no element in the document until something needs
- * saying, and none of the reader's attention is spent on it before then — the
- * same posture the corner takes towards a link that leads nowhere.
- *
- * It exists because a refused gesture is the one thing the card cannot answer
- * for itself. Every other interaction shows its own result: the card flips,
- * pages, or takes a mark. A grade the schedule will not accept leaves the
- * screen exactly as it was, so a reader who has just discovered the swipe is
- * shown the same nothing as a reader who never swiped — and concludes the same
- * thing from it.
- *
- * A live region rather than decoration, because it says something the reader
- * cannot see anywhere else. V2-10.5 leaves the flip and the grade unannounced:
- * both have a visible result that speaks for itself, which is exactly what
- * this one lacks.
- */
-function createMessages(element) {
-  let node = null;
-  let timer = null;
-
-  const say = (text) => {
-    if (!node) {
-      node = document.createElement("p");
-      node.className = "fc-message";
-      node.setAttribute("role", "status");
-      element.append(node);
-    }
-
-    node.textContent = text;
-    node.classList.add("is-shown");
-
-    clearTimeout(timer);
-    timer = setTimeout(() => node.classList.remove("is-shown"), MESSAGE_MS);
-  };
-
-  const destroy = () => {
-    clearTimeout(timer);
-    node?.remove();
-  };
-
-  return { say, destroy };
 }
 
 /**
@@ -319,8 +278,6 @@ export function openDeck(cards, options = {}) {
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
 
-  const messages = createMessages(element);
-
   /* A deck studies all of its own cards; the dictionary studies what is due
      out of everything (V2-13.4). The same fact decides both — whether this page
      brought cards of its own. */
@@ -336,7 +293,7 @@ export function openDeck(cards, options = {}) {
        rated today, since a grade in this session was recorded today by the line
        above. One message, and true in both. */
     onRefuse: (card, reason) => {
-      if (reason === "settled") messages.say(SETTLED);
+      if (reason === "settled") deck.say(SETTLED);
     },
 
     /* The box is the count outright, so box 0 fills no marks — what a card
@@ -349,16 +306,15 @@ export function openDeck(cards, options = {}) {
     },
   });
 
+  /* After mounting, like the link below: there is no legend for a page that
+     threw rather than rendering a card. */
+  const hints = createHints(element, storage);
+
   /* Offered only where it leads somewhere new (V2-13.9): for the only deck a
      reader has ever opened it would lead straight back to these same cards, and
      where storage is unusable it would lead to a page that cannot render.
      Added after mounting rather than hidden in the markup, so it is never in
      the document at a moment when it should not be seen. */
-  /* After mounting, like the corner: there is no legend for a page that threw
-     rather than rendering a card, and the overlay belongs over a card that is
-     already there. */
-  const hints = createHints(element, storage);
-
   const link = corner && holdsMoreThan(cards, storage) ? createCorner(corner, own) : null;
   if (link) element.append(link);
 
@@ -366,9 +322,10 @@ export function openDeck(cards, options = {}) {
      everything mount() did (V2-3.7): the furniture assembled here is no more
      the caller's to remember than the deck's own listeners are. */
   return {
+    ...deck,
+
     destroy() {
       deck.destroy();
-      messages.destroy();
       hints.destroy();
       link?.remove();
     },

@@ -214,11 +214,11 @@ describe("openDeck", () => {
     });
   });
 
-  /* The one interaction that leaves the screen unchanged says so in words,
-     because the card has no way to show it: the reader swiped, the gesture
-     worked, and the schedule already has today's answer. */
+  /* The one interaction that leaves the screen unchanged says so in words, on
+     the card's own grade mark: the reader swiped against a grade they already
+     gave, and that grade answers. */
   describe("a refused grade", () => {
-    const message = () => document.querySelector(".fc-message");
+    const message = () => document.querySelector(".fc-front").getAttribute("data-message");
 
     it("says nothing until there is something to say", () => {
       open();
@@ -233,8 +233,7 @@ describe("openDeck", () => {
 
       press("ArrowDown");
 
-      expect(message().textContent).toMatch(/already rated today/i);
-      expect(message().classList.contains("is-shown")).toBe(true);
+      expect(message()).toMatch(/already rated today/i);
     });
 
     it("says the same thing about a card graded and left in this session", () => {
@@ -245,28 +244,30 @@ describe("openDeck", () => {
       press("ArrowLeft"); // back to card a
       press("ArrowDown");
 
-      expect(message().textContent).toMatch(/already rated today/i);
+      expect(message()).toMatch(/already rated today/i);
     });
 
-    it("stays out of the deck, so the words are not a tap on the card", () => {
+    /* The band grows out of the mark the card already wears, so the words land
+       on the edge carrying the grade the reader is arguing with. */
+    it("says it on the edge that carries the grade", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
       open();
-      press("ArrowUp");
-      press("ArrowRight");
-      press("ArrowLeft");
+
       press("ArrowDown");
 
-      expect(document.querySelector(".fc").contains(message())).toBe(false);
+      expect(document.querySelector(".fc-card").className).toContain("is-easier");
     });
 
-    it("goes away with the deck", () => {
+    it("stops saying it when the card is paged away", () => {
       open();
+
       press("ArrowUp");
       press("ArrowRight");
       press("ArrowLeft");
       press("ArrowDown");
       expect(message()).not.toBe(null);
 
-      mounted.splice(0).forEach((deck) => deck.destroy());
+      press("ArrowRight");
       expect(message()).toBe(null);
     });
   });

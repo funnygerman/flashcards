@@ -64,7 +64,8 @@ Once this is on `main` it is published at
 
 ### `mount(element, cards, options?)`
 
-Returns `{ destroy() }`. Options:
+Returns `{ say(text), destroy() }` — `say` puts a sentence on the card for a moment, on the grade mark
+(§ Saying what the card cannot show). Options:
 
 | | |
 |---|---|
@@ -88,6 +89,16 @@ Returns `{ destroy() }`. Options:
 `next` exits to the left and the next card arrives from the right — the card drags away in the direction
 swiped, and `→` follows the same motion, arriving from ahead the way paging forward usually looks.
 `previous` mirrors it. The deck wraps in both directions, so it never runs out.
+
+**The card answers a gesture while you are making it.** Drag sideways and it goes with your finger, and
+the page turn carries on from wherever you let go rather than snapping back first. Drag up or down and
+it gives a little and springs back — grading doesn't move the card — while the edge you are pulling
+towards fills in, reaching a full mark exactly where the drag becomes a grade. Let go short of that and
+the edge empties again, so the gestures can be tried without being committed to.
+
+That is the durable half of the discoverability problem the first-run legend also answers. Words are
+read once and remembered or not; a card that visibly responds to a finger says *something is here* every
+time anybody touches it. Under `prefers-reduced-motion` the card stays put and only the mark fills.
 
 Grading keeps the card in place and marks it: a bar is drawn along the edge the gesture went towards —
 top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). The card's
@@ -203,17 +214,22 @@ is already recorded — is dropped, and the screen is left exactly as it was, wh
 reader sees who never swiped at all. With no chrome to fall back on, that silence reads as "this
 gesture does not exist".
 
-So the page says it, in one line below the card, for a couple of seconds: *Already rated today — a card
-counts once a day*. Both settled cases get that same sentence, because both are true of it: a card
-graded before a page reload, and one graded and paged away from in this session, have each been rated
-today. A repeat of the grade a card already carries stays silent — the mark is already the answer to
-what the reader asked for.
+So the card says it, on the mark: **the grade mark grows into a band** on the edge it already marks,
+reads *Already rated today* in reverse, and shrinks back a couple of seconds later. Both settled cases
+get that same sentence, because both are true of it: a card graded before a page reload, and one graded
+and paged away from in this session, have each been rated today. A repeat of the grade a card already
+carries stays silent — the mark is already the answer to what the reader asked for.
 
-The wording is `deck.js`'s, not the library's. `mount()` reports `onRefuse(card, "settled")` and knows
-nothing about days or schedules; the deck page turns that into a sentence, the same split as everywhere
-else here. The element isn't in the document until something needs saying, it takes no pointer events —
-a tap on the words is a tap on the card underneath — and it's a live region, the one thing v2 announces,
-because it's the one thing with no visible result to announce itself.
+On the mark, rather than on a line of text under the card, because the mark is the thing being argued
+with: the reader swiped against a grade they had already given, and that grade is what answers. A
+floating line was tried first and reads as a notification about the page — the same difference as
+between a card that responds to your finger and a card with instructions printed beside it. Whatever the
+band would cut in half steps aside while it's up: the category label above, the star row below.
+
+The wording is `deck.js`'s, not the library's. `mount()` reports `onRefuse(card, "settled")` and offers
+`say(text)` — one place to put a sentence and no sentence of its own — because "today" is the schedule's
+idea and the library has none of it. Short by necessity: a band across a phone-sized card holds about
+four words.
 
 ### The first session
 

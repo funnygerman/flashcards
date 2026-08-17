@@ -31,6 +31,10 @@ html:has(> body > .fc) body {
      listener to keep in step with it. */
   --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
 
+  /* A full grade mark. Written once here because three things measure
+     themselves against it: the mark, a drag towards it, and the band. */
+  --fc-mark: calc(var(--fc-card-w) * 0.014);
+
   box-sizing: border-box;
   display: grid;
   place-items: center;
@@ -218,44 +222,6 @@ html:has(> body > .fc) body {
   }
 }
 
-/* A line the page says for a moment and then stops saying: why a grading
-   gesture was refused, which is the one thing the card cannot show for itself
-   (see deck.js). A sibling of .fc for the same reason the corner is one —
-   inside it, a tap on the words would be read as a tap on the card — and it
-   never takes a gesture in any case: pointer-events: none puts every tap on
-   the card underneath, where the reader aimed it.
-
-   Sized in rem rather than as a fraction of the card, unlike everything on the
-   card itself: this is not on the card, and it should read the same on a phone
-   in landscape — where the gap below the card is thinnest — as anywhere else.
-   Its colours are written out rather than taken from --fc-muted, because those
-   tokens are declared on .fc and a sibling does not inherit them. */
-.fc-message {
-  position: fixed;
-  z-index: 2;
-  inset-block-end: max(0.5rem, env(safe-area-inset-bottom));
-  inset-inline: 0;
-  margin: 0;
-  padding-inline: 1rem;
-  color: #666;
-  font-family: system-ui, sans-serif;
-  font-size: 0.8rem;
-  text-align: center;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 200ms ease;
-}
-
-.fc-message.is-shown {
-  opacity: 1;
-}
-
-@media (prefers-color-scheme: dark) {
-  .fc-message {
-    color: #999;
-  }
-}
-
 /* The progress row: stars, filled left to right along the card's bottom
    edge, centred. Bottom rather than beside the centred text: a 4:3 card has
    far more spare width around a short word than spare height, so a row here
@@ -274,6 +240,16 @@ html:has(> body > .fc) body {
   display: flex;
   align-items: center;
   gap: calc(var(--fc-card-w) * 0.012);
+  transition: opacity 160ms ease;
+}
+
+/* A band on the bottom edge reaches the row, so the row steps aside for the
+   couple of seconds it is up — the same courtesy the category label pays a band
+   on the top edge. `:has()` because the row is the card's sibling rather than
+   its child (it must not flip with the card), so there is no selector from one
+   to the other that reads downwards. */
+.fc-slide:has(.fc-card:not(.is-easier) .fc-face[data-message]) .fc-progress {
+  opacity: 0;
 }
 
 /* A star, drawn here rather than borrowed from a font (V2-12.9): the shape is a
@@ -308,11 +284,23 @@ html:has(> body > .fc) body {
 }
 
 /* Paging moves this element; the flip rotates the one inside it. position:
-   relative anchors .fc-progress, its other child, to this same box. */
+   relative anchors .fc-progress, its other child, to this same box.
+
+   The transition is the spring back: a drag that turns out to be a tap, or one
+   that gives up half way, leaves the card wherever the finger left it, and
+   removing the inline transform lets it ease home from there. A drag in
+   progress suspends it — nothing that tracks a finger can afford to be a fifth
+   of a second behind it — and a page turn overrides it outright, being a Web
+   Animations animation on this same element. */
 .fc-slide {
   position: relative;
   inline-size: var(--fc-card-w);
   block-size: calc(var(--fc-card-w) * 3 / 4);
+  transition: transform 200ms ease;
+}
+
+.fc-slide.is-dragging {
+  transition: none;
 }
 
 .fc-card {
@@ -385,28 +373,98 @@ html:has(> body > .fc) body {
 
    Inset by the 1 px border on all three sides it touches, so the bar covers
    the corners the way the thickened border's mitre did and the card keeps one
-   unbroken edge rather than growing a bar just inside it. */
+   unbroken edge rather than growing a bar just inside it.
+
+   Each edge's height is a fraction — 0 to 1 of a full mark — rather than a
+   fixed size, so the same bar serves three states without three
+   implementations: 0 for ungraded, 1 for graded, and anything between while a
+   finger is dragging towards that edge (view.js sets the fraction inline, and
+   an inline value outrides the classes below for exactly as long as the drag
+   lasts). */
 .fc-face::before,
 .fc-face::after {
   content: "";
   position: absolute;
   inset-inline: -1px;
-  block-size: 0;
+  block-size: calc(var(--fc-mark) * var(--fc-mark-here, 0));
   background: var(--fc-line);
   transition: block-size 160ms ease;
 }
 
 .fc-face::before {
+  --fc-mark-here: var(--fc-mark-top, 0);
+
   inset-block-start: -1px;
 }
 
 .fc-face::after {
+  --fc-mark-here: var(--fc-mark-bottom, 0);
+
   inset-block-end: -1px;
 }
 
-.fc-card.is-easier .fc-face::before,
-.fc-card.is-harder .fc-face::after {
-  block-size: calc(var(--fc-card-w) * 0.014);
+.fc-card.is-easier .fc-face {
+  --fc-mark-top: 1;
+}
+
+.fc-card.is-harder .fc-face {
+  --fc-mark-bottom: 1;
+}
+
+/* Nothing tracks a finger through a transition: while a drag is in progress the
+   bar is redrawn every frame at whatever fraction the drag has reached, and
+   easing towards it would lag the finger by the length of the ease. The
+   transition comes back on release, which is what makes the bar spring shut. */
+.fc-slide.is-dragging .fc-face::before,
+.fc-slide.is-dragging .fc-face::after {
+  transition: none;
+}
+
+/* The message band: the mark grows to a readable height and says something.
+ *
+ * This is where a refusal belongs — on the card, on the edge that carries the
+ * grade being argued with, rather than on a line of text floating underneath
+ * the card where it reads as a notification about the page. The reader swipes
+ * against a grade they already gave, and the grade itself answers, in the mark
+ * they are trying to change.
+ *
+ * The words come from `data-message` through `attr()`, so the text is set by
+ * one attribute and this stylesheet decides everything about how it looks — the
+ * same division the stars are drawn under. The attribute goes on each face
+ * rather than on the card, because `attr()` reads the element its
+ * pseudo-element belongs to and nothing above it; both faces carry it, so the
+ * band reads correctly whichever way the card is facing.
+ *
+ * Which edge follows the mark the card already wears. The fallback covers a
+ * card that wears none: today a refusal always comes from a settled card and a
+ * settled card always has a mark, but a band nobody can see would be a silent
+ * failure of the one thing here whose whole job is not to be silent.
+ *
+ * A band, not a bar: tall enough to hold type at a size a phone can read, which
+ * a mark at 1.4 % of the card width is not. rem is the floor and the card
+ * fraction takes over above it, so the band is legible on the smallest card and
+ * still in proportion on the largest. */
+.fc-card.is-easier .fc-face[data-message]::before,
+.fc-card.is-harder .fc-face[data-message]::after,
+.fc-card:not(.is-easier, .is-harder) .fc-face[data-message]::after {
+  content: attr(data-message);
+  display: grid;
+  place-items: center;
+  block-size: max(1.5rem, calc(var(--fc-card-w) * 0.05));
+  padding-inline: calc(var(--fc-card-w) * 0.03);
+  overflow: hidden;
+  color: var(--fc-bg);
+  font-size: max(0.7rem, calc(var(--fc-card-w) * 0.026));
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* The band at the top edge is deeper than the gap above the category label, so
+   for the couple of seconds it is up the label steps aside rather than being
+   sliced in half by it. Only the top: a band on the bottom edge is nowhere near
+   it. */
+.fc-card.is-easier .fc-face[data-message] .fc-category {
+  opacity: 0;
 }
 
 /* V2-7.7: type is a fraction of the card width, never of the viewport, so the
@@ -433,13 +491,16 @@ html:has(> body > .fc) body {
   font-size: calc(var(--fc-card-w) * 0.03);
   letter-spacing: 0.12em;
   text-transform: uppercase;
+  transition: opacity 160ms ease;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .fc-card,
   .fc-face::before,
   .fc-face::after,
-  .fc-message {
+  .fc-category,
+  .fc-progress,
+  .fc-slide {
     transition: none;
   }
 }
