@@ -39,34 +39,64 @@ const SETTLED = "Already rated today";
 /** Where the reader last was, so the dictionary knows what "back" means. */
 export const DECK_KEY = "flashcards.deck";
 
-/** Whether the reader has been shown the gestures. One flag, nothing else. */
+/** Whether the reader has been shown the guide. One flag, nothing else. */
 export const HINTS_KEY = "flashcards.hints";
 
 /**
- * What a first session says, before the reader has touched anything.
+ * The guide: four cards that teach the deck by being one.
  *
- * Nothing on a card with no chrome on it advertises that swiping exists: a
+ * Nothing on a card with no chrome on it advertises that swiping exists. A
  * reader can tap, read the back, tap again and page with the arrows for ever
- * without discovering grading at all — and for that reader the row of stars
- * never gets explained either, which invites reading the whole card as a
- * vertical feed whose row counts views. The gestures cannot be inferred. They
- * have to be said, once.
+ * without discovering grading at all — and for that reader the row of stars is
+ * never explained either. The gestures cannot be inferred; they have to be
+ * said, once.
+ *
+ * Said *as cards*, because a card is the one thing this app has already taught
+ * the reader to use. An overlay is a second interface — a thing to read, then
+ * dismiss, then act on — and it was tried here first and thrown out for exactly
+ * that: a lid over the app, in a register the rest of the design does not use.
+ * These four are the app. Each one asks for the gesture it is teaching, and its
+ * other side is the reader's own gesture answering: tap this card, and the back
+ * says you turned it over; swipe up, and the mark appears where the card said it
+ * would. The reader is never told what would happen — they do it, and the deck
+ * agrees with them. Learning the deck and using the deck become the same act,
+ * and the guide costs the interface nothing, because it *is* the interface.
+ *
+ * No `key` on any of them, which is what keeps them out of everything a card
+ * normally touches: they are not written to the dictionary (V2-6.3), never
+ * turn up in it later, and carry no schedule. `category` names them so nobody
+ * mistakes one for a word they are supposed to know.
  */
-const LEGEND = [
-  ["Tap the card", "see the answer"],
-  ["Swipe up", "you knew it"],
-  ["Swipe down", "you did not"],
-  ["Swipe left or right", "another card"],
+const GUIDE = [
+  {
+    category: "guide",
+    frontText: "Tap this card",
+    frontDetails: "or press Space",
+    backText: "You turned it over.",
+    backDetails: "Swipe left for the next one \u2014 or press \u2192",
+  },
+  {
+    category: "guide",
+    frontText: "That is how you move.",
+    frontDetails: "Tap",
+    backText: "Swipe up if you knew it.",
+    backDetails: "Down if you did not. Try it on this card \u2014 the edge you swipe towards marks it.",
+  },
+  {
+    category: "guide",
+    frontText: "That mark is your answer.",
+    frontDetails: "Tap",
+    backText: "Stars are days you got it right.",
+    backDetails: "One wrong answer clears them all.",
+  },
+  {
+    category: "guide",
+    frontText: "That is all of it.",
+    frontDetails: "Tap",
+    backText: "Swipe left to start.",
+    backDetails: "These four cards are not part of your deck.",
+  },
 ];
-
-/* What the stars are, said in terms of what moves them rather than as a vague
-   "how well you know it": a star is a day you got the card right, and one wrong
-   answer clears the row — which is the Leitner reset (V2-11.2), and the part a
-   reader is most likely to be surprised by. */
-const LEGEND_NOTES = ["A star for each day you get a card right. One wrong answer clears them all.", "Arrow keys do the same. Press ? for this again."];
-
-/** The key that brings the legend back — see V2-15.6, and the README. */
-const REPLAY_KEY = "?";
 
 /**
  * The deck the reader last opened, as `{ href, label }`, or null.
@@ -140,115 +170,24 @@ function createCorner({ href, label }, stacked) {
 }
 
 /**
- * The legend itself: the gestures, as a list of what to do and what it means.
+ * Whether this is a reader's first time here.
  *
- * Over the card and dimming the page, rather than tucked beside it. The quiet,
- * out-of-the-way register is precisely the one that has already failed to
- * communicate here — twice, counting the text hints on the card faces that
- * V2-12.4 records as tried and reverted. This is shown once in a reader's life
- * and leaves on their first touch, so it can afford to be unmissable in a way
- * nothing permanent could.
- *
- * It takes no pointer events, so the tap that dismisses it is also the tap that
- * flips the card: the reader's first interaction is a real one, not a dialog
- * they had to get past first.
+ * One flag says so, and a review schedule already in storage overrules it: a
+ * reader with a schedule is not a first-timer whatever the flag says, because
+ * the flag was added to v2 after it had readers, and being taught to tap the
+ * card after a month of tapping it is not guidance. Unusable storage shows the
+ * guide again, which is the harmless direction to fail in (V2-6.4) — a reader
+ * who cannot keep a flag cannot keep a schedule either.
  */
-function createLegend() {
-  const overlay = document.createElement("div");
-  const rows = document.createElement("dl");
+function firstRun(storage) {
+  const store = storage ?? pageStorage();
 
-  overlay.className = "fc-legend";
-
-  for (const [gesture, meaning] of LEGEND) {
-    const term = document.createElement("dt");
-    const definition = document.createElement("dd");
-
-    term.textContent = gesture;
-    definition.textContent = meaning;
-    rows.append(term, definition);
-  }
-
-  const notes = document.createElement("div");
-  notes.className = "fc-legend-notes";
-
-  for (const text of LEGEND_NOTES) {
-    const note = document.createElement("p");
-
-    note.textContent = text;
-    notes.append(note);
-  }
-
-  overlay.append(rows, notes);
-  return overlay;
+  return readMap(store, HINTS_KEY).guide !== true && Object.keys(readMap(store, REVIEW_KEY)).length === 0;
 }
 
-/**
- * The legend's comings and goings.
- *
- * Shown on a reader's first session, dismissed by their first interaction of
- * any kind, and then never again — one flag in storage says so. `?` brings it
- * back at any time, which is v2's whole answer to "a help view": a way back for
- * a reader who dismissed it before reading it, at the cost of no pixels on the
- * page. It is not a discoverable control and is not meant to be one; the README
- * is where it is written down.
- *
- * A reader who already has a schedule is not a first-timer, whatever the flag
- * says — the flag was added after they started using v2, and being told to tap
- * the card after a month of tapping it is not guidance. Unusable storage shows
- * the legend again, the harmless direction to fail in (V2-6.4): a reader who
- * cannot keep a flag cannot keep a schedule either.
- */
-function createHints(element, storage) {
-  const store = () => storage ?? pageStorage();
-  const seen = () => readMap(store(), HINTS_KEY).legend === true || Object.keys(readMap(store(), REVIEW_KEY)).length > 0;
-
-  let overlay = null;
-
-  const hide = () => {
-    overlay?.remove();
-    overlay = null;
-  };
-
-  /* Dismissed by whatever the reader does first, rather than by a control of
-     its own: the legend is asking them to touch the card, so the touch that
-     answers it is also what puts it away. Capture, so it is seen even where
-     something else stops the event travelling; keydown and pointerdown, so
-     neither input source is left without a way out. */
-  const dismiss = (event) => {
-    if (!overlay || event.key === REPLAY_KEY) return; /* the key that shows it does not also hide it */
-
-    hide();
-    writeMap(store(), HINTS_KEY, { legend: true });
-  };
-
-  const show = () => {
-    if (overlay) return;
-
-    overlay = createLegend();
-    element.append(overlay);
-  };
-
-  const replay = (event) => {
-    if (event.key === REPLAY_KEY) show();
-  };
-
-  const bound = [
-    ["keydown", dismiss],
-    ["pointerdown", dismiss],
-  ];
-
-  for (const [type, handler] of bound) document.addEventListener(type, handler, true);
-  document.addEventListener("keydown", replay);
-
-  if (!seen()) show();
-
-  return {
-    destroy() {
-      for (const [type, handler] of bound) document.removeEventListener(type, handler, true);
-      document.removeEventListener("keydown", replay);
-      hide();
-    },
-  };
+/** Remembered as the guide is dealt, so it leads one session and no other. */
+function rememberGuide(storage) {
+  writeMap(storage ?? pageStorage(), HINTS_KEY, { guide: true });
 }
 
 /**
@@ -275,6 +214,12 @@ export function openDeck(cards, options = {}) {
   const own = cards.length > 0;
   const source = own ? cards : allCards(storage);
 
+  /* Dealt in front of the session on a first run, and remembered as it is dealt
+     — a reload part-way through is a reader who has already met the guide, not
+     one who needs it again from the top. */
+  const guide = firstRun(storage) ? GUIDE : [];
+  if (guide.length) rememberGuide(storage);
+
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
 
@@ -284,8 +229,15 @@ export function openDeck(cards, options = {}) {
   const deck = mount(element, chooseSession(source, { now, storage, onlyDue: !own }), {
     storage,
     random,
-    onGrade: (card, level) => recordGrade(card.key, level, storage, now),
-    gradeOf: (card) => gradedToday(card.key, storage, now),
+    lead: guide,
+
+    /* A card with no key is not the reader's to be asked about again: the
+       dictionary does not store it (V2-6.3) and the schedule does not either,
+       which is the whole of what keeps the guide out of both. It can still be
+       swiped at and marked — that is the point of it — the mark simply goes
+       nowhere. */
+    onGrade: (card, level) => card.key && recordGrade(card.key, level, storage, now),
+    gradeOf: (card) => card.key && gradedToday(card.key, storage, now),
 
     /* Both settled cases are the same fact from the reader's side and get the
        same sentence: a card graded before a page reload (gradeOf, V2-5.14) and
@@ -302,13 +254,9 @@ export function openDeck(cards, options = {}) {
        that changing the ladder resizes the row (V2-11.15). */
     progress: {
       steps: BOX_COUNT - 1,
-      of: (card) => reviewState(card.key, storage, now).box,
+      of: (card) => (card.key ? reviewState(card.key, storage, now).box : 0),
     },
   });
-
-  /* After mounting, like the link below: there is no legend for a page that
-     threw rather than rendering a card. */
-  const hints = createHints(element, storage);
 
   /* Offered only where it leads somewhere new (V2-13.9): for the only deck a
      reader has ever opened it would lead straight back to these same cards, and
@@ -326,7 +274,6 @@ export function openDeck(cards, options = {}) {
 
     destroy() {
       deck.destroy();
-      hints.destroy();
       link?.remove();
     },
   };

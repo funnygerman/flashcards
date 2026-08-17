@@ -61,10 +61,17 @@ markup.
 **V2-3.1** `mount(element, cards, options?)` renders a deck into `element` and returns a handle with
 `destroy()`.
 
-**V2-3.2** `options` are `onGrade(card, level)`, `storage`, and `random`. `storage` and `random` exist so
-the library can be tested and embedded without reaching for globals.
+**V2-3.2** `options` are `onGrade(card, level)`, `onRefuse(card, reason)`, `gradeOf(card)`, `progress`,
+`lead`, `storage`, and `random`. `storage` and `random` exist so the library can be tested and embedded
+without reaching for globals.
 
 **V2-3.3** The deck is shuffled on mount. The caller's array is not reordered.
+
+`lead` is the one exception: cards handed to `mount()` under that option come first, in the order given,
+and are not shuffled. The shuffle exists so that a reader does not learn the deck's order along with its
+cards, which is a statement about material being studied — a guide whose cards taught the swipe before
+the tap would not be a guide (V2-15.3). A lead card is shown, not studied: it does not go through the
+dictionary the way the deck's own cards do.
 
 **V2-3.4** One card is on screen at a time.
 
@@ -252,11 +259,11 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 ## 7. Presentation
 
 **V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
-is absent unless there is somewhere to go (V2-13.9) — and the first-run legend (§15), which is in the
-document for one session of a reader's life and never again. No header, no footer, no chrome, no
-controls. What v2 has to say about a refused gesture is said on the card rather than beside it
-(V2-15.2), so it adds no element at all. The exception is navigation, not information: a deck and the
-dictionary
+is absent unless there is somewhere to go (V2-13.9). No header, no footer, no chrome, no controls.
+Everything v2 has to say to a reader it says as cards or on the card: the guide is four cards (V2-15.3),
+and a refused gesture is answered on the card's own mark (V2-15.2). Neither adds an element to the page,
+which is why this requirement reads as it always did — an overlay for the guide was built first and it
+cost exactly this sentence. The exception is navigation, not information: a deck and the dictionary
 are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
 them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
 page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
@@ -351,10 +358,9 @@ category filters. §13 studies the whole dictionary as a deck, which is a differ
 make this one built: there is still no way to look at the collection rather than work through it.
 
 **V2-10.3** Position indicators, a title screen, an info panel, and any configuration of the sizing
-ratios or the type scale. §15's first-run legend is not the title screen or the info panel this
-excludes: there is nothing to dismiss before studying — the tap that puts it away is the tap that flips
-the first card — it is shown once in a reader's life rather than on every visit, and there is no control
-anywhere on the page that opens it.
+ratios or the type scale. §15's guide is none of those: there is no screen and no panel, nothing to
+dismiss before studying, and no control anywhere that opens it. It is four cards at the front of one
+session, and the reader works through them exactly as they work through any card.
 
 **V2-10.4** Text that shrinks to fit its card. Card size is independent of text length (V2-7.8), so a
 card with far more text than the design assumes fills its card and may run under the category label.
@@ -677,46 +683,46 @@ failure of the one thing here whose whole purpose is not to be silent.
 **V2-15.9** Whatever the band would otherwise cut in half steps aside while it is up: the category label
 for a band on the top edge, the progress row for one on the bottom. They come back when it goes.
 
-**V2-15.3** A reader's first session opens with the gestures written out: tap to see the answer, swipe
-up for known, down for not known, left or right for another card, and one line saying what the row of
-stars means. It is dismissed by the reader's first interaction of any kind, whatever it is, and does not
-return.
+**V2-15.3** A reader's first session is led by four cards that teach the deck by being one. They come
+first and in their own order (V2-3.3's `lead`), and they are gone from every session after.
 
-Nothing on the card advertises that swiping exists. A reader who taps, reads the back, taps again and
-pages with the arrows can use v2 indefinitely without discovering grading at all — and for that reader
-the row of stars is permanently unexplained, which invites reading the card as a vertical feed whose row
-counts views. The gestures cannot be inferred from a card with no chrome on it; they have to be said
-once. Saying what the stars are in the same breath is what answers the second reading, rather than the
-row being redrawn again (V2-12.9).
+Nothing on a card with no chrome advertises that swiping exists. A reader can tap, read the back, tap
+again and page with the arrows indefinitely without discovering grading at all — and for that reader the
+row of stars is never explained either, which invites reading the card as a vertical feed whose row
+counts views. The gestures cannot be inferred; they have to be said once.
 
-**V2-15.4** It is shown over the card and dims the page behind it, rather than sitting beside the card.
-The quiet, out-of-the-way register is the one that has already failed to communicate here — twice,
-counting the text hints on the card faces that V2-12.4 records as tried and reverted. Because it is
-shown once in a reader's life and leaves on their first touch, it can afford to be unmissable in a way
-nothing permanent could.
+**V2-15.4** They are said as cards because a card is the one thing the reader has already been taught to
+use. Each one asks for the gesture it is teaching, and its other side is the reader's own gesture
+answering: tap this card, and the back says you turned it over; swipe up where it says to, and the mark
+appears on the edge it named. The reader is never told what would happen — they do it, and the deck
+agrees with them. Learning the deck and using the deck are the same act.
 
-It takes no pointer events, so the tap that dismisses it is the same tap that flips the card. The
-reader's first interaction is a real one, not a lid they had to lift first — which is also what keeps
-V2-4.2's "a tap is a flip" true on the very first tap of a session.
+This replaced an overlay of the same four instructions, which was built first and thrown out. An overlay
+is a second interface — something to read, then dismiss, then act on — in a register the rest of the
+design does not use, and it made V2-7.1 admit a full-screen element for the sake of one session. Cards
+cost the interface nothing, because they *are* the interface.
 
-**V2-15.5** Whether it has been seen is one flag in storage, `flashcards.hints`. A reader who already
-has a review schedule (§11) is not a first-timer whatever the flag says, and is not greeted: the flag
-was added to v2 after it had readers. Unusable or absent storage shows the legend again, the harmless
-direction to fail in — V2-6.4's posture, and a reader who cannot keep a flag cannot keep a schedule
-either.
+**V2-15.5** No guide card has a `key`, which is what keeps it out of everything a card normally touches:
+it is not written to the dictionary (V2-6.3), never turns up in it later, and carries no schedule. It
+can still be flipped, paged and marked — the mark is what card two is teaching — and the mark simply
+goes nowhere. Its `category` reads `guide`, so nobody mistakes one for something they are meant to know.
 
-**V2-15.6** `?` shows it again, at any time. That is not a discoverable control and is not meant to be
-one: it is a way back for a reader who dismissed the legend before reading it, at the cost of no pixels
-on the page, and it is written down in the README rather than on screen. It is the whole of v2's answer
-to "a help view" — there is no panel, no button, and no page.
+**V2-15.6** Whether the guide has been dealt is one flag in storage, `flashcards.hints`, written as it
+is dealt rather than when it is finished: a reader who reloads part-way through has met the guide, and
+starting it again from the top is not what they asked for. A reader who already has a review schedule
+(§11) is not a first-timer whatever the flag says, and is not greeted — the flag was added to v2 after
+it had readers. Unusable or absent storage deals the guide again, the harmless direction to fail in
+(V2-6.4): a reader who cannot keep a flag cannot keep a schedule either.
 
-**V2-15.7** Both belong to the deck page (§14), not to the library. `mount()` neither draws them nor
-knows they exist, exactly as it does not know about the corner link (V2-7.1) — a bare `mount()` is still
-a bare card. They are built element by element rather than from markup, per V2-14.5.
+There is no way to ask for the guide a second time. That is a known gap rather than a decision, and it
+is listed under open questions.
 
-**V2-15.8** The handle `openDeck()` returns takes them back down, along with the corner link, as well as
-everything `mount()`'s own `destroy()` removes (V2-3.7) — including the document-level listeners the
-legend binds to dismiss itself. Page furniture is no more the caller's to remember than the deck's own
+**V2-15.7** Both belong to the deck page (§14), not to the library. The guide's words are the deck
+page's, and `lead` is a general facility that knows nothing about guides — the same division as
+`progress`, which draws a count without knowing it is a box. A bare `mount()` is still a bare card.
+
+**V2-15.8** The handle `openDeck()` returns takes down the corner link as well as everything `mount()`'s
+own `destroy()` removes (V2-3.7). Page furniture is no more the caller's to remember than the deck's own
 listeners are.
 
 ---
@@ -725,6 +731,11 @@ listeners are.
 
 Not requirements — decisions deferred until there is a reason to make them.
 
+- **Should there be a way to see the guide again?** It leads one session and is then gone (V2-15.6), so
+  a reader who swiped through it without reading has no way back. A `?` key, or a mark in a corner, would
+  both work — and both were considered and left out rather than rejected: the first is undiscoverable and
+  the second is standing chrome (V2-7.1) for something wanted once. Deferred until somebody actually
+  asks for it twice.
 - **Should sizing round to whole pixels?** The library it replaces computed integer pixels in
   JavaScript. CSS sizes to the subpixel, and no problem has been traced to the difference.
 - **Should the Leitner box count or interval schedule be configurable?** Fixed for now (V2-11.3). Nothing

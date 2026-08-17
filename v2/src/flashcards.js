@@ -28,19 +28,26 @@ import { createView } from "./view.js";
  *                  `progress` draws a row of `steps` marks along the
  *                  card, `of(card)` filled — any host-supplied 0..steps
  *                  count, e.g. review.js's box; omit it for a bare card.
+ *                  `lead` is cards to show first, in the order given and
+ *                  unshuffled, ahead of the deck proper — a guide, or anything
+ *                  else whose sequence is the point (V2-15.3).
  *                  `gradeOf(card)` is the host's answer to "what has this card
  *                  already been graded?" — a grade the reader gave it before
  *                  this deck was mounted, e.g. review.js's `gradedToday`. Such
  *                  a card arrives wearing its mark and settled: see `locked`.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, onRefuse, progress, gradeOf } = options;
+  const { storage, random = Math.random, onGrade, onRefuse, progress, gradeOf, lead = [] } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
   }
 
-  const deck = createOrder(syncCards(cards, storage), random);
+  /* The lead is shown, not studied: it goes in front of the deck in the order
+     it was given (order.js), and it does not pass through the dictionary the
+     way the deck's own cards do — cards that explain the app are not cards the
+     reader has met and will be asked about again. */
+  const deck = createOrder(syncCards(cards, storage), random, lead);
   const view = createView(element, progress?.steps);
 
   /* Progress is the host's data, not the library's — read fresh every time

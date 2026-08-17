@@ -73,6 +73,7 @@ Returns `{ say(text), destroy() }` — `say` puts a sentence on the card for a m
 | `onRefuse(card, reason)` | a grading gesture was dropped because the card is settled (`"settled"`), so the host can say why nothing happened — see § Saying what the card cannot show |
 | `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives marked and settled (§ Interactions) |
 | `progress` | `{ steps, of(card) }` — draws a row of `steps` stars along the card's bottom edge, the first `of(card)` of them filled; omit it for a bare card |
+| `lead` | cards shown first, in the order given and unshuffled, ahead of the deck proper — a guide, or anything else whose sequence is the point |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -96,9 +97,9 @@ it gives a little and springs back — grading doesn't move the card — while t
 towards fills in, reaching a full mark exactly where the drag becomes a grade. Let go short of that and
 the edge empties again, so the gestures can be tried without being committed to.
 
-That is the durable half of the discoverability problem the first-run legend also answers. Words are
-read once and remembered or not; a card that visibly responds to a finger says *something is here* every
-time anybody touches it. Under `prefers-reduced-motion` the card stays put and only the mark fills.
+That is the durable half of the discoverability problem the first-run guide also answers. Words are read
+once and remembered or not; a card that visibly responds to a finger says *something is here* every time
+anybody touches it. Under `prefers-reduced-motion` the card stays put and only the mark fills.
 
 Grading keeps the card in place and marks it: a bar is drawn along the edge the gesture went towards —
 top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down). The card's
@@ -234,34 +235,43 @@ four words.
 ### The first session
 
 The other silence is the first one: **nothing on the card says that swiping exists**. Tap, read the
-back, tap again, page with the arrows — a reader can do that for ever and never find out that the card
-can be graded at all, and for that reader the row of stars never gets explained either. A card with no
-chrome on it cannot be inferred from. So a reader's first session opens with the gestures written out
-over the card, and one line saying what the stars are:
+back, tap again, page with the arrows — a reader can do that for ever and never find out the card can be
+graded at all, and for that reader the row of stars is never explained either.
+
+So a first session is led by four cards, which teach the deck by being one:
 
 ```text
-       Tap the card   see the answer
-          Swipe up    you knew it
-        Swipe down    you did not
- Swipe left or right  another card
+   Tap this card              →   You turned it over.
+   or press Space                 Swipe left for the next one — or press →
 
-     The stars show how well you know a card.
-     Arrow keys do the same. Press ? for this again.
+   That is how you move.      →   Swipe up if you knew it.
+   Tap                            Down if you did not. Try it on this card —
+                                  the edge you swipe towards marks it.
+
+   That mark is your answer.  →   Stars are days you got it right.
+   Tap                            One wrong answer clears them all.
+
+   That is all of it.         →   Swipe left to start.
+   Tap                            These four cards are not part of your deck.
 ```
 
-It goes away on the reader's first interaction, whatever that is, and doesn't come back — one flag in
-`localStorage["flashcards.hints"]` says so, and a reader who already has a schedule isn't greeted at all,
-since the flag arrived after v2 had readers. It takes no pointer events, so the tap that dismisses it is
-the tap that flips the card: a real first interaction, not a lid to lift first.
+Each card asks for the gesture it is teaching, and its other side is your own gesture answering: tap it
+and the back says you turned it over; swipe up where it says to and the mark appears on the edge it just
+named. Nobody is told what *would* happen — they do it, and the deck agrees with them.
 
-It's over the card and dims the page, rather than sitting quietly beside it, because quiet is exactly
-the register that already failed here — twice, counting the gesture hints on the card faces that were
-tried and reverted as overload (§ Progress indicator). Something shown once in a reader's life and
-dismissed by their first touch can afford to be unmissable in a way nothing permanent could.
+An overlay of the same four instructions was built first and thrown out. An overlay is a second
+interface, in a register nothing else here uses: something to read, then dismiss, then act on. Cards
+cost the interface nothing, because they *are* the interface — and V2-7.1 goes back to meaning what it
+says, since the guide adds no element to the page at all.
 
-**`?` brings it back**, at any time. That's the whole of v2's help view: no panel, no button, no page —
-a way back for anyone who swiped it away before reading it, costing no pixels. It isn't discoverable and
-isn't meant to be; this paragraph is where it's documented.
+They come first and unshuffled — `mount()`'s `lead`, which knows nothing about guides, the way
+`progress` knows nothing about boxes. None of them has a `key`, which is what keeps them out of the
+dictionary and out of the schedule: swipe at one and it takes the mark, and the mark goes nowhere. One
+flag in `localStorage["flashcards.hints"]` is written as the guide is dealt, so a reload part-way
+through does not start it again, and a reader who already has a schedule is never greeted at all.
+
+There is no way to ask for it a second time yet. That's a gap, not a decision — see the open questions
+in the requirements.
 
 ## Local storage
 
