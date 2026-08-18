@@ -74,6 +74,13 @@ export const HINTS_KEY = "flashcards.hints";
  * reason: a drag fills the edge it is going towards while the finger is still
  * down (V2-4.10), which says it without spending a line.
  *
+ * "Swipe left for the next one — or press →" is spelled out once, on the
+ * first card, because that is the only time the keyboard equivalent needs
+ * saying — cards two through four just say "Swipe left", trusting what card
+ * one already taught rather than repeating it in full three more times. No
+ * full stops anywhere: these are instructions and labels, not sentences, and
+ * a card is not a page of prose.
+ *
  * No `key` on any of them, which is what keeps them out of everything a card
  * normally touches: they are not written to the dictionary (V2-6.3), never
  * turn up in it later, and carry no schedule. `category` names them so nobody
@@ -84,28 +91,28 @@ const GUIDE = [
     category: "guide",
     frontText: "Tap this card",
     frontDetails: "or press Space",
-    backText: "You see the answer.",
+    backText: "You see the answer",
     backDetails: "Swipe left for the next one \u2014 or press \u2192",
   },
   {
     category: "guide",
-    frontText: "Swipe up if you knew it.",
+    frontText: "Swipe up if you knew it",
     frontDetails: "Tap this card",
-    backText: "Swipe down if you didn't know it.",
-    backDetails: "Swipe left for the next one \u2014 or press \u2192",
+    backText: "Swipe down if you didn't know it",
+    backDetails: "Swipe left",
   },
   {
     category: "guide",
-    frontText: "Stars are days you got it right.",
+    frontText: "Stars are days you got it right",
     frontDetails: "Tap this card",
-    backText: "Wrong answer clears them all.",
-    backDetails: "Swipe left for the next one \u2014 or press \u2192",
+    backText: "Wrong answer clears them all",
+    backDetails: "Swipe left",
   },
   {
     category: "guide",
-    frontText: "That is all of it.",
+    frontText: "That is all of it",
     frontDetails: "Tap this card",
-    backText: "These cards are not part of your deck.",
+    backText: "These cards are not part of your deck",
     backDetails: "Swipe left to start learning",
   },
 ];
@@ -235,6 +242,19 @@ export function openDeck(cards, options = {}) {
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
 
+  /* The guide's own box — in memory only, gone the moment this mount ends,
+     the same as everything else about a guide card (V2-6.3). Card three
+     claims "a star for each day you get it right... wrong answer clears
+     them all" (V2-15.4's own gesture answering its own claim); without this
+     the row stayed empty however a guide card was graded, since a keyless
+     card has no schedule for `reviewState` to read a box from, and the very
+     card teaching what the row means would be the one card that could never
+     show it doing anything. Capped and reset exactly as review.js's own
+     nextBox does, minus the parts that write to storage — there is nowhere
+     for a guide card's box to live once this mount is gone, nor should
+     there be. */
+  let guideBox = 0;
+
   /* A deck studies all of its own cards; the dictionary studies what is due
      out of everything (V2-13.4). The same fact decides both — whether this page
      brought cards of its own. */
@@ -246,9 +266,17 @@ export function openDeck(cards, options = {}) {
     /* A card with no key is not the reader's to be asked about again: the
        dictionary does not store it (V2-6.3) and the schedule does not either,
        which is the whole of what keeps the guide out of both. It can still be
-       swiped at and marked — that is the point of it — the mark simply goes
-       nowhere. */
-    onGrade: (card, level) => card.key && recordGrade(card.key, level, storage, now),
+       swiped at and marked — that is the point of it — the grade itself goes
+       nowhere, even while the row above reacts to it. */
+    onGrade: (card, level) => {
+      if (!card.key) {
+        if (level === "easier") guideBox = Math.min(guideBox + 1, BOX_COUNT - 1);
+        else if (level === "harder") guideBox = 0;
+        return;
+      }
+
+      recordGrade(card.key, level, storage, now);
+    },
     gradeOf: (card) => card.key && gradedToday(card.key, storage, now),
 
     /* Both settled cases are the same fact from the reader's side and get the
@@ -266,7 +294,7 @@ export function openDeck(cards, options = {}) {
        that changing the ladder resizes the row (V2-11.15). */
     progress: {
       steps: BOX_COUNT - 1,
-      of: (card) => (card.key ? reviewState(card.key, storage, now).box : 0),
+      of: (card) => (card.key ? reviewState(card.key, storage, now).box : guideBox),
     },
   });
 
