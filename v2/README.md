@@ -241,24 +241,28 @@ graded at all, and for that reader the row of stars is never explained either.
 So a first session is led by four cards, which teach the deck by being one:
 
 ```text
-   Tap this card                       →   You see the answer.
+   Tap this card                       →   You see the answer
    or press Space                          Swipe left for the next one — or press →
 
-   Swipe up if you knew it.            →   Swipe down if you didn't know it.
-   Tap this card                           Swipe left for the next one — or press →
+   Swipe up if you knew it             →   Swipe down if you didn't know it
+   Tap this card                           Swipe left
 
-   Stars are days you got it right.    →   Wrong answer clears them all.
-   Tap this card                           Swipe left for the next one — or press →
+   Stars are days you got it right     →   Wrong answer clears them all
+   Tap this card                           Swipe left
 
-   That is all of it.                  →   These cards are not part of your deck.
+   That is all of it                   →   These cards are not part of your deck
    Tap this card                           Swipe left to start learning
 ```
 
 Each card asks for the gesture it is teaching, and its other side is your own gesture answering: tap it
-and the back is the answer; swipe up where it says to and the mark appears on the edge it just named.
-Nobody is told what *would* happen — they do it, and the deck agrees with them. Every front ends "tap
-this card" and every back "swipe left for the next one", on purpose: four cards is four turns of the
-same two gestures, and card two splits the grades across its faces so both get performed.
+and the back is the answer; swipe up where it says to and the mark appears on the edge it just named —
+and the row of stars fills too, exactly as card three says it will, even though nothing about a guide
+card is stored anywhere (below). Nobody is told what *would* happen — they do it, and the deck agrees
+with them. Every front ends "tap this card" and every back starts with "swipe left", on purpose: four
+cards is four turns of the same two gestures, and card two splits the grades across its faces so both
+get performed. "Swipe left for the next one — or press →" is spelled out once, on the first card, since
+that's the only time the keyboard equivalent needs saying; the other three just say "swipe left". No
+full stops anywhere — these are instructions, not sentences.
 
 Every line is short on purpose. Card text is sized for a word rather than a sentence, so a line that
 runs to three of them on a phone is a line nobody reads. Nothing explains the grade mark in words for
@@ -272,9 +276,11 @@ says, since the guide adds no element to the page at all.
 
 They come first and unshuffled — `mount()`'s `lead`, which knows nothing about guides, the way
 `progress` knows nothing about boxes. None of them has a `key`, which is what keeps them out of the
-dictionary and out of the schedule: swipe at one and it takes the mark, and the mark goes nowhere. One
-flag in `localStorage["flashcards.hints"]` is written as the guide is dealt, so a reload part-way
-through does not start it again, and a reader who already has a schedule is never greeted at all.
+dictionary and out of the schedule: swipe at one and it takes the mark, and the row of stars answers —
+via a box `deck.js` keeps in memory for the length of the guide and nowhere else, since a keyless card
+has no real box for `progress` to read — but nothing is ever written to storage. One flag in
+`localStorage["flashcards.hints"]` is written as the guide is dealt, so a reload part-way through does
+not start it again, and a reader who already has a schedule is never greeted at all.
 
 The guide wraps on its own while it's in progress — it's a separate ring from the deck, not the front of
 one ring running through both. Swiping right (`previous`) on the very first guide card wraps back to the
@@ -283,6 +289,12 @@ tried first, and it meant that exact gesture — the first thing a reader might 
 said anything — landed on the deck's own last card. Paging forward into the deck and back out again
 doesn't retire the guide either; only paging past its actual last card does, and once that's happened
 there's no gesture that returns to it.
+
+Being on the last card isn't by itself completion, either — it's exactly how a reader reaches the last
+card by wrapping backward from the first, having seen only the first and the last of however many there
+are. So the guide also tracks which of its own cards have actually been on screen, and only hands over
+once none are missing; short of that, paging forward off the last card is a plain wrap back to the
+first, same as any other step.
 
 There is no way to ask for it a second time yet. That's a gap, not a decision — see the open questions
 in the requirements.

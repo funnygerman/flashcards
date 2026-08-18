@@ -712,13 +712,28 @@ counts views. The gestures cannot be inferred; they have to be said once.
 **V2-15.4** They are said as cards because a card is the one thing the reader has already been taught to
 use. Each one asks for the gesture it is teaching, and its other side is the reader's own gesture
 answering: tap this card, and the back says you turned it over; swipe up where it says to, and the mark
-appears on the edge it named. The reader is never told what would happen — they do it, and the deck
-agrees with them. Learning the deck and using the deck are the same act.
+appears on the edge it named — and the progress row fills, exactly as the third card claims it will (see
+V2-15.4a). The reader is never told what would happen — they do it, and the deck agrees with them.
+Learning the deck and using the deck are the same act.
 
 This replaced an overlay of the same four instructions, which was built first and thrown out. An overlay
 is a second interface — something to read, then dismiss, then act on — in a register the rest of the
 design does not use, and it made V2-7.1 admit a full-screen element for the sake of one session. Cards
 cost the interface nothing, because they *are* the interface.
+
+**V2-15.4a** `progress`'s count-out-of-a-count (§12) reacts to a guide card exactly as it reacts to a real
+one, through a box `deck.js` keeps in memory for the length of one mount and nowhere else. Without it,
+the one card whose whole job is explaining what the row means (V2-12.2's "stars are days you got it
+right, wrong answer clears them all") would be the one card that could never show the row doing anything,
+since a keyless card (V2-15.5) has no schedule for `reviewState` to read a box from. Nothing here is
+written to storage: the box lives exactly as long as the mount that made it, the same posture the guide
+card's own grade takes (V2-15.5).
+
+**V2-15.4b** Guide text carries no full stops and repeats as little as it can. "Swipe left for the next
+one — or press →" is spelled out once, on the first card, because that is the only time the keyboard
+equivalent needs saying; the rest just say "swipe left", trusting what the first card already taught
+rather than restating it in full on every one. A card is sized for a word, not a sentence (V2-7.7), and
+these are instructions and labels, not prose that earns its own punctuation.
 
 **V2-15.5** No guide card has a `key`, which is what keeps it out of everything a card normally touches:
 it is not written to the dictionary (V2-6.3), never turns up in it later, and carries no schedule. It
@@ -733,6 +748,14 @@ has said a word — teaches nothing and is indistinguishable, to that reader, fr
 covering what just happened. Paging into the deck and back out again does not count as completing it: the
 guide only hands over on being paged past forward, and once it has, there is no gesture that returns to
 it — it has done its job for this session.
+
+**V2-15.5b** Being on the last guide card is not by itself completion. `previous` on the first card wraps
+directly to the last one (V2-15.5a's own boundary is a wrap), so a reader can reach it having shown only
+the first and the last of however many cards the guide holds — the rest never appeared. Paging forward
+from there satisfies "on the last card, going forward" without satisfying what that phrase is meant to
+stand for, so it is not enough on its own: the guide also tracks which of its own cards have actually
+been shown, and only hands over once none are missing. Short of that, paging forward off the last card is
+a plain wrap back to the first — the same as any other step that is not the one true completion.
 
 **V2-15.6** Whether the guide has been dealt is one flag in storage, `flashcards.hints`, written as it
 is dealt rather than when it is finished: a reader who reloads part-way through has met the guide, and

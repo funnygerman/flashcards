@@ -165,7 +165,7 @@ describe("openDeck", () => {
       expect(details()).toMatch(/press Space/i);
 
       press("ArrowRight");
-      expect(front()).toBe("Swipe up if you knew it.");
+      expect(front()).toBe("Swipe up if you knew it");
     });
 
     it("hands over to the reader's own cards at the end of it", () => {
@@ -205,6 +205,37 @@ describe("openDeck", () => {
       expect(marks()).toBe("is-easier");
     });
 
+    /* Card three claims a star for every day the reader gets a card right,
+       and a wrong answer clearing them all — a claim the reader can only
+       check by swiping and watching the row, so it has to be true of the
+       guide's own cards too, even though nothing about them is stored. */
+    it("fills a star when a guide card is graded easier", () => {
+      open();
+
+      press("ArrowUp");
+      expect(filled()).toBe(1);
+    });
+
+    it("empties the row again on a harder grade, exactly as a real card's box would", () => {
+      open();
+
+      press("ArrowUp");
+      press("ArrowRight"); // guide card 2
+      press("ArrowUp");
+      expect(filled()).toBe(2);
+
+      press("ArrowDown");
+      expect(filled()).toBe(0);
+    });
+
+    it("carries the guide's own count from one guide card to the next", () => {
+      open();
+
+      press("ArrowUp");
+      press("ArrowRight");
+      expect(filled()).toBe(1); // still lit on the card the swipe wasn't even made on
+    });
+
     /* Swiping right (previous) on the very first guide card used to wrap the
        whole lead-plus-deck sequence as one ring, landing on the deck's own
        last card — real material shown before the guide had said anything, on
@@ -213,7 +244,7 @@ describe("openDeck", () => {
       open();
 
       press("ArrowLeft"); // previous, on the first card of the guide
-      expect(front()).toBe("That is all of it."); // wraps within the guide, to its own last card
+      expect(front()).toBe("That is all of it"); // wraps within the guide, to its own last card
     });
 
     it("keeps wrapping within the guide while it is still in progress, however far back the reader goes", () => {
@@ -223,7 +254,7 @@ describe("openDeck", () => {
       press("ArrowLeft"); // back to guide card 1: visited, not completed
       press("ArrowLeft"); // still guide-only
 
-      expect(front()).toBe("That is all of it.");
+      expect(front()).toBe("That is all of it");
     });
 
     /* Reaching the guide's last card by wrapping backward from the first is
