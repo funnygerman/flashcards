@@ -7,7 +7,7 @@ Ordered by priority, highest first. Re-order this file as priorities change; tha
 
 ---
 
-## 1. Bug: corner link shown from a deck with no cards
+## 1. Corner link shown from a deck with no cards — bug, and the decision behind it
 
 **What.** Open a deck HTML file that defines no cards of its own. Per `V2-13.3`, a deck with no cards
 studies the dictionary instead — correct. But the corner link (`V2-13.9`) then shows the "switch to a
@@ -20,10 +20,28 @@ Worth checking against `V2-13.9`'s actual rule ("the dictionary holds a card the
 before patching, since the empty-`cards` case may need its own rule rather than reusing `holdsMoreThan`
 as-is.
 
-**Why first.** Small, well-isolated, correctness bug in code that was just finished. Cheap to fix now
-while the area is warm; will only get more expensive to re-learn later.
+**The decision underneath it.** Whether that's the full fix depends on a question one level up: should the
+corner link stay a real page-to-page navigation (`<a href>` between two separate HTML files), or become an
+in-page transition — same page, same mount, just swapping which cards are loaded — so a reader moving
+between a deck and the dictionary never leaves the page at all? This runs against two things
+`docs/requirements.md` states as deliberate, not incidental: `V2-1.2` ("one HTML file is one deck") and
+`V2-13.9`'s own reasoning for why the corner is a real link and not app-like chrome — "it carries no
+state, and it is the host page's element rather than the library's... a reader on a phone has no address
+bar to type into and no other way to cross between them." Swapping to an in-page source change would make
+the library carry navigational state it explicitly does not carry today, which is a bigger philosophy
+change than a bug fix and needs its own sign-off — and it bears on how "misleading" the current icon even
+is, since that partly depends on which model the corner link is supposed to follow. The narrow bug fix
+(correcting `holdsMoreThan`'s inputs) stands on its own either way and does not need this settled first;
+the design conversation is what decides whether more than that narrow fix is warranted here.
 
-**Size.** S.
+**Why first.** Small, well-isolated, correctness bug in code that was just finished, in an area still warm
+in context — cheap to settle now, on both the code and the question behind it, before either gets more
+expensive to re-learn later.
+
+**Size.** Bug fix: S. Decision: S (a conversation). Implementation, if the answer is "yes, swap in place":
+likely L — touches `deck.js`, `flashcards.js`'s mount lifecycle, `dictionary.html`, `V2-1.2`, `V2-13.9` and
+`V2-14.7` in the requirements doc, and the browser back-button behavior a real navigation gets for free
+today.
 
 ---
 
