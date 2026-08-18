@@ -42,7 +42,7 @@ Either it was never implemented or is not working properly
 
 ---
 
-## 2. `v2-Code-Review`
+## `v2-Code-Review`
 
 **What.** Run `/code-review` (or equivalent) over the recent rating-view work before building more on top
 of it. The last several merged PRs (`claude/rating-view-v2-ux-*`) touched grading, animation and the guide
@@ -55,7 +55,7 @@ codebase that's still fresh in context, than after three more features sit on to
 
 ---
 
-## 3. Deck session mode: study-what's-due vs. show-everything
+## Deck session mode: study-what's-due vs. show-everything
 
 **What.** `V2-13.4` currently gives a deck and the dictionary different selection rules: a deck offers all
 of its own cards (up to `SESSION_LIMIT`); the dictionary offers only what's due. The open question is
@@ -73,7 +73,7 @@ or mode, plus the requirements-doc update that goes with any behavior change her
 
 ---
 
-## 4. Accessibility (`V2-10.5`)
+## Accessibility (`V2-10.5`)
 
 **What.** `V2-10.5` explicitly documents the current gap: no live region, no announcement on flip or
 grade, including a refused grade. It was cut deliberately once (moving the refusal message onto the mark
@@ -90,7 +90,7 @@ so an announcement doesn't fire mid-slide.
 
 ---
 
-## 5. Adaptive font size for text length
+## Adaptive font size for text length
 
 **What.** `V2-10.4` currently states the opposite as a deliberate decision: "card size is independent of
 text length... a card with far more text than the design assumes fills its card and may run under the
@@ -106,7 +106,7 @@ scoped items above.
 
 ---
 
-## 6. Text-to-Speech
+## Text-to-Speech
 
 **What.** Read `frontText`/`backText` (and details) aloud, presumably via the Web Speech API given
 `V2-9.1`'s no-dependency rule.
@@ -121,7 +121,7 @@ needs a visible/audible result" rule.
 
 ---
 
-## 7. Gamification (streaks)
+## Gamification (streaks)
 
 **What.** Some reward mechanic — daily streaks were mentioned specifically — for the reader keeping up
 with review or maybe even scrolling through the deck. Maybe something like one point a day, if user saw at 
