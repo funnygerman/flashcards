@@ -7,41 +7,6 @@ Ordered by priority, highest first. Re-order this file as priorities change; tha
 
 ---
 
-## Corner link shown from a deck with no cards — bug, and the decision behind it
-
-**What.** Open a deck HTML file that defines no cards of its own. Per `V2-13.3`, a deck with no cards
-studies the dictionary instead — correct. But the corner link (`V2-13.9`) then shows the "switch to a
-single deck" icon, as if there is a specific deck to go back to, which is misleading on a page that was
-never really "a deck" to begin with.
-
-**The decision underneath it.** should the corner link stay a real page-to-page navigation 
-(`<a href>` between two separate HTML files), or become an in-page transition — same page, same mount, 
-just swapping which cards are loaded — so a reader moving between a deck and the dictionary never leaves 
-the page at all? This runs against two things `docs/requirements.md` states as deliberate, not incidental: `
-V2-1.2` ("one HTML file is one deck") and`V2-13.9`'s own reasoning for why the corner is a real link 
-and not app-like chrome — "it carries no state, and it is the host page's element rather than the library's... 
-a reader on a phone has no address bar to type into and no other way to cross between them." 
-Swapping to an in-page source change would make the library carry navigational state it explicitly does not 
-carry today, which is a bigger philosophy change than a bug fix and needs its own sign-off — and it bears 
-on how "misleading" the current icon even is, since that partly depends on which model the corner link is 
-supposed to follow.
-
-**Size.** Bug fix: S. Decision: S (a conversation). Implementation, if the answer is "yes, swap in place":
-likely L — touches `deck.js`, `flashcards.js`'s mount lifecycle, `dictionary.html`, `V2-1.2`, `V2-13.9` and
-`V2-14.7` in the requirements doc, and the browser back-button behavior a real navigation gets for free
-today.
-
-**Note from kind of "PO" (me)**
-The requirement V2-1.2` ("one HTML file is one deck") seems to stay still valid, since the dictionary is not the deck itself
-
-Proposal regarding back button: maybe disable its functionality. Recommendations are welcome.
-The reasoning from V2-13.9`'s "it carries no state, and it is the host page's element rather than the library's... 
-a reader on a phone has no address bar to type into and no other way to cross between them."  
-=> That is not quite true, address bar is visible and accessible. User is able to change the address. 
-Either it was never implemented or is not working properly
-
----
-
 ## `v2-Code-Review`
 
 **What.** Run `/code-review` (or equivalent) over the recent rating-view work before building more on top

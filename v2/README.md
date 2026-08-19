@@ -23,9 +23,10 @@ A deck file holds its cards and one call:
 ```
 
 `openDeck()` assembles the whole thing: it picks the session, records grades against the schedule,
-brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the link
-out to the dictionary. There is no element to name — one HTML file is one deck, so the deck is the page;
-pass `element` if you want it somewhere smaller.
+brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the way
+out to the dictionary — a corner mark that switches the deck to it in place, and back. There is no
+element to name — one HTML file is one deck, so the deck is the page; pass `element` if you want it
+somewhere smaller.
 
 It is composition, not library — `mount()` below still knows nothing about any of it, so a page that
 wants a bare card and no schedule imports that instead:
@@ -43,8 +44,8 @@ Everything after this section describes those pieces. You need none of it to wri
 <http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over `file://`.
 
 There are two decks rather than one because one deck's dictionary is that deck: the corner mark only
-appears on each of them once the other has been opened, and the dictionary only becomes worth having
-when it holds more than a single deck.
+appears on each of them once the other has been opened, and switching it in place only becomes worth
+having when the dictionary holds more than that single deck.
 
 Once this is on `main` it is published at
 <https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html>, and linked from the site root.
@@ -128,9 +129,9 @@ they are aimed at something else: a field being typed into (input, textarea, sel
 or a focused control (a link with an `href`, a button). The two take different amounts: a field takes
 every key, arrows included, because it uses them to move the caret; a control takes only `Enter` and
 `Space`, the keys that would press it. The deck calls `preventDefault()` on what it takes, so without
-that much, `Enter` on the corner link would flip the card instead of following it — but the arrows mean
-nothing to a link and everything to the deck, so tapping the link and pressing Back doesn't leave you
-unable to page. Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
+that much, `Enter` on the corner would flip the card instead of pressing it — but the arrows mean nothing
+to a control and everything to the deck, so tabbing to the corner and pressing an arrow still pages.
+Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
 
 ## Card size
 
@@ -374,12 +375,13 @@ example.
 
 ## The dictionary
 
-Everything the reader has ever opened, studied as one deck:
-<http://localhost:8000/v2/dictionary.html>. Not a list and not a table — the same card, the same keys and
-gestures, the same marks, the same rules. A card is still judged with the card in front of you.
+Everything the reader has ever opened, studied as one deck — reached from any deck by pressing its
+corner mark, or directly at <http://localhost:8000/v2/decks/empty-deck.html> for a reader with no deck
+open at all. Not a list and not a table — the same card, the same keys and gestures, the same marks, the
+same rules. A card is still judged with the card in front of you.
 
-That is the whole design. `dictionary.html` is an ordinary deck file whose card list is empty, and a deck
-file with no cards of its own studies the dictionary instead:
+That is the whole design. `decks/empty-deck.html` is an ordinary deck file whose card list is empty, and
+a deck file with no cards of its own studies the dictionary instead:
 
 ```js
 import { chooseSession } from "../src/session.js";
@@ -390,10 +392,13 @@ const source = cards.length > 0 ? cards : allCards();
 mount(document.body, chooseSession(source), { onGrade, gradeOf, progress });
 ```
 
-Both pages end in exactly those lines, so there is one rule rather than a special page — and because it
-is the same `mount()` call with the same wiring, one grade per card per day and *paging away settles it*
-mean the same thing in both without a second implementation to keep in step. Grade a card in the deck,
-open the dictionary, and the card is already there wearing its mark and refusing another grade today.
+A deck with cards of its own selects its dictionary session with exactly those lines too, the moment its
+corner is pressed — `deck.js` computes it once and hands it to the mounted deck's `switchTo` (§ next),
+rather than opening a second page. One rule either way, not a special page or a second implementation to
+keep in step: one grade per card per day and *paging away settles it* mean the same thing on both sides
+of the switch, because underneath it is the same `mount()` and the same wiring. Grade a card in the
+deck, switch to the dictionary, and the card is already there wearing its mark and refusing another
+grade today.
 
 A deck and the dictionary ask for different things, because they mean different things. **A deck offers
 all of its own cards**, up to twenty — you chose that deck, and being handed three cards out of nineteen
@@ -413,25 +418,34 @@ handed (§ Interactions), because a fixed order studied every session teaches th
 cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
 waiting.
 
-The pages link to each other with a small mark in the top corner — two overlapping cards, a picture
-of what it leads to — and it is the one thing on the page that is not the card. It is the host page's
-element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside the
-mounted deck so a tap on it is never read as a tap on the card.
+A small mark in the top corner is the way between a deck and its dictionary — two overlapping cards, a
+picture of what it leads to — and it is the one thing on the page that is not the card. It is the host
+page's element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside
+the mounted deck so a tap on it is never read as a tap on the card.
 
-`openDeck()` adds it only when the dictionary holds a card that deck does not — `holdsMoreThan(cards)` —
-and draws what it leads to: two overlapping cards for the dictionary, which is many decks at once, one
-card for a deck.
+What the mark actually does depends on the page. On a deck with cards of its own it's a button: pressing
+it calls the mounted deck's `switchTo()` with the dictionary session, in place — no navigation, no
+second page, the same `mount()` throughout. Press it again and it switches back to the deck's own
+session, returning to whichever card you left it on rather than dealing a fresh shuffle. On
+`decks/empty-deck.html` there's no deck of its own to switch back to, so the mark there is a real link
+instead, back to whichever deck you last had open.
 
-The dictionary leads back to **the deck you came from**, which `openDeck()` records as it opens one.
+`openDeck()` adds the mark only when the dictionary holds a card that deck does not —
+`holdsMoreThan(cards)` — and draws what it leads to: two overlapping cards for the dictionary, which is
+many decks at once, one card for a deck. On the toggle this flips with every press, since the one page
+is both sides of it in turn; on the link it's fixed, since `empty-deck.html` is always the many-at-once
+side.
+
+A real link needs somewhere to point, and that's **the deck you came from**, which `openDeck()` records
+as it opens one *with cards* — switching in place is not a visit, so it leaves no record of its own.
 With more than one deck there's no such thing as *the* deck to name in its markup, and the record is
 always there when it's needed: a dictionary with nothing in it can't render at all, so if there's
 something to come back from, some deck was opened to put it there.
 
 "How many decks are there" isn't a question storage can answer — it records cards, not decks — but it
-isn't the useful question either. What matters is whether that link would show you anything you can't
-already see, and for the only deck you've ever opened it wouldn't. Where storage is blocked the
-dictionary is empty on every visit, so the link stays away there too, rather than leading to a page that
-can't render.
+isn't the useful question either. What matters is whether the corner would show you anything you can't
+already see, and for the only deck you've ever opened it wouldn't. Where storage is blocked there's
+nothing to switch to or link back from either, so the corner stays away there too.
 
 Cards are not attributed to the deck they came from. The same word can belong to several decks, so that
 needs a mapping rather than a field, and nothing reads it yet.
@@ -439,19 +453,19 @@ needs a mapping rather than a field, and nothing reads it yet.
 ## Layout
 
 ```text
-docs/requirements.md what v2 is, statement by statement (`V2-*`)
-src/flashcards.js    mount() — the only export a deck page needs
-src/order.js         one deck's sequence: shuffle and a cursor that wraps
-src/deck.js          openDeck() — a deck assembled; what a deck page calls
-src/store.js         the local-storage card dictionary
-src/review.js        Leitner review scheduling — separate from mount()
-src/session.js       which cards a sitting asks for — also separate from mount()
-src/storage.js       the local-storage map helpers store.js and review.js share
-src/view.js          the DOM, the flip, and the slide
-src/input.js         keys and swipes, mapped onto one set of intents
-src/flashcards.css   all of the styling
-decks/               one file per deck
-dictionary.html      a deck of everything, i.e. a deck file with no cards
+docs/requirements.md  what v2 is, statement by statement (`V2-*`)
+src/flashcards.js     mount() — the only export a deck page needs
+src/order.js          one deck's sequence: shuffle and a cursor that wraps
+src/deck.js           openDeck() — a deck assembled; what a deck page calls
+src/store.js          the local-storage card dictionary
+src/review.js         Leitner review scheduling — separate from mount()
+src/session.js        which cards a sitting asks for — also separate from mount()
+src/storage.js        the local-storage map helpers store.js and review.js share
+src/view.js           the DOM, the flip, and the slide
+src/input.js          keys and swipes, mapped onto one set of intents
+src/flashcards.css    all of the styling
+decks/                one file per deck
+decks/empty-deck.html a deck of everything, i.e. a deck file with no cards
 ```
 
 Tests live beside the modules they cover and run from the repository root with `npm test`.

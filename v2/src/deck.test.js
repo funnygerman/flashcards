@@ -390,79 +390,120 @@ describe("openDeck", () => {
   });
 
   describe("the way out", () => {
-    const to = { corner: { href: "../dictionary.html", label: "Everything you have seen" } };
+    /* An extra card in the dictionary this deck does not carry itself, so the
+       toggle has somewhere new to switch to. */
+    const extra = () => localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
 
-    it("is absent for the only deck a reader has ever opened", () => {
-      open(cards, to);
-      expect(corner()).toBe(null);
+    describe("from a deck with cards of its own", () => {
+      it("is absent for the only deck a reader has ever opened", () => {
+        open();
+        expect(corner()).toBe(null);
+      });
+
+      it("appears once the dictionary holds a card this deck does not", () => {
+        extra();
+        open();
+
+        expect(corner().tagName).toBe("BUTTON");
+        expect(corner().getAttribute("aria-label")).toBe("Everything you have seen");
+      });
+
+      /* It draws what it leads to: the dictionary is many decks at once, a
+         deck is one — both the 4:3 of the real card, and both swapped for
+         the other the moment the reader presses it. */
+      it("switches in place, no navigation, and back again", () => {
+        extra();
+        open();
+
+        expect(corner().querySelectorAll("rect")).toHaveLength(2); // leads to the dictionary
+        expect(front()).toBe("eins");
+
+        corner().click();
+        expect(corner().querySelectorAll("rect")).toHaveLength(1); // leads back to the deck
+        expect(corner().getAttribute("aria-label")).toBe(document.title);
+        expect(front()).toBe("vier"); // the dictionary's own card, not this deck's
+
+        corner().click();
+        expect(corner().querySelectorAll("rect")).toHaveLength(2);
+        expect(front()).toBe("eins");
+      });
+
+      it("returns to the same card on each side of the toggle, not a fresh shuffle", () => {
+        extra();
+        open();
+
+        press("ArrowRight"); // card b
+        corner().click(); // into the dictionary
+        press("ArrowRight"); // its second card, whichever that is
+        const inDictionary = front();
+
+        corner().click(); // back to the deck
+        expect(front()).toBe("zwei"); // exactly where paging left it
+
+        corner().click(); // into the dictionary again
+        expect(front()).toBe(inDictionary);
+      });
+
+      it("sits outside the mounted deck, where a tap on it is not a tap on the card", () => {
+        extra();
+        open();
+
+        expect(document.querySelector(".fc").contains(corner())).toBe(false);
+      });
+
+      /* Nothing about this page changes what the dictionary leads back to —
+         only a page with no cards of its own is ever somewhere to leave. */
+      it("does not record itself as somewhere to come back to", () => {
+        open();
+        expect(lastDeck(localStorage)).toBe(null);
+      });
     });
 
-    it("is absent when the page asks for no corner at all", () => {
-      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "x", backText: "y" } }));
-      open();
-      expect(corner()).toBe(null);
-    });
+    describe("from a page with none", () => {
+      /* Which deck "back" means is not fixed once there is more than one, so
+         a deck records itself and a card-less page reads that. */
+      it("remembers the deck the reader opened, so a card-less page can lead back to it", () => {
+        document.title = "Numbers and Time";
+        open();
 
-    it("appears once the dictionary holds a card this deck does not", () => {
-      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
-      open(cards, to);
+        expect(lastDeck(localStorage)).toEqual({ href: "/", label: "Numbers and Time" });
+      });
 
-      expect(corner().getAttribute("href")).toBe("../dictionary.html");
-      expect(corner().getAttribute("aria-label")).toBe("Everything you have seen");
-    });
+      it("has no way back to offer before any deck has been opened", () => {
+        expect(lastDeck(localStorage)).toBe(null);
+      });
 
-    /* It draws what it leads to: the dictionary is many decks at once, a deck
-       is one. Both are the 4:3 of the real card. */
-    it("draws two cards from a deck and one from the dictionary", () => {
-      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
-      open(cards, to);
-      expect(corner().querySelectorAll("rect")).toHaveLength(2);
+      it("offers no way back rather than a broken one, if the record is unusable", () => {
+        localStorage.setItem(DECK_KEY, JSON.stringify({ href: 42 }));
+        expect(lastDeck(localStorage)).toBe(null);
 
-      mounted.splice(0).forEach((deck) => deck.destroy());
-      document.body.replaceChildren();
+        localStorage.setItem(DECK_KEY, "{ not json");
+        expect(lastDeck(localStorage)).toBe(null);
+      });
 
-      open([], to);
-      expect(corner().querySelectorAll("rect")).toHaveLength(1);
-    });
+      it("shows no corner at all where the record it would read is unusable", () => {
+        extra();
+        localStorage.setItem(DECK_KEY, "{ not json");
+        open([]);
 
-    /* Which deck "back" means is not fixed once there is more than one, so a
-       deck records itself and the dictionary reads that. */
-    it("remembers the deck the reader opened, so the dictionary can lead back to it", () => {
-      document.title = "Numbers and Time";
-      open();
+        expect(corner()).toBe(null);
+      });
 
-      expect(lastDeck(localStorage)).toEqual({ href: "/", label: "Numbers and Time" });
-    });
+      it("is a real link back to the deck the reader came from", () => {
+        document.title = "Everyday German";
+        open();
+        mounted.splice(0).forEach((deck) => deck.destroy());
+        document.body.replaceChildren();
 
-    it("does not remember the dictionary as somewhere to come back to", () => {
-      document.title = "Everyday German";
-      open();
+        document.title = "Everything you have seen";
+        extra();
+        open([]);
 
-      document.title = "Everything you have seen";
-      mounted.splice(0).forEach((deck) => deck.destroy());
-      document.body.replaceChildren();
-      open([]);
-
-      expect(lastDeck(localStorage).label).toBe("Everyday German");
-    });
-
-    it("has no way back to offer before any deck has been opened", () => {
-      expect(lastDeck(localStorage)).toBe(null);
-    });
-
-    it("offers no way back rather than a broken one, if the record is unusable", () => {
-      localStorage.setItem(DECK_KEY, JSON.stringify({ href: 42 }));
-      expect(lastDeck(localStorage)).toBe(null);
-
-      localStorage.setItem(DECK_KEY, "{ not json");
-      expect(lastDeck(localStorage)).toBe(null);
-    });
-
-    it("sits outside the mounted deck, where a tap on it is not a tap on the card", () => {
-      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
-      open(cards, to);
-
-      expect(document.querySelector(".fc").contains(corner())).toBe(false);
+        expect(corner().tagName).toBe("A");
+        expect(corner().getAttribute("href")).toBe("/");
+        expect(corner().getAttribute("aria-label")).toBe("Everyday German");
+        expect(corner().querySelectorAll("rect")).toHaveLength(1);
+      });
     });
   });
 });
