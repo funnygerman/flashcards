@@ -273,11 +273,18 @@ function cornerToggle(cards, storage, ownSession, deck, now) {
   let allSession = null;
   let showingAll = false;
 
+  /* switchTo reports whether it actually applied — refused mid-slide (V2-4.9),
+     same as any other intent then — so the button's own state only moves once
+     the mount's really has. Left unsynced, a rapid second tap while a page
+     turn is still animating would show a dictionary icon over the deck's own
+     cards, or the reverse: true of the button, false of the screen. */
   element.addEventListener("click", () => {
-    showingAll = !showingAll;
+    const next = !showingAll;
     allSession ??= chooseSession(allCards(storage), { now, storage, onlyDue: true });
 
-    deck.switchTo(showingAll ? allSession : ownSession);
+    if (!deck.switchTo(next ? allSession : ownSession)) return;
+
+    showingAll = next;
     sync(showingAll);
   });
 
@@ -321,11 +328,14 @@ export function openDeck(cards, options = {}) {
 
   const own = cards.length > 0;
 
-  /* Dealt in front of the session on a first run, and remembered as it is dealt
-     — a reload part-way through is a reader who has already met the guide, not
-     one who needs it again from the top. */
+  /* Dealt in front of the session on a first run — remembered only once
+     mount() actually succeeds, below, rather than here: a card-less page with
+     an empty dictionary throws (V2-13.8) before ever showing the guide, and a
+     reader who never saw it must not be marked as having, with no way to
+     replay it (V2-15.6). A reload part-way through is a reader who has
+     already met it, not one who needs it again from the top, which is what
+     makes remembering it at all worthwhile. */
   const guide = firstRun(storage) ? GUIDE : [];
-  if (guide.length) rememberGuide(storage);
 
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
@@ -391,6 +401,10 @@ export function openDeck(cards, options = {}) {
       of: (card) => (card.key ? reviewState(card.key, storage, now).box : guideBox),
     },
   });
+
+  /* mount() has now either thrown or actually shown the guide as the lead —
+     only past this point is it true that the reader met it. */
+  if (guide.length) rememberGuide(storage);
 
   /* The way out, added after mounting rather than hidden in the markup, so it
      is never in the document at a moment when it should not be seen. */

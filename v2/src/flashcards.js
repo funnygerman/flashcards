@@ -221,22 +221,30 @@ export function mount(element, cards, options = {}) {
      * V2-13.9); this only knows that `source` is another list of cards, and
      * that it remembers where it left each one.
      *
-     * Dropped mid-slide, the same posture an intent arriving then gets
-     * (V2-4.9): the card on screen is already on its way off and is not the
-     * reader's, or this call's, to replace.
+     * Returns whether the switch actually happened, since a host that draws
+     * its own state around this call — deck.js's toggle icon and label — has
+     * two ways to end up asking for one that does not: mid-slide (below), and
+     * a source that turns out to hold no cards, refused for the same reason
+     * `mount()` itself refuses one (V2-3.6) rather than leaving the deck
+     * showing a card that belongs to neither source.
+     *
+     * Otherwise dropped mid-slide, the same posture an intent arriving then
+     * gets (V2-4.9): the card on screen is already on its way off and is not
+     * the reader's, or this call's, to replace.
      *
      * The card leaving is left exactly as a paged-past card is (`leave`), and
      * the arriving one is drawn exactly as one paged to is — its mark, and the
      * progress row, read fresh rather than assumed.
      */
     switchTo(source) {
-      if (sliding) return;
+      if (sliding || !Array.isArray(source) || source.length === 0) return false;
 
       leave(deck.current());
       deck = orderFor(source);
 
       const arriving = deck.current();
       view.replace(arriving, gradeFor(arriving), showProgress);
+      return true;
     },
 
     destroy() {

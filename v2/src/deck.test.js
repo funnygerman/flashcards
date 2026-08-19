@@ -323,6 +323,16 @@ describe("openDeck", () => {
       expect(front()).toBe("eins");
     });
 
+    /* A card-less page with an empty dictionary throws (V2-13.8) before the
+       guide is ever shown — the flag must not say otherwise, or a reader who
+       never saw it has no way to (V2-15.6). */
+    it("does not mark the guide as met when mounting throws before showing it", () => {
+      expect(() => open([])).toThrow(/at least one card/); // nothing was actually mounted
+
+      open(); // a real deck, the reader's actual first visit
+      expect(front()).toBe("Tap this card");
+    });
+
     it("adds no element to the page: it is cards, and nothing else", () => {
       open();
 
@@ -442,6 +452,26 @@ describe("openDeck", () => {
 
         corner().click(); // into the dictionary again
         expect(front()).toBe(inDictionary);
+      });
+
+      /* jsdom has no Web Animations API, so a page turn is instant everywhere
+         else in this file — stubbing `animate` to hang open is what makes a
+         tap "mid-slide" reachable at all. */
+      it("does not flip its own icon or label when a tap mid-slide is refused", () => {
+        Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
+
+        try {
+          extra();
+          open();
+
+          press("ArrowRight"); // card b, still sliding in
+          corner().click(); // refused: the switch never landed
+
+          expect(corner().querySelectorAll("rect")).toHaveLength(2); // still "leads to the dictionary"
+          expect(corner().getAttribute("aria-label")).toBe("Everything you have seen");
+        } finally {
+          delete Element.prototype.animate;
+        }
       });
 
       it("sits outside the mounted deck, where a tap on it is not a tap on the card", () => {
