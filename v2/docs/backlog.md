@@ -9,14 +9,14 @@ Ordered by priority, highest first. Re-order this file as priorities change; tha
 
 ## `v2-Code-Review`
 
-**What.** Run `/code-review` (or equivalent) over the recent rating-view work before building more on top
-of it. The last several merged PRs (`claude/rating-view-v2-ux-*`) touched grading, animation and the guide
-in quick succession — exactly the kind of streak where small inconsistencies accumulate unnoticed.
+**What.** Run `/code-review` (or equivalent) over the whole v2 project before building more on top of it —
+not just the recent rating-view streak (`claude/rating-view-v2-ux-*`), the deck ↔ dictionary toggle
+rework, and everything else that's accumulated since v2 started.
 
 **Why this priority.** Everything below this line adds surface area. Cheaper to catch drift now, against a
 codebase that's still fresh in context, than after three more features sit on top of it.
 
-**Size.** S–M, depending on findings.
+**Size.** M–L, whole-project scope.
 
 ---
 
