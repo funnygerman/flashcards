@@ -47,16 +47,14 @@
 
       /* Everything else a deck page used to spell out — review scheduling
          through onGrade, the mark restored through gradeOf, the box drawn as a
-         row of marks, which cards this sitting asks for, and the link out to
-         the dictionary — is deck.js's business now. None of it was ever a
+         row of marks, which cards this sitting asks for, and the switch to the
+         dictionary and back — is deck.js's business now. None of it was ever a
          choice this deck made differently from any other, and spelling it out
          per page only gave it room to drift.
 
          No element is named either: one HTML file is one deck, so the deck is
          the page. */
-      openDeck(cards, {
-        corner: { href: "../dictionary.html", label: "Everything you have seen" },
-      });
+      openDeck(cards);
     </script>
   </body>
 </html>

@@ -12,8 +12,9 @@
 
       /* A second deck, on a subject the first one does not touch. Two decks are
          what make the dictionary worth having — one deck's dictionary is that
-         deck — and they are what the corner mark is for: it appears on each of
-         them only once the other has been opened. */
+         deck — and they are what the corner mark is for: it switches in place
+         to the dictionary and back, and appears at all only once the other
+         deck has been opened. */
       const cards = [
         { key: "eins-one", frontText: "eins", backText: "one", category: "number" },
         { key: "zwei-two", frontText: "zwei", backText: "two", category: "number" },
@@ -35,9 +36,7 @@
         { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?", category: "phrase" },
       ];
 
-      openDeck(cards, {
-        corner: { href: "../dictionary.html", label: "Everything you have seen" },
-      });
+      openDeck(cards);
     </script>
   </body>
 </html>

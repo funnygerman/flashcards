@@ -59,7 +59,7 @@ markup.
 ## 3. Deck and session
 
 **V2-3.1** `mount(element, cards, options?)` renders a deck into `element` and returns a handle with
-`destroy()`.
+`destroy()` and `switchTo(cards)` (V2-3.8).
 
 **V2-3.2** `options` are `onGrade(card, level)`, `onRefuse(card, reason)`, `gradeOf(card)`, `progress`,
 `lead`, `storage`, and `random`. `storage` and `random` exist so the library can be tested and embedded
@@ -100,6 +100,21 @@ concern (V2-15.6), not a path this module leaves open.
 
 **V2-3.7** `destroy()` removes the deck's DOM and unbinds every listener it added, including the
 document-level ones (§4).
+
+**V2-3.8** `switchTo(cards)` changes which cards are being studied without a second `mount()` — same
+element, same view, same input bindings, only the order underneath. The two cards ↔ dictionary sources a
+deck's own corner switches between (V2-13.9) are the reason this exists; the library knows only that
+`cards` is another list, nothing about what the two mean or when a host offers a way between them.
+
+Each source seen by `mount()` or `switchTo` keeps its own shuffle and its own cursor, the first time it is
+used, and switching back to one already visited returns to the card it was left on rather than dealing a
+fresh shuffle (V2-3.3, extended to cover a source revisited within one mount rather than reshuffled on
+every visit to it). A card left behind by a switch is reported exactly as one paged past would be — graded
+if it already was, `"neutral"` otherwise (§5) — and the card arrived at is drawn exactly as one paged to
+is, its mark and the progress row read fresh rather than assumed. Dropped mid-slide, the same posture an
+intent arriving then gets (V2-4.9): the card on screen is already on its way off and is not `switchTo`'s
+to replace. There is no animation between the two — nothing paged, nothing to slide — so the change lands
+in the one frame V2-8.6 already asks a page turn's own arrival to land in.
 
 ---
 
@@ -276,15 +291,18 @@ and by review.js (§11), so the two agree on what "storage is unusable" means wi
 
 ## 7. Presentation
 
-**V2-7.1** The card is the only element on the page, apart from one link out of it (§13) — and that link
-is absent unless there is somewhere to go (V2-13.9). No header, no footer, no chrome, no controls.
-Everything v2 has to say to a reader it says as cards or on the card: the guide is four cards (V2-15.3),
-and a refused gesture is answered on the card's own mark (V2-15.2). Neither adds an element to the page,
-which is why this requirement reads as it always did — an overlay for the guide was built first and it
-cost exactly this sentence. The exception is navigation, not information: a deck and the dictionary
-are two pages, and a reader on a phone has no address bar to type into and no other way to cross between
-them. It is a quiet mark in a corner the card never reaches, it carries no state, and it is the host
-page's element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
+**V2-7.1** The card is the only element on the page, apart from one control out of it (§13) — and that
+control is absent unless it leads somewhere new (V2-13.9). No header, no footer, no chrome, no other
+controls. Everything v2 has to say to a reader it says as cards or on the card: the guide is four cards
+(V2-15.3), and a refused gesture is answered on the card's own mark (V2-15.2). Neither adds an element to
+the page, which is why this requirement reads as it always did — an overlay for the guide was built first
+and it cost exactly this sentence. The corner is the one exception, and what it is depends on what kind of
+page it sits on: on a deck with cards of its own it switches, in place, to the dictionary and back
+(V2-13.9) — not navigation, no second page involved, no element added beyond the corner itself; on a page
+with none it is a real link to the deck the reader came from (V2-13.11), because crossing between two
+files needs one — nobody navigates a phone webapp by typing an address. Either way it is a quiet mark in a
+corner the card never reaches, it carries no state that outlives the page, and it is the host page's
+element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
 
 **V2-7.2** No shadows, no rounded corners, no gradients.
 
@@ -562,9 +580,13 @@ per card per day" (V2-11.10) and "paging away settles it" (V2-5.13) hold here wi
 implementation to keep in step, and a card is still judged with the card in front of the reader rather
 than from a list where its back is not showing.
 
-**V2-13.3** A deck page with no cards of its own studies the dictionary instead. `dictionary.html` is
+**V2-13.3** A deck page with no cards of its own studies the dictionary instead. `empty-deck.html` is
 therefore an ordinary deck file with an empty card list — there is one rule, not a special page, and it
 is applied in one place (§14) rather than written out on each.
+
+It is reached only by a direct visit. A deck with cards of its own does not navigate here to see the
+dictionary — it switches to it in place (V2-13.9) — so this file is what remains for a reader who arrives
+with no deck open at all.
 
 **V2-13.4** A deck and the dictionary select differently, because they mean different things. A deck is
 *study this material*: it offers all of its own cards, up to `SESSION_LIMIT` (20). The reader chose that
@@ -599,28 +621,39 @@ and nothing here reads it. Deferred until a filter actually asks for it.
 
 **V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
 the agreed shape — there is no empty state (V2-13.5). V2-6.4 asks a deck to render whether or not
-storage works, and this page cannot, because without storage it has no cards to render. V2-13.9 keeps a
-reader from being led there, so what remains is a typed URL rather than a followed link.
+storage works, and this page cannot, because without storage it has no cards to render. On
+`empty-deck.html`, V2-13.9 keeps a reader from being led there while it would be empty, so what remains
+is a typed address rather than a followed link. From a deck's own toggle, the same fact — `holdsMoreThan`
+— keeps `switchTo` (V2-3.8) from ever being asked to open one.
 
-**V2-13.9** The link is offered only where the dictionary holds a card the current deck does not
+**V2-13.9** The corner is offered only where the dictionary holds a card the current deck does not
 (`holdsMoreThan`). "How many decks are there" is not a question storage can answer — it records cards,
-not decks (V2-13.7) — but it is also not the question worth asking. What matters is whether that link
-would show the reader anything they cannot already see, and it does not for the only deck they have ever
-opened, nor where storage is unusable and the dictionary is empty on every visit. It is added to the
-page once that is known, rather than written into the markup and hidden, so it is never in the document
-at a moment when it should not be seen.
+not decks (V2-13.7) — but it is also not the question worth asking. What matters is whether it would show
+the reader anything they cannot already see, and it does not for the only deck they have ever opened, nor
+where storage is unusable. It is added to the page once that is known, rather than written into the
+markup and hidden, so it is never in the document at a moment when it should not be seen.
+
+What pressing it does depends on the page (V2-7.1), the same fact deciding everything else about it. On a
+deck with cards of its own it is a button: pressing it switches `mount()` in place (V2-3.8) to the
+dictionary's own selection (`chooseSession`'s `onlyDue: true` side, V2-13.4) and back, never leaving the
+page — there is no second HTML file involved, and no navigation for a phone's back gesture to catch. On a
+page with none — `empty-deck.html` — there is no deck of its own to switch back to in place, so the
+corner there is a real link instead, to the one page it can name (V2-13.11).
 
 It draws what it leads to, in the 4:3 of the real card: two cards overlapping for the dictionary, which
-is many decks at once, and one card for a deck. Which way round follows from the same fact that decides
-everything else on the page — whether it brought cards of its own.
+is many decks at once, and one card for a deck. On the toggle this flips with every press, since the one
+page is both sides of it in turn; on the link it is fixed, since `empty-deck.html` is always the
+many-at-once side and the deck it names is always the one.
 
-**V2-13.11** The dictionary leads back to the deck the reader last opened, recorded by `openDeck` as
-`{ href, label }` under `flashcards.deck`. Once there is more than one deck there is no such thing as
-*the* deck to name in its markup, and naming the one they came from is the only answer that stays true
-as decks are added. It is always there when it is needed: a dictionary with nothing in it cannot render
-at all (V2-13.8), so if there is something to come back from, some deck was opened to put it there. An
-unusable record offers no way back rather than a broken one, the same posture V2-11.8 takes. The
-dictionary does not record itself — it is not somewhere to come back to.
+**V2-13.11** A page with no cards of its own leads back to the deck the reader last opened, recorded by
+`openDeck` as `{ href, label }` under `flashcards.deck` whenever a deck *with* cards is opened. Once there
+is more than one deck there is no such thing as *the* deck to name in its markup, and naming the one they
+came from is the only answer that stays true as decks are added. It is always there when it is needed: a
+dictionary with nothing in it cannot render at all (V2-13.8), so if there is something to come back from,
+some deck was opened to put it there. An unusable record offers no way back rather than a broken one, the
+same posture V2-11.8 takes. `empty-deck.html` does not record itself — it is not somewhere to come back
+to. Nor does a deck's own toggle (V2-13.9): switching to the dictionary and back in place is not a page
+visited, so there is nothing here for it to remember.
 
 ---
 
@@ -645,10 +678,11 @@ imports, the same `onGrade`, the same `gradeOf` and the same box-to-marks mappin
 to drift did drift: a row of five marks was once written out beside a ladder of six boxes, which is
 what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot disagree with itself.
 
-**V2-14.4** `options` are `corner` — `{ href, label }` for the link out, omitted where a page has
-nowhere to go — `element`, and `storage`, `random` and `now`, which exist so this can be tested without
-globals, exactly as they do in the modules underneath. It returns the library's own handle, so
-`destroy()` (V2-3.7) still reaches the deck.
+**V2-14.4** `options` are `element`, and `storage`, `random` and `now`, which exist so this can be tested
+without globals, exactly as they do in the modules underneath. There is no `corner` option: the way out
+is never something a deck page names (V2-13.9) — `openDeck` decides both what it is and, where it is a
+link, what it points to, from `cards` and `storage` alone. It returns the library's own handle, so
+`destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself added.
 
 **V2-14.6** `element` defaults to the document's body, so a deck page names none. One HTML file is one
 deck (V2-1.2) and the card is the only thing on the page (V2-7.1), so there is nothing for it to go
@@ -657,8 +691,11 @@ container (V2-7.11) — and it defaults to `body` rather than to a required wrap
 stylesheet claims the page box through `html:has(> body > .fc)`: a wrapper would break that selector,
 and with it the reason a phone's address bar stays put under a vertical swipe (V2-7.10).
 
-**V2-14.7** Routing lives here, not in the library (V2-1.2): the corner's `href`, and the record of
-which deck to come back to (V2-13.11). `mount()` still neither draws a link nor knows one exists.
+**V2-14.7** The way out lives here, not in the library (V2-1.2): which of a toggle or a link the corner
+is (V2-13.9), the toggle's two sources and the switch between them (V2-3.8), and — where it is a link —
+its `href` and the record of which deck to come back to (V2-13.11). `mount()` still neither draws
+anything nor knows the corner exists; `switchTo` does not know why it is being called or what the two
+sources it is handed mean.
 
 **V2-14.5** The mark is built element by element rather than from markup. Card content is written as
 text and never parsed as HTML (V2-2.6); the rule holds for the page's own furniture too, rather than

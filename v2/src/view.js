@@ -268,6 +268,15 @@ export function createView(container, steps) {
     flip: () => setFlipped(!flipped),
 
     /**
+     * Replace the card outright, with no slide: unflipped, hushed, and
+     * carrying `level`'s mark, all in the one frame `swap` already gives a
+     * page turn (V2-8.6). For a host that changes which cards are being
+     * studied without the reader having turned a page — there is no
+     * direction to slide in, only a different card to be looking at.
+     */
+    replace: swap,
+
+    /**
      * Page to `data`, arriving with grade `level` (the host's memory of
      * what — if anything — this card carries, not this view's): next exits
      * to the left and the following card enters from the right — the

@@ -30,7 +30,9 @@ import { createView } from "./view.js";
  *                  count, e.g. review.js's box; omit it for a bare card.
  *                  `lead` is cards to show first, in the order given and
  *                  unshuffled, ahead of the deck proper — a guide, or anything
- *                  else whose sequence is the point (V2-15.3).
+ *                  else whose sequence is the point (V2-15.3). It applies only
+ *                  to `cards`, the source mounted first — never to one handed
+ *                  to `switchTo` later.
  *                  `gradeOf(card)` is the host's answer to "what has this card
  *                  already been graded?" — a grade the reader gave it before
  *                  this deck was mounted, e.g. review.js's `gradedToday`. Such
@@ -43,11 +45,29 @@ export function mount(element, cards, options = {}) {
     throw new Error("flashcards: mount needs at least one card");
   }
 
-  /* The lead is shown, not studied: it goes in front of the deck in the order
-     it was given (order.js), and it does not pass through the dictionary the
-     way the deck's own cards do — cards that explain the app are not cards the
-     reader has met and will be asked about again. */
-  const deck = createOrder(syncCards(cards, storage), random, lead);
+  /* One order per source a host has switched to, keyed by the array it was
+     given for that source — so switching away and back (deck.js's deck ↔
+     dictionary toggle, V2-13.9) returns to the same card and the same cursor
+     rather than a fresh shuffle. Built lazily: a source `switchTo` is never
+     asked to switch to never gets an order made for it. The lead is shown,
+     not studied —
+     it goes in front of the deck in the order it was given (order.js) and
+     does not pass through the dictionary the way the deck's own cards do — so
+     it applies only the first time `cards` itself is ordered, never to a
+     source reached through `switchTo`. */
+  const orders = new Map();
+  const orderFor = (source, sourceLead = []) => {
+    let order = orders.get(source);
+
+    if (!order) {
+      order = createOrder(syncCards(source, storage), random, sourceLead);
+      orders.set(source, order);
+    }
+
+    return order;
+  };
+
+  let deck = orderFor(cards, lead);
   const view = createView(element, progress?.steps);
 
   /* Progress is the host's data, not the library's — read fresh every time
@@ -102,12 +122,16 @@ export function mount(element, cards, options = {}) {
      which is itself worth reporting once, as a neutral outcome, so a card
      they simply forgot to grade is not indistinguishable from one they never
      saw at all. A card graded earlier this session, even in a visit before
-     this one, does not count as leaving ungraded. */
-  const page = (direction) => {
-    const leaving = deck.current();
+     this one, does not count as leaving ungraded. Shared between paging and
+     `switchTo`, below: a card left behind by a source change is left exactly
+     as one paged past is, the reader having moved on from it either way. */
+  const leave = (card) => {
+    if (grades.has(card)) locked.add(card); /* the answer it leaves with is the answer */
+    else onGrade?.(card, "neutral");
+  };
 
-    if (grades.has(leaving)) locked.add(leaving); /* the answer it leaves with is the answer */
-    else onGrade?.(leaving, "neutral");
+  const page = (direction) => {
+    leave(deck.current());
 
     const arriving = direction > 0 ? deck.next() : deck.previous();
 
@@ -188,6 +212,32 @@ export function mount(element, cards, options = {}) {
      * one place to put one. `onRefuse` is what usually prompts it.
      */
     say: (text) => view.announce(text),
+
+    /**
+     * Switch which cards are being studied, in place: same element, same view,
+     * same input bindings — only the order underneath changes. What the two
+     * sources mean, and when a host offers a way to move between them, is
+     * entirely outside the library (deck.js's deck ↔ dictionary toggle,
+     * V2-13.9); this only knows that `source` is another list of cards, and
+     * that it remembers where it left each one.
+     *
+     * Dropped mid-slide, the same posture an intent arriving then gets
+     * (V2-4.9): the card on screen is already on its way off and is not the
+     * reader's, or this call's, to replace.
+     *
+     * The card leaving is left exactly as a paged-past card is (`leave`), and
+     * the arriving one is drawn exactly as one paged to is — its mark, and the
+     * progress row, read fresh rather than assumed.
+     */
+    switchTo(source) {
+      if (sliding) return;
+
+      leave(deck.current());
+      deck = orderFor(source);
+
+      const arriving = deck.current();
+      view.replace(arriving, gradeFor(arriving), showProgress);
+    },
 
     destroy() {
       unbind();

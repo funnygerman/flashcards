@@ -441,6 +441,95 @@ describe("mount", () => {
     expect(document.querySelector(".fc-card").className).toContain("is-easier");
   });
 
+  /* `switchTo` is what deck.js's deck ↔ dictionary toggle (V2-13.9) is built
+     on: the same element, view and input bindings throughout, only the cards
+     underneath changing. */
+  describe("switchTo", () => {
+    const other = [
+      { key: "x", frontText: "vier", backText: "four" },
+      { key: "y", frontText: "fünf", backText: "five" },
+    ];
+
+    it("shows the other source's first card in place, with no page turn", () => {
+      open();
+
+      const deck = mounted.at(-1);
+      deck.switchTo(other);
+
+      expect(front(".fc-text").textContent).toBe("vier");
+    });
+
+    it("returns to the same card on a source revisited, rather than a fresh shuffle", () => {
+      open();
+
+      const deck = mounted.at(-1);
+      press("ArrowRight"); // card b
+
+      deck.switchTo(other);
+      press("ArrowRight"); // card y
+
+      deck.switchTo(cards);
+      expect(front(".fc-text").textContent).toBe("zwei"); // exactly where paging left it
+
+      deck.switchTo(other);
+      expect(front(".fc-text").textContent).toBe("fünf");
+    });
+
+    it("faces the front again, as a page turn does, even on a card left flipped", () => {
+      open();
+      press(" "); // flip card a
+
+      mounted.at(-1).switchTo(other);
+      expect(isFlipped()).toBe(false);
+    });
+
+    it("reports the card it leaves behind, exactly as paging past it would", () => {
+      const graded = [];
+      open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+      mounted.at(-1).switchTo(other);
+      expect(graded).toEqual([["a", "neutral"]]);
+    });
+
+    it("does not report a card it leaves already graded", () => {
+      const graded = [];
+      open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+      press("ArrowUp"); // card a: easier
+      mounted.at(-1).switchTo(other);
+
+      expect(graded).toEqual([["a", "easier"]]);
+    });
+
+    it("re-reads progress for whichever card the switch actually lands on", () => {
+      open({ progress: { steps: 5, of: (card) => (card.key === "x" ? 3 : 0) } });
+
+      mounted.at(-1).switchTo(other);
+
+      expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(3);
+    });
+
+    /* jsdom has no Web Animations API, so a page turn is instant everywhere
+       else in this file and there is no window in which "mid-slide" exists to
+       test. Stubbing `animate` to return an unresolved promise, as the
+       progress-ordering test above does, opens one. */
+    it("is dropped mid-slide, the same as an intent arriving then", () => {
+      Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
+
+      try {
+        open();
+        const deck = mounted.at(-1);
+
+        press("ArrowRight"); // card b, still sliding in
+        deck.switchTo(other);
+
+        expect(front(".fc-text").textContent).toBe("eins"); // the switch never landed
+      } finally {
+        delete Element.prototype.animate;
+      }
+    });
+  });
+
   /* The card answers a gesture while it is being made, which is the only thing
      on a chrome-less card that can say the gesture exists at all. */
   describe("a gesture in progress", () => {

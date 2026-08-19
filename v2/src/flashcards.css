@@ -68,18 +68,31 @@ html:has(> body > .fc) body {
   }
 }
 
-/* The one thing on the page that is not the card: a link out of this deck and
-   into another (§13 — the dictionary, and back again). A sibling of .fc rather
-   than a child of it, because input.js binds gestures to .fc: anything inside
-   would be read as a tap on the card and flip it.
+/* The one thing on the page that is not the card: the way out of this deck
+   (§13). A sibling of .fc rather than a child of it, because input.js binds
+   gestures to .fc: anything inside would be read as a tap on the card and
+   flip it.
 
-   Deliberately quiet — muted, no fill, no colour of its own. It is navigation,
-   which is why it exists at all where V2-7.1 admits nothing else: a reader on a
-   phone has no other way to leave the deck.
+   Two elements share this class and neither looks like the control it is: a
+   `<button>` on a deck with cards of its own, switching in place to the
+   dictionary and back; an `<a>` on a page with none, a real link back to the
+   deck the reader came from. Reset alike, since which one a given page gets
+   is not this stylesheet's business.
+
+   Deliberately quiet — muted, no fill, no colour of its own. It is the one
+   piece of chrome V2-7.1 admits, because a reader on a phone has no other way
+   to leave the deck.
 
    Its colours are written out rather than taken from --fc-muted and --fc-line:
    those are declared on .fc, and a sibling is not inside it to inherit them. */
 .fc-corner {
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+
   position: fixed;
   z-index: 2;
   inset-block-start: max(0.75rem, env(safe-area-inset-top));

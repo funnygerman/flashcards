@@ -158,25 +158,11 @@ function card(x, y, className) {
 }
 
 /**
- * The way out of this page: a small mark in a corner the card does not reach.
- *
- * It draws what it leads to. From a deck, the dictionary is many decks at once,
- * so two cards overlapping; from the dictionary, a deck is one card. Which way
- * round follows from `stacked`, which the caller reads off the same fact that
- * decides everything else here — whether this page brought cards of its own.
- *
- * Built element by element rather than from markup: card content is written as
- * text and never parsed as HTML (V2-2.6), and the rule holds for the page's own
- * furniture too rather than being relaxed where it happens to be safe.
+ * What the corner leads to, drawn in the 4:3 of the real card: two cards
+ * overlapping for the dictionary, which is many decks at once, one card for a
+ * single deck. `stacked` is true for the two-card form.
  */
-function createCorner({ href, label }, stacked) {
-  const link = document.createElement("a");
-
-  link.className = "fc-corner";
-  link.href = href;
-  link.title = label;
-  link.setAttribute("aria-label", label);
-
+function cornerIcon(stacked) {
   const svg = document.createElementNS(SVG, "svg");
   svg.setAttribute("viewBox", "0 0 20 20");
   svg.setAttribute("aria-hidden", "true");
@@ -184,8 +170,69 @@ function createCorner({ href, label }, stacked) {
   if (stacked) svg.append(card("6.5", "3.5"));
   svg.append(card(stacked ? "2.5" : "4.5", stacked ? "8.25" : "5.75", "fc-corner-near"));
 
-  link.append(svg);
+  return svg;
+}
+
+/**
+ * What the toggle calls the dictionary side of itself — the title
+ * `empty-deck.html` used to carry when it was still the page a deck's corner
+ * linked to (V2-13.1).
+ */
+const ALL_LABEL = "Everything you have seen";
+
+/**
+ * The way out of a page with no cards of its own: real navigation, because
+ * this page — `empty-deck.html`, the only file that ever calls `openDeck`
+ * with nothing — is not somewhere a deck leads *to* on its own account, and
+ * the only route back is the one real page it can name (V2-13.11).
+ *
+ * A single card, because from here there is exactly one deck to go back to —
+ * the one `lastDeck` remembers.
+ *
+ * Built element by element rather than from markup: card content is written as
+ * text and never parsed as HTML (V2-2.6), and the rule holds for the page's own
+ * furniture too rather than being relaxed where it happens to be safe.
+ */
+function createCornerLink({ href, label }) {
+  const link = document.createElement("a");
+
+  link.className = "fc-corner";
+  link.href = href;
+  link.title = label;
+  link.setAttribute("aria-label", label);
+  link.append(cornerIcon(false));
+
   return link;
+}
+
+/**
+ * The way out of a deck that has cards of its own: not navigation at all, but
+ * an in-page switch of which cards `mount()` is showing — the deck's own, or
+ * the dictionary's (V2-13.9's link, now `switchTo`'s two sources). There is
+ * nowhere to *go*, so this is a button rather than a link, and no `href` is
+ * ever true of it.
+ *
+ * `sync(showingAll)` sets the icon and label to whichever side of the toggle
+ * the reader is now on — two cards and "Everything you have seen" pointing at
+ * the dictionary, one card and this page's own title pointing back — so the
+ * button always draws what pressing it would do next, never what it just did.
+ */
+function createCornerToggle() {
+  const button = document.createElement("button");
+
+  button.type = "button";
+  button.className = "fc-corner";
+
+  const sync = (showingAll) => {
+    button.replaceChildren(cornerIcon(!showingAll));
+
+    const label = showingAll ? document.title : ALL_LABEL;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  };
+
+  sync(false);
+  return { element: button, sync };
 }
 
 /**
@@ -210,11 +257,53 @@ function rememberGuide(storage) {
 }
 
 /**
+ * The corner for a deck with cards of its own: an in-page switch to the
+ * dictionary and back (V2-13.9), offered only where it leads somewhere new —
+ * for the only deck a reader has ever opened, the dictionary is these same
+ * cards and nothing else, so there is nowhere for the switch to go.
+ *
+ * The dictionary side is computed once, on first use, and kept, for the same
+ * reason `ownSession` is computed once by the caller: switching back a second
+ * time is meant to return to the same card, not deal a fresh one.
+ */
+function cornerToggle(cards, storage, ownSession, deck, now) {
+  if (!holdsMoreThan(cards, storage)) return null;
+
+  const { element, sync } = createCornerToggle();
+  let allSession = null;
+  let showingAll = false;
+
+  element.addEventListener("click", () => {
+    showingAll = !showingAll;
+    allSession ??= chooseSession(allCards(storage), { now, storage, onlyDue: true });
+
+    deck.switchTo(showingAll ? allSession : ownSession);
+    sync(showingAll);
+  });
+
+  return element;
+}
+
+/**
+ * The corner for a page with none of its own: real navigation back to the
+ * deck the reader last opened, if there is one to name (V2-13.11) — a page
+ * with no cards is never itself somewhere a reader arrived to stay.
+ */
+function cornerLink(storage) {
+  const to = lastDeck(storage);
+  return to ? createCornerLink(to) : null;
+}
+
+/**
  * Open a deck that keeps a schedule. Returns the library's handle.
  *
  * `cards` is the deck's own; a page that brings none studies the whole
- * dictionary instead (V2-13.3), which is all `dictionary.html` is. `corner` is
- * `{ href, label }` for the link out — omit it for a page with nowhere to go.
+ * dictionary instead (V2-13.3), which is all `empty-deck.html` is. The way out
+ * is never something the caller names: a deck with cards of its own gets an
+ * in-page switch to the dictionary and back (V2-13.9), a page with none gets a
+ * real link back to the deck it was reached from (V2-13.11) — which of the two
+ * follows from the same fact that decides everything else here, whether this
+ * page brought cards of its own.
  *
  * `element` defaults to the document's body, because one HTML file is one deck
  * (V2-1.2) and there is nothing else on the page for it to go beside. A deck
@@ -228,10 +317,9 @@ function rememberGuide(storage) {
  * exactly as they do in the modules underneath.
  */
 export function openDeck(cards, options = {}) {
-  const { element = document.body, corner, storage, random, now } = options;
+  const { element = document.body, storage, random, now } = options;
 
   const own = cards.length > 0;
-  const source = own ? cards : allCards(storage);
 
   /* Dealt in front of the session on a first run, and remembered as it is dealt
      — a reload part-way through is a reader who has already met the guide, not
@@ -257,8 +345,14 @@ export function openDeck(cards, options = {}) {
 
   /* A deck studies all of its own cards; the dictionary studies what is due
      out of everything (V2-13.4). The same fact decides both — whether this page
-     brought cards of its own. */
-  const deck = mount(element, chooseSession(source, { now, storage, onlyDue: !own }), {
+     brought cards of its own. Computed once and kept: it is also the source
+     the corner's toggle switches back to, below, and switching is meant to
+     return to the same card, not deal a fresh session (V2-3.3's shuffle,
+     stretched to cover a source revisited within one mount rather than
+     reshuffled on every visit to it). */
+  const ownSession = chooseSession(own ? cards : allCards(storage), { now, storage, onlyDue: !own });
+
+  const deck = mount(element, ownSession, {
     storage,
     random,
     lead: guide,
@@ -298,12 +392,9 @@ export function openDeck(cards, options = {}) {
     },
   });
 
-  /* Offered only where it leads somewhere new (V2-13.9): for the only deck a
-     reader has ever opened it would lead straight back to these same cards, and
-     where storage is unusable it would lead to a page that cannot render.
-     Added after mounting rather than hidden in the markup, so it is never in
-     the document at a moment when it should not be seen. */
-  const link = corner && holdsMoreThan(cards, storage) ? createCorner(corner, own) : null;
+  /* The way out, added after mounting rather than hidden in the markup, so it
+     is never in the document at a moment when it should not be seen. */
+  const link = own ? cornerToggle(cards, storage, ownSession, deck, now) : cornerLink(storage);
   if (link) element.append(link);
 
   /* The library's handle takes back everything this page added as well as
