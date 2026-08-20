@@ -154,6 +154,45 @@ html:has(> body > .fc) body {
   }
 }
 
+/* An optional credit line, for a deck author who wants one — plain markup a
+   deck's own HTML file adds for itself, not something openDeck() or mount()
+   draw or know exists. V2-7.1's "no chrome" is a rule about what the library
+   and deck.js put on the page unasked; it says nothing about what a deck
+   author chooses to add to their own file, the same way nothing stops one
+   from adding a favicon. Optional per file, on purpose: no deck carries it
+   unless its own HTML says so.
+
+   Quiet, in the corner button's own register: present without competing
+   with the card, which is why it borrows that button's muted greys rather
+   than reaching for its own palette. */
+.fc-credit {
+  position: fixed;
+  z-index: 2;
+  inset-block-end: max(0.6rem, env(safe-area-inset-bottom));
+  inset-inline-start: 0;
+  inset-inline-end: 0;
+  text-align: center;
+  font: 0.7rem/1.2 system-ui, sans-serif;
+  color: #999;
+  text-decoration: none;
+}
+
+.fc-credit:hover,
+.fc-credit:focus-visible {
+  color: #666;
+}
+
+@media (prefers-color-scheme: dark) {
+  .fc-credit {
+    color: #555;
+  }
+
+  .fc-credit:hover,
+  .fc-credit:focus-visible {
+    color: #888;
+  }
+}
+
 /* The progress row: stars, filled left to right along the card's bottom
    edge, centred. Bottom rather than beside the centred text: a 4:3 card has
    far more spare width around a short word than spare height, so a row here

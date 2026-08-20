@@ -310,6 +310,13 @@ files needs one — nobody navigates a phone webapp by typing an address. Either
 corner the card never reaches, it carries no state that outlives the page, and it is the host page's
 element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
 
+This is a rule about what `mount()`, `openDeck()` and the library draw unasked — it says nothing about a
+deck's own HTML file. A deck author who wants a small credit line (`.fc-credit` in `flashcards.css`) adds it
+themselves, as plain markup in their own file, the same way nothing stops one from adding a favicon;
+`openDeck()` has no option for it and never will, so no deck carries one unless its own file says so. Kept
+quiet — the corner button's own muted greys, fixed at the safe-area bottom edge — so it reads as the same
+register as everything else here rather than as an ad.
+
 **V2-7.2** No shadows, no rounded corners, no gradients.
 
 **V2-7.3** The card's aspect ratio is 4:3 (width:height).
@@ -684,11 +691,20 @@ imports, the same `onGrade`, the same `gradeOf` and the same box-to-marks mappin
 to drift did drift: a row of five marks was once written out beside a ladder of six boxes, which is
 what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot disagree with itself.
 
-**V2-14.4** `options` are `element`, and `storage`, `random` and `now`, which exist so this can be tested
-without globals, exactly as they do in the modules underneath. There is no `corner` option: the way out
-is never something a deck page names (V2-13.9) — `openDeck` decides both what it is and, where it is a
-link, what it points to, from `cards` and `storage` alone. It returns the library's own handle, so
-`destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself added.
+**V2-14.4** `options` are `element`, `storage`, `random`, `now`, and `lang`. `storage`, `random` and `now`
+exist so this can be tested without globals, exactly as they do in the modules underneath. There is no
+`corner` option: the way out is never something a deck page names (V2-13.9) — `openDeck` decides both what
+it is and, where it is a link, what it points to, from `cards` and `storage` alone. It returns the
+library's own handle, so `destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself
+added.
+
+`lang` picks the app's own words — the guide (V2-15.3), the toggle's dictionary label (V2-13.9), and the
+"already rated" refusal (V2-15.2) — from `strings.js`, falling back to English where it is unset or names a
+language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
+`frontText`/`backText`/`details` stay exactly what a deck author wrote, in whatever language the deck
+teaches, the same as before this option existed. `strings.js` is a plain lookup table rather than a
+runtime dependency (V2-9.1): the app's own text is a handful of short lines in a small, fixed set of
+languages, not enough surface to justify one.
 
 **V2-14.6** `element` defaults to the document's body, so a deck page names none. One HTML file is one
 deck (V2-1.2) and the card is the only thing on the page (V2-7.1), so there is nothing for it to go
