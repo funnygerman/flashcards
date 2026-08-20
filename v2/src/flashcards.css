@@ -25,11 +25,20 @@ html:has(> body > .fc) body {
   --fc-muted: #666;
   --fc-line: #111;
 
+  /* Zero unless a credit line is present (see .fc-credit below), which is the
+     only thing on the page a card's own sizing formula needs to leave room
+     for. A deck without one is unaffected by any of this: the :has() below
+     never matches, so this stays 0px and the formula is exactly V2-7.4's. */
+  --fc-footer-space: 0px;
+
   /* Card size, per V2-7.3 and V2-7.4: a 4:3 card, as wide as 75vw allows,
-     capped at 900px, and never taller than 75 % of the viewport. CSS min()
-     does the whole formula, so there is no sizing engine and no resize
-     listener to keep in step with it. */
-  --fc-card-w: min(75vw, 900px, 75dvh * 4 / 3);
+     capped at 900px, and never taller than 75 % of the viewport, minus
+     whatever a credit line below it needs. CSS min() does the whole formula,
+     so there is no sizing engine and no resize listener to keep in step with
+     it. Only ever visible in a short/landscape viewport, where the height
+     term is what's binding — in portrait the width term already is, so a
+     deck with a footer looks pixel-identical to one without. */
+  --fc-card-w: min(75vw, 900px, (75dvh - var(--fc-footer-space)) * 4 / 3);
 
   /* A full grade mark. Written once here because three things measure
      themselves against it: the mark, a drag towards it, and the band. */
@@ -64,7 +73,7 @@ html:has(> body > .fc) body {
    tall, the same boundary the old sizing engine drew with `vw >= vh`. */
 @media (min-aspect-ratio: 1 / 1) {
   .fc {
-    --fc-card-w: min(75vw, 900px, 88dvh * 4 / 3);
+    --fc-card-w: min(75vw, 900px, (88dvh - var(--fc-footer-space)) * 4 / 3);
   }
 }
 
@@ -175,6 +184,17 @@ html:has(> body > .fc) body {
   text-align: center;
   font: 0.7rem/1.2 system-ui, sans-serif;
   color: #999;
+}
+
+/* Its own footprint from the viewport's bottom edge: the inset plus its own
+   line height, and a little clearance above that so the card's edge and its
+   text never sit flush against each other. .fc reads this to shrink the
+   card's height cap by exactly this much (see --fc-footer-space above) —
+   the one place a deck's own markup feeds back into the library's card
+   sizing, kept to a single custom property rather than mount() or openDeck()
+   ever being told this element exists. */
+body:has(> .fc-credit) .fc {
+  --fc-footer-space: calc(max(0.6rem, env(safe-area-inset-bottom)) + 1.3rem);
 }
 
 /* Only the project name links out — the surrounding words are not part of
