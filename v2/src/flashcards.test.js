@@ -513,7 +513,7 @@ describe("mount", () => {
        else in this file and there is no window in which "mid-slide" exists to
        test. Stubbing `animate` to return an unresolved promise, as the
        progress-ordering test above does, opens one. */
-    it("is dropped mid-slide, the same as an intent arriving then", () => {
+    it("is dropped mid-slide, the same as an intent arriving then, and reports as much", () => {
       Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
 
       try {
@@ -521,12 +521,30 @@ describe("mount", () => {
         const deck = mounted.at(-1);
 
         press("ArrowRight"); // card b, still sliding in
-        deck.switchTo(other);
+        expect(deck.switchTo(other)).toBe(false);
 
         expect(front(".fc-text").textContent).toBe("eins"); // the switch never landed
       } finally {
         delete Element.prototype.animate;
       }
+    });
+
+    /* A host drawing its own state around a switch (deck.js's toggle icon)
+       needs to know when a call did not land, and a source with no cards is
+       the other way one can fail besides mid-slide — refused for the same
+       reason mount() itself refuses one (V2-3.6), rather than leaving the
+       deck showing a card that belongs to neither source. */
+    it("refuses a source with no cards, leaving the deck exactly as it was", () => {
+      open();
+      press("ArrowRight"); // card b
+
+      expect(mounted.at(-1).switchTo([])).toBe(false);
+      expect(front(".fc-text").textContent).toBe("zwei");
+    });
+
+    it("reports true once a switch actually lands", () => {
+      open();
+      expect(mounted.at(-1).switchTo(other)).toBe(true);
     });
   });
 

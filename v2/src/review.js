@@ -109,7 +109,14 @@ function readEntry(entry) {
     : { box, dueAt };
 }
 
-const stored = (key, storage) => readEntry(readMap(storage, STORAGE_KEY)[key]);
+/* Object.hasOwn rather than plain indexing, so a card keyed `constructor` or
+   `toString` reads its own entry instead of one inherited from
+   Object.prototype — the same guard store.js's storedCard takes on the same
+   shape of data, a keyed record read out of readMap(). */
+const stored = (key, storage) => {
+  const map = readMap(storage, STORAGE_KEY);
+  return Object.hasOwn(map, key) ? readEntry(map[key]) : null;
+};
 
 /** A card's current schedule, or a fresh one due now if it has never been graded. */
 export function reviewState(key, storage = pageStorage(), now = Date.now()) {
@@ -132,8 +139,13 @@ export function gradedToday(key, storage = pageStorage(), now = Date.now()) {
   return entry?.day === dayOf(now) ? entry.grade : null;
 }
 
-/** The box a grade moves a card to, from the box it is in now. */
-function nextBox(level, box) {
+/**
+ * The box a grade moves a card to, from the box it is in now — the one rule
+ * a schedule-less card still needs to obey to look like a scheduled one
+ * (deck.js's guide, V2-15.4), which is why this is exported rather than kept
+ * private the way `stored`/`schedule`/`baseFor` are.
+ */
+export function nextBox(level, box) {
   if (level === "easier") return Math.min(box + 1, MAX_BOX);
   if (level === "harder") return 0;
 

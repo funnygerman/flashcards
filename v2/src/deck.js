@@ -15,7 +15,7 @@
  * So a deck file holds its cards and one call, and this holds the wiring.
  */
 
-import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, recordGrade, reviewState } from "./review.js";
+import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, nextBox, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
 import { mount } from "./flashcards.js";
@@ -137,11 +137,11 @@ export function lastDeck(storage = pageStorage()) {
 }
 
 /** An absolute path, so the record reads the same from any page on the site. */
-function rememberDeck(storage) {
+function rememberDeck(storage = pageStorage()) {
   const href = globalThis.location?.pathname;
   const label = globalThis.document?.title;
 
-  if (href && label) writeMap(storage ?? pageStorage(), DECK_KEY, { href, label });
+  if (href && label) writeMap(storage, DECK_KEY, { href, label });
 }
 
 /** A 4:3 rectangle in the icon's 20×20 box — the card, at the size of a mark. */
@@ -181,61 +181,6 @@ function cornerIcon(stacked) {
 const ALL_LABEL = "Everything you have seen";
 
 /**
- * The way out of a page with no cards of its own: real navigation, because
- * this page — `empty-deck.html`, the only file that ever calls `openDeck`
- * with nothing — is not somewhere a deck leads *to* on its own account, and
- * the only route back is the one real page it can name (V2-13.11).
- *
- * A single card, because from here there is exactly one deck to go back to —
- * the one `lastDeck` remembers.
- *
- * Built element by element rather than from markup: card content is written as
- * text and never parsed as HTML (V2-2.6), and the rule holds for the page's own
- * furniture too rather than being relaxed where it happens to be safe.
- */
-function createCornerLink({ href, label }) {
-  const link = document.createElement("a");
-
-  link.className = "fc-corner";
-  link.href = href;
-  link.title = label;
-  link.setAttribute("aria-label", label);
-  link.append(cornerIcon(false));
-
-  return link;
-}
-
-/**
- * The way out of a deck that has cards of its own: not navigation at all, but
- * an in-page switch of which cards `mount()` is showing — the deck's own, or
- * the dictionary's (V2-13.9's link, now `switchTo`'s two sources). There is
- * nowhere to *go*, so this is a button rather than a link, and no `href` is
- * ever true of it.
- *
- * `sync(showingAll)` sets the icon and label to whichever side of the toggle
- * the reader is now on — two cards and "Everything you have seen" pointing at
- * the dictionary, one card and this page's own title pointing back — so the
- * button always draws what pressing it would do next, never what it just did.
- */
-function createCornerToggle() {
-  const button = document.createElement("button");
-
-  button.type = "button";
-  button.className = "fc-corner";
-
-  const sync = (showingAll) => {
-    button.replaceChildren(cornerIcon(!showingAll));
-
-    const label = showingAll ? document.title : ALL_LABEL;
-    button.title = label;
-    button.setAttribute("aria-label", label);
-  };
-
-  sync(false);
-  return { element: button, sync };
-}
-
-/**
  * Whether this is a reader's first time here.
  *
  * One flag says so, and a review schedule already in storage overrules it: a
@@ -245,53 +190,98 @@ function createCornerToggle() {
  * guide again, which is the harmless direction to fail in (V2-6.4) — a reader
  * who cannot keep a flag cannot keep a schedule either.
  */
-function firstRun(storage) {
-  const store = storage ?? pageStorage();
-
-  return readMap(store, HINTS_KEY).guide !== true && Object.keys(readMap(store, REVIEW_KEY)).length === 0;
+function firstRun(storage = pageStorage()) {
+  return readMap(storage, HINTS_KEY).guide !== true && Object.keys(readMap(storage, REVIEW_KEY)).length === 0;
 }
 
 /** Remembered as the guide is dealt, so it leads one session and no other. */
-function rememberGuide(storage) {
-  writeMap(storage ?? pageStorage(), HINTS_KEY, { guide: true });
+function rememberGuide(storage = pageStorage()) {
+  writeMap(storage, HINTS_KEY, { guide: true });
 }
 
 /**
- * The corner for a deck with cards of its own: an in-page switch to the
- * dictionary and back (V2-13.9), offered only where it leads somewhere new —
- * for the only deck a reader has ever opened, the dictionary is these same
- * cards and nothing else, so there is nowhere for the switch to go.
+ * The corner for a deck with cards of its own: not navigation at all, but an
+ * in-page switch of which cards `mount()` is showing — the deck's own, or the
+ * dictionary's (V2-13.9, `switchTo`'s two sources). There is nowhere to *go*,
+ * so this is a button rather than a link, and no `href` is ever true of it.
+ * Offered only where it leads somewhere new — for the only deck a reader has
+ * ever opened, the dictionary is these same cards and nothing else, so there
+ * is nowhere for the switch to go.
  *
  * The dictionary side is computed once, on first use, and kept, for the same
  * reason `ownSession` is computed once by the caller: switching back a second
  * time is meant to return to the same card, not deal a fresh one.
+ *
+ * The icon and label are redrawn to whichever side of the toggle the reader
+ * is now on — two cards and "Everything you have seen" pointing at the
+ * dictionary, one card and this page's own title pointing back — so the
+ * button always draws what pressing it would do next, never what it just
+ * did. `switchTo` reports whether it actually applied — refused mid-slide
+ * (V2-4.9), same as any other intent then — so that redraw happens only once
+ * the mount's own state really has moved; left unconditional, a rapid second
+ * tap while a page turn is still animating would show a dictionary icon over
+ * the deck's own cards, or the reverse: true of the button, false of the
+ * screen.
+ *
+ * Built element by element rather than from markup: card content is written
+ * as text and never parsed as HTML (V2-2.6), and the rule holds for the
+ * page's own furniture too rather than being relaxed where it happens to be
+ * safe.
  */
 function cornerToggle(cards, storage, ownSession, deck, now) {
   if (!holdsMoreThan(cards, storage)) return null;
 
-  const { element, sync } = createCornerToggle();
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "fc-corner";
+
   let allSession = null;
   let showingAll = false;
 
-  element.addEventListener("click", () => {
-    showingAll = !showingAll;
+  const draw = () => {
+    button.replaceChildren(cornerIcon(!showingAll));
+
+    const label = showingAll ? document.title : ALL_LABEL;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  };
+
+  button.addEventListener("click", () => {
+    const next = !showingAll;
     allSession ??= chooseSession(allCards(storage), { now, storage, onlyDue: true });
 
-    deck.switchTo(showingAll ? allSession : ownSession);
-    sync(showingAll);
+    if (!deck.switchTo(next ? allSession : ownSession)) return;
+
+    showingAll = next;
+    draw();
   });
 
-  return element;
+  draw();
+  return button;
 }
 
 /**
  * The corner for a page with none of its own: real navigation back to the
  * deck the reader last opened, if there is one to name (V2-13.11) — a page
- * with no cards is never itself somewhere a reader arrived to stay.
+ * with no cards is never itself somewhere a reader arrived to stay. A single
+ * card, because from here there is exactly one deck to go back to — the one
+ * `lastDeck` remembers.
+ *
+ * Built element by element rather than from markup, for the same reason
+ * given above.
  */
 function cornerLink(storage) {
   const to = lastDeck(storage);
-  return to ? createCornerLink(to) : null;
+  if (!to) return null;
+
+  const link = document.createElement("a");
+  link.className = "fc-corner";
+  link.href = to.href;
+  link.title = to.label;
+  link.setAttribute("aria-label", to.label);
+  link.append(cornerIcon(false));
+
+  return link;
 }
 
 /**
@@ -321,11 +311,14 @@ export function openDeck(cards, options = {}) {
 
   const own = cards.length > 0;
 
-  /* Dealt in front of the session on a first run, and remembered as it is dealt
-     — a reload part-way through is a reader who has already met the guide, not
-     one who needs it again from the top. */
+  /* Dealt in front of the session on a first run — remembered only once
+     mount() actually succeeds, below, rather than here: a card-less page with
+     an empty dictionary throws (V2-13.8) before ever showing the guide, and a
+     reader who never saw it must not be marked as having, with no way to
+     replay it (V2-15.6). A reload part-way through is a reader who has
+     already met it, not one who needs it again from the top, which is what
+     makes remembering it at all worthwhile. */
   const guide = firstRun(storage) ? GUIDE : [];
-  if (guide.length) rememberGuide(storage);
 
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
@@ -337,10 +330,10 @@ export function openDeck(cards, options = {}) {
      the row stayed empty however a guide card was graded, since a keyless
      card has no schedule for `reviewState` to read a box from, and the very
      card teaching what the row means would be the one card that could never
-     show it doing anything. Capped and reset exactly as review.js's own
-     nextBox does, minus the parts that write to storage — there is nowhere
-     for a guide card's box to live once this mount is gone, nor should
-     there be. */
+     show it doing anything. Moved by review.js's own `nextBox` — same rule
+     a scheduled card obeys, minus the part that writes to storage, since
+     there is nowhere for a guide card's box to live once this mount is
+     gone, nor should there be. */
   let guideBox = 0;
 
   /* A deck studies all of its own cards; the dictionary studies what is due
@@ -364,8 +357,7 @@ export function openDeck(cards, options = {}) {
        nowhere, even while the row above reacts to it. */
     onGrade: (card, level) => {
       if (!card.key) {
-        if (level === "easier") guideBox = Math.min(guideBox + 1, BOX_COUNT - 1);
-        else if (level === "harder") guideBox = 0;
+        guideBox = nextBox(level, guideBox);
         return;
       }
 
@@ -391,6 +383,10 @@ export function openDeck(cards, options = {}) {
       of: (card) => (card.key ? reviewState(card.key, storage, now).box : guideBox),
     },
   });
+
+  /* mount() has now either thrown or actually shown the guide as the lead —
+     only past this point is it true that the reader met it. */
+  if (guide.length) rememberGuide(storage);
 
   /* The way out, added after mounting rather than hidden in the markup, so it
      is never in the document at a moment when it should not be seen. */

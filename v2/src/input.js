@@ -105,6 +105,15 @@ export function bindInput(element, onIntent, onTrack) {
 
   const gestures = {
     pointerdown(event) {
+      /* A second contact while one gesture is already tracked — a palm, a
+         second finger — is not a new gesture to switch to; it is noise
+         alongside the one already in progress, which stays the reader's
+         until it ends on its own. Without this, the second pointerdown
+         silently overwrites `start`, and the first finger's own pointerup
+         (a different id now) fails the id check below and is dropped instead
+         of completing the gesture it started. */
+      if (start) return;
+
       /* A right- or middle-click travels no distance, which would read as a
          tap and flip the card open under the context menu. */
       if (event.button > 0) return;

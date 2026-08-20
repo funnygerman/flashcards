@@ -7,6 +7,13 @@ function pointer(element, type, x, y) {
   element.dispatchEvent(new MouseEvent(type, { clientX: x, clientY: y, bubbles: true }));
 }
 
+/** As `pointer`, but carrying a `pointerId` — for telling two contacts apart. */
+function pointerWithId(element, type, x, y, id) {
+  const event = new MouseEvent(type, { clientX: x, clientY: y, bubbles: true });
+  Object.defineProperty(event, "pointerId", { value: id });
+  element.dispatchEvent(event);
+}
+
 describe("keyIntent", () => {
   it("maps the four arrows and the flip keys", () => {
     expect(["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown", " ", "Enter"].map(keyIntent)).toEqual([
@@ -232,6 +239,22 @@ describe("bindInput", () => {
     pointer(element, "pointermove", 100, 80);
 
     expect(tracked).toEqual([]);
+  });
+
+  /* A second contact while one gesture is already tracked — a palm, a second
+     finger — must not steal it: the first finger's own release has to still
+     complete the gesture it started, rather than being read against a pointer
+     it was never part of. */
+  it("ignores a second pointerdown while a gesture is already in progress", () => {
+    const { element, intents, tracked } = listen();
+
+    pointerWithId(element, "pointerdown", 100, 100, 1);
+    pointerWithId(element, "pointerdown", 5, 5, 2); // a second contact, elsewhere
+    pointerWithId(element, "pointermove", 100 + SWIPE_THRESHOLD + 5, 100, 1);
+    pointerWithId(element, "pointerup", 100 + SWIPE_THRESHOLD + 5, 100, 1);
+
+    expect(tracked.filter(Boolean)).not.toEqual([]); // the first finger's drag was still followed
+    expect(intents).toEqual(["previous"]); // and its release still completed the gesture
   });
 
   /* A page turn starts its slide from where the drag left the card, so the

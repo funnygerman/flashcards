@@ -116,6 +116,12 @@ intent arriving then gets (V2-4.9): the card on screen is already on its way off
 to replace. There is no animation between the two — nothing paged, nothing to slide — so the change lands
 in the one frame V2-8.6 already asks a page turn's own arrival to land in.
 
+A source with no cards is refused rather than switched to, for the same reason `mount()` itself refuses
+one (V2-3.6): showing a card that belongs to neither the old source nor the new one is worse than doing
+nothing. `switchTo` returns whether it actually applied, so a host drawing its own state around the call
+— deck.js's toggle icon and label — moves that state only once the mount's own has, rather than assuming
+every call lands.
+
 ---
 
 ## 4. Interactions
