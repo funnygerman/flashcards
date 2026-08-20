@@ -336,14 +336,15 @@ export function openDeck(cards, options = {}) {
      gone, nor should there be. */
   let guideBox = 0;
 
-  /* A deck studies all of its own cards; the dictionary studies what is due
-     out of everything (V2-13.4). The same fact decides both — whether this page
-     brought cards of its own. Computed once and kept: it is also the source
-     the corner's toggle switches back to, below, and switching is meant to
-     return to the same card, not deal a fresh session (V2-3.3's shuffle,
-     stretched to cover a source revisited within one mount rather than
-     reshuffled on every visit to it). */
-  const ownSession = chooseSession(own ? cards : allCards(storage), { now, storage, onlyDue: !own });
+  /* A deck and the dictionary both study what is due, out of their own pool —
+     a deck's own cards, the dictionary everything (V2-13.4). Whether this page
+     brought cards of its own decides only which pool `chooseSession` draws
+     from, not whether it filters. Computed once and kept: it is also the
+     source the corner's toggle switches back to, below, and switching is
+     meant to return to the same card, not deal a fresh session (V2-3.3's
+     shuffle, stretched to cover a source revisited within one mount rather
+     than reshuffled on every visit to it). */
+  const ownSession = chooseSession(own ? cards : allCards(storage), { now, storage, onlyDue: true });
 
   const deck = mount(element, ownSession, {
     storage,

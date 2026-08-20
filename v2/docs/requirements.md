@@ -594,11 +594,10 @@ It is reached only by a direct visit. A deck with cards of its own does not navi
 dictionary — it switches to it in place (V2-13.9) — so this file is what remains for a reader who arrives
 with no deck open at all.
 
-**V2-13.4** A deck and the dictionary select differently, because they mean different things. A deck is
-*study this material*: it offers all of its own cards, up to `SESSION_LIMIT` (20). The reader chose that
-deck, and handing them three cards out of nineteen because the other sixteen are not due yet is not what
-they asked for. The dictionary is *what is due across everything*: "all of it" is not a session, so
-there a card that is not due is held back while due ones wait.
+**V2-13.4** A deck and the dictionary select the same way: both are *study what's due*, up to
+`SESSION_LIMIT` (20), out of their own pool of cards — a deck's own, the dictionary everything the reader
+has ever opened. "All of it" is not a session either way, so a card that is not due is held back while due
+ones wait. They differ only in which pool feeds that rule, not in the rule itself.
 
 Both take their cards in the same order — ascending `dueAt`, so the longest-overdue leads and, past the
 ones that are due, the soonest-due follows. A card never graded is due now (V2-11.7), so a large deck
@@ -606,16 +605,16 @@ leads with what the reader has not seen. Review state therefore selects; it does
 studied, because the deck is shuffled on mount exactly as any deck is (V2-3.3) and a fixed order studied
 every session would teach the order along with the cards.
 
-**V2-13.5** When nothing at all is due, the dictionary falls back to the cards closest to being due. A
-session has no end (V2-3.5) and an empty deck is an error (V2-3.6), so there is no "nothing due today"
-screen — there is always something to study, and it is always the most useful thing available. A deck
-needs no such fallback: it was never filtering in the first place.
+**V2-13.5** When nothing in the offered pool is due, `chooseSession` falls back to the cards closest to
+being due — for a deck now as much as the dictionary (V2-13.4). A session has no end (V2-3.5) and an empty
+deck is an error (V2-3.6), so there is no "nothing due today" screen for either kind of page: there is
+always something to study, and it is always the most useful thing available.
 
-**V2-13.10** Studying a deck therefore reaches cards ahead of their schedule, and grading one there
-still moves it (once that day, per V2-11.10). That is the cost of a deck meaning what it says: the
-schedule governs what the dictionary offers, and a reader working straight through a deck is choosing
-to study on their own terms rather than the box's. The daily rule is what keeps it from running away —
-a card moves at most one box a day however often it is met.
+**V2-13.10** Studying a deck no longer reaches cards ahead of their schedule by default (V2-13.4 revised
+this): the schedule governs what a deck offers, the same as it governs the dictionary. A reader working
+straight through a due session still grades on the box's terms, and a card moves at most one box a day
+however often it is met (V2-11.10). A mode for browsing or cramming a deck regardless of its schedule —
+which is what this section used to describe as the deck's default — is deferred; see the backlog.
 
 **V2-13.6** `chooseSession` is host-side, like review.js and for the same reason (V2-11.1): the library
 shuffles whatever deck it is handed and knows nothing about boxes or due dates. It lives in its own
@@ -641,10 +640,11 @@ markup and hidden, so it is never in the document at a moment when it should not
 
 What pressing it does depends on the page (V2-7.1), the same fact deciding everything else about it. On a
 deck with cards of its own it is a button: pressing it switches `mount()` in place (V2-3.8) to the
-dictionary's own selection (`chooseSession`'s `onlyDue: true` side, V2-13.4) and back, never leaving the
-page — there is no second HTML file involved, and no navigation for a phone's back gesture to catch. On a
-page with none — `empty-deck.html` — there is no deck of its own to switch back to in place, so the
-corner there is a real link instead, to the one page it can name (V2-13.11).
+dictionary's own selection — `chooseSession` over `allCards(storage)`, the same `onlyDue: true` rule the
+deck's own side already uses (V2-13.4) — and back, never leaving the page — there is no second HTML file
+involved, and no navigation for a phone's back gesture to catch. On a page with none — `empty-deck.html` —
+there is no deck of its own to switch back to in place, so the corner there is a real link instead, to the
+one page it can name (V2-13.11).
 
 It draws what it leads to, in the 4:3 of the real card: two cards overlapping for the dictionary, which
 is many decks at once, and one card for a deck. On the toggle this flips with every press, since the one
