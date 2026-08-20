@@ -171,14 +171,20 @@ html:has(> body > .fc) body {
   inset-block-end: max(0.6rem, env(safe-area-inset-bottom));
   inset-inline-start: 0;
   inset-inline-end: 0;
+  margin: 0;
   text-align: center;
   font: 0.7rem/1.2 system-ui, sans-serif;
   color: #999;
-  text-decoration: none;
 }
 
-.fc-credit:hover,
-.fc-credit:focus-visible {
+/* Only the project name links out — the surrounding words are not part of
+   the link's own hit target. */
+.fc-credit a {
+  color: inherit;
+}
+
+.fc-credit a:hover,
+.fc-credit a:focus-visible {
   color: #666;
 }
 
@@ -187,8 +193,8 @@ html:has(> body > .fc) body {
     color: #555;
   }
 
-  .fc-credit:hover,
-  .fc-credit:focus-visible {
+  .fc-credit a:hover,
+  .fc-credit a:focus-visible {
     color: #888;
   }
 }
