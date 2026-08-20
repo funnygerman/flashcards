@@ -7,34 +7,22 @@ Ordered by priority, highest first. Re-order this file as priorities change; tha
 
 ---
 
-## `v2-Code-Review`
+## Deck browse/cram mode (show everything, not just what's due)
 
-**What.** Run `/code-review` (or equivalent) over the whole v2 project before building more on top of it —
-not just the recent rating-view streak (`claude/rating-view-v2-ux-*`), the deck ↔ dictionary toggle
-rework, and everything else that's accumulated since v2 started.
+**What.** A deck now defaults to "only what I can learn today" — `V2-13.4` was revised so a deck selects
+the same way the dictionary always has, via `chooseSession`'s `onlyDue: true`, falling back to the nearest
+cards when nothing is due (`V2-13.5`). What's still open is a separate mode for a reader who wants to
+browse or cram a deck regardless of its schedule — `chooseSession`'s existing `onlyDue: false` default
+already does the selection; what's missing is a way to reach it and a design for the affordance (a second
+corner control? a query param? something else), consistent with the project's no-chrome stance (`V2-7.1`).
 
-**Why this priority.** Everything below this line adds surface area. Cheaper to catch drift now, against a
-codebase that's still fresh in context, than after three more features sit on top of it.
+**Why this priority.** Decision already made on the default (see `requirements.md` §13, `V2-13.4`,
+`V2-13.10`); this is the leftover implementation half. Any gamification work (`#5`) is built on top of
+whatever "today's session" means, and that's now settled — schedule-driven, for both a deck and the
+dictionary.
 
-**Size.** M–L, whole-project scope.
-
----
-
-## Deck session mode: study-what's-due vs. show-everything
-
-**What.** `V2-13.4` currently gives a deck and the dictionary different selection rules: a deck offers all
-of its own cards (up to `SESSION_LIMIT`); the dictionary offers only what's due. The open question is
-whether a deck should also default to "only what I can learn today," with a separate "show me everything"
-mode for a reader who wants to browse or cram — rather than always handing over the whole deck regardless
-of schedule.
-
-**Why this is a decision, not a task.** It changes what `V2-13.4` and `V2-13.10` mean, and any gamification
-work (`#7`) will be built on top of whatever this becomes — a streak means something different if "today's
-session" is schedule-driven than if it's always the whole deck. Worth settling the shape before other
-backlog items assume one answer.
-
-**Size.** Decision: S (a conversation). Implementation once decided: M — likely a second `openDeck` option
-or mode, plus the requirements-doc update that goes with any behavior change here.
+**Size.** M — mostly a design pass on the affordance; the selection logic (`onlyDue: false`) already
+exists in `session.js`.
 
 ---
 
@@ -46,7 +34,7 @@ cost the announcement) with a note that "a live region for it remains available 
 one." That reader now exists as a backlog item.
 
 **Why this priority.** It's a named, scoped gap rather than open-ended feature work, affects real users,
-and doesn't require settling `#3` first. Above the two speculative feature items because it's overdue
+and doesn't require settling `#1` first. Above the two speculative feature items because it's overdue
 rather than new.
 
 **Size.** M. Needs a pass over flip, grade, refusal (`V2-15.2`) and page-turn — decide what's
@@ -76,7 +64,7 @@ scoped items above.
 **What.** Read `frontText`/`backText` (and details) aloud, presumably via the Web Speech API given
 `V2-9.1`'s no-dependency rule.
 
-**Why this priority.** New capability, not a gap in something already built. No dependency on `#3`–`#5`,
+**Why this priority.** New capability, not a gap in something already built. No dependency on `#1`–`#3`,
 so it can slot in whenever, but it's additive scope on a library whose whole design center (`V2-7.1`,
 `V2-7.2`) is "no chrome" — needs its own small design pass: is there a control at all, or is it
 gesture-triggered with no visible affordance, which is a harder problem given `V2-15.1`'s "every action
@@ -94,12 +82,11 @@ least 10 cards today. It could be placed near to single-deck-vs-dictionary-switc
 
 **Why last.** Broadest scope, most speculative, and most likely to collide with the project's own design
 philosophy: no chrome, no position indicators, no title screen (`V2-10.3`), a page that is "the card and
-nothing else" (`V2-7.1`). A streak needs somewhere to be shown and some notion of what counts as a day's
-session, which depends on `#3`. Worth a dedicated design conversation before any code, not a checkbox item
-under "backlog."
+nothing else" (`V2-7.1`). A streak needs somewhere to be shown; what counts as a day's session is now
+settled (`V2-13.4`) — due-driven, for both a deck and the dictionary. Worth a dedicated design conversation
+before any code, not a checkbox item under "backlog."
 
-**Size.** L. Design conversation first; implementation depends heavily on what that conversation decides
-and on `#3`.
+**Size.** L. Design conversation first; implementation depends heavily on what that conversation decides.
 
 ---
 
