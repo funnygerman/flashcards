@@ -87,18 +87,17 @@ export function mount(element, cards, options = {}) {
      the same swipe could be replayed on it indefinitely — silently
      reinflating a host's own data (e.g. review.js's box) with no new attempt
      at recall in between. A card's grade, once given, now holds until it is
-     actually changed. */
+     actually changed.
+     `locked` travels with it rather than in a set of its own: a card is
+     locked exactly when it has a grade and is no longer the reader's to
+     change — one they graded and then moved on from, and one that arrived
+     already graded (`gradeOf`, e.g. review.js's grade from earlier today).
+     While a card is in front of the reader they can say anything they like
+     about it and change their mind freely; leaving it is what settles the
+     answer. Without that, "the reader saw this card and judged it" would be
+     worth however many times they cared to page back to it or reload the
+     page — the same replay this map closes for a single visit, one level up. */
   const grades = new Map();
-
-  /* Cards whose grade is no longer the reader's to change: one they graded and
-     then moved on from, and one that arrived already graded (`gradeOf`, e.g.
-     review.js's grade from earlier today). While a card is in front of the
-     reader they can say anything they like about it and change their mind
-     freely; leaving it is what settles the answer. Without that, "the reader
-     saw this card and judged it" would be worth however many times they cared
-     to page back to it or reload the page — the same replay `grades` closed
-     for a single visit, one level up. */
-  const locked = new Set();
 
   /* A card's grade, asking the host once about a card neither this deck nor
      the reader has seen graded yet. */
@@ -106,13 +105,10 @@ export function mount(element, cards, options = {}) {
     if (!grades.has(card)) {
       const given = gradeOf?.(card) ?? null;
 
-      if (given) {
-        grades.set(card, given);
-        locked.add(card);
-      }
+      if (given) grades.set(card, { level: given, locked: true });
     }
 
-    return grades.get(card) ?? null;
+    return grades.get(card)?.level ?? null;
   };
 
   view.show(deck.current(), gradeFor(deck.current()));
@@ -126,7 +122,9 @@ export function mount(element, cards, options = {}) {
      `switchTo`, below: a card left behind by a source change is left exactly
      as one paged past is, the reader having moved on from it either way. */
   const leave = (card) => {
-    if (grades.has(card)) locked.add(card); /* the answer it leaves with is the answer */
+    const entry = grades.get(card);
+
+    if (entry) entry.locked = true; /* the answer it leaves with is the answer */
     else onGrade?.(card, "neutral");
   };
 
@@ -142,9 +140,9 @@ export function mount(element, cards, options = {}) {
   };
 
   /* Repeating the grade a card already carries says nothing new and is
-     dropped, and a card the reader has already left is settled (see `locked`).
-     Otherwise grading the other way is a change of mind, and counts —
-     including changing back to one it carried earlier this visit.
+     dropped, and a card the reader has already left is settled (its entry's
+     `locked`). Otherwise grading the other way is a change of mind, and
+     counts — including changing back to one it carried earlier this visit.
 
      The two silences are not the same silence, which is why only one of them
      is reported. A repeat is answered by the mark already on the card: the
@@ -155,15 +153,16 @@ export function mount(element, cards, options = {}) {
      business (see deck.js); that it happened is this module's. */
   const grade = (level) => {
     const card = deck.current();
+    const entry = grades.get(card);
 
-    if (locked.has(card)) {
+    if (entry?.locked) {
       onRefuse?.(card, "settled");
       return null;
     }
 
-    if (grades.get(card) === level) return null;
+    if (entry?.level === level) return null;
 
-    grades.set(card, level);
+    grades.set(card, { level, locked: false });
     view.mark(level);
     onGrade?.(card, level);
     showProgress(); /* onGrade already ran, so the host's own data is current */
