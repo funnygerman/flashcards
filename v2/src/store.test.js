@@ -99,6 +99,14 @@ describe("syncCards", () => {
   it("uses one storage key for the whole dictionary", () => {
     expect(STORAGE_KEY).toBe("flashcards.cards");
   });
+
+  it("settles a domain disagreement over the same key by first write, like any other field", () => {
+    const stored = { ...card, domain: "french" };
+    storage = createStorage(JSON.stringify({ [card.key]: stored }));
+
+    expect(syncCards([{ ...card, domain: "german" }], storage)).toEqual([stored]);
+    expect(JSON.parse(storage.read())).toEqual({ [card.key]: stored });
+  });
 });
 
 /* What V2-6.6 said the dictionary was groundwork for: a deck page with no cards
@@ -133,6 +141,34 @@ describe("allCards", () => {
     const storage = createStorage(JSON.stringify({ constructor: constructorCard }));
 
     expect(allCards(storage)).toEqual([constructorCard]);
+  });
+
+  /* Splitting one storage bucket into several non-overlapping dictionaries
+     (V2-13.7): a reader learning English and French wants two, not one that
+     mixes both. */
+  describe("scoped to a domain", () => {
+    const french = { ...card, domain: "french" };
+    const german = { ...other, domain: "german" };
+
+    it("matches only cards carrying the same domain", () => {
+      const storage = createStorage(JSON.stringify({ [french.key]: french, [german.key]: german }));
+
+      expect(allCards(storage, "french")).toEqual([french]);
+      expect(allCards(storage, "german")).toEqual([german]);
+    });
+
+    it("matches only domain-less cards when no domain is asked for", () => {
+      const storage = createStorage(JSON.stringify({ [french.key]: french, [other.key]: other }));
+
+      expect(allCards(storage)).toEqual([other]);
+    });
+
+    it("reads an old, domain-less dictionary exactly as it always did", () => {
+      const storage = createStorage();
+      syncCards([card, other], storage);
+
+      expect(allCards(storage)).toEqual([card, other]);
+    });
   });
 });
 
@@ -179,5 +215,23 @@ describe("holdsMoreThan", () => {
     const storage = createStorage(JSON.stringify({ [other.key]: other }));
 
     expect(holdsMoreThan([card], storage)).toBe(true);
+  });
+
+  it("does not count a card from a different domain as more", () => {
+    /* A French deck's dictionary is the reader's other French, not their
+       German too (V2-13.7) — a card from a domain this deck does not carry
+       is not "more" to offer, it is a different dictionary. */
+    const german = { ...other, domain: "german" };
+    const storage = createStorage(JSON.stringify({ [german.key]: german }));
+
+    expect(holdsMoreThan([card], storage, "french")).toBe(false);
+  });
+
+  it("counts a stored card in the same domain the deck does not carry", () => {
+    const french = { ...card, domain: "french" };
+    const otherFrench = { ...other, domain: "french" };
+    const storage = createStorage(JSON.stringify({ [french.key]: french, [otherFrench.key]: otherFrench }));
+
+    expect(holdsMoreThan([french], storage, "french")).toBe(true);
   });
 });

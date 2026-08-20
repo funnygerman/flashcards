@@ -179,13 +179,18 @@ function rememberGuide(storage = pageStorage()) {
  * the deck's own cards, or the reverse: true of the button, false of the
  * screen.
  *
+ * `domain` is `openDeck`'s own option, passed through unchanged: "the
+ * dictionary" here means the same domain this deck's own cards belong to,
+ * not every domain a reader has ever studied (V2-13.7) — a French deck's
+ * toggle leads to the rest of the reader's French, not their English too.
+ *
  * Built element by element rather than from markup: card content is written
  * as text and never parsed as HTML (V2-2.6), and the rule holds for the
  * page's own furniture too rather than being relaxed where it happens to be
  * safe.
  */
-function cornerToggle(cards, storage, ownSession, deck, now, allLabel) {
-  if (!holdsMoreThan(cards, storage)) return null;
+function cornerToggle(cards, storage, ownSession, deck, now, allLabel, domain) {
+  if (!holdsMoreThan(cards, storage, domain)) return null;
 
   const button = document.createElement("button");
   button.type = "button";
@@ -204,7 +209,7 @@ function cornerToggle(cards, storage, ownSession, deck, now, allLabel) {
 
   button.addEventListener("click", () => {
     const next = !showingAll;
-    allSession ??= chooseSession(allCards(storage), { now, storage, onlyDue: true });
+    allSession ??= chooseSession(allCards(storage, domain), { now, storage, onlyDue: true });
 
     if (!deck.switchTo(next ? allSession : ownSession)) return;
 
@@ -265,12 +270,23 @@ function cornerLink(storage) {
  * refusal — from strings.js, English where it is unset or names a language
  * strings.js has none for. Card content is never touched by it: that stays
  * whatever a deck author wrote.
+ *
+ * `domain` splits the shared dictionary into several non-overlapping ones —
+ * a reader learning English and French wants two dictionaries, not cards
+ * from both shuffled into one (V2-13.7). It is a fact about the deck, said
+ * once here rather than repeated on every card: this call stamps it onto
+ * each of `cards` before anything is stored, so a deck author writes
+ * `domain` nowhere else. Left unset, a card carries none — its own,
+ * separate dictionary, the same one every card kept before this existed.
+ * `syncCards` settles a `key` collision across domains the same way it
+ * settles any other disagreement about a card: first write wins.
  */
 export function openDeck(cards, options = {}) {
-  const { element = document.body, storage, random, now, lang } = options;
+  const { element = document.body, storage, random, now, lang, domain } = options;
   const strings = stringsFor(lang);
 
   const own = cards.length > 0;
+  const source = own && domain !== undefined ? cards.map((card) => ({ ...card, domain })) : cards;
 
   /* Dealt in front of the session on a first run — remembered only once
      mount() actually succeeds, below, rather than here: a card-less page with
@@ -305,7 +321,7 @@ export function openDeck(cards, options = {}) {
      meant to return to the same card, not deal a fresh session (V2-3.3's
      shuffle, stretched to cover a source revisited within one mount rather
      than reshuffled on every visit to it). */
-  const ownSession = chooseSession(own ? cards : allCards(storage), { now, storage, onlyDue: true });
+  const ownSession = chooseSession(own ? source : allCards(storage, domain), { now, storage, onlyDue: true });
 
   const deck = mount(element, ownSession, {
     storage,
@@ -352,7 +368,7 @@ export function openDeck(cards, options = {}) {
 
   /* The way out, added after mounting rather than hidden in the markup, so it
      is never in the document at a moment when it should not be seen. */
-  const link = own ? cornerToggle(cards, storage, ownSession, deck, now, strings.allLabel) : cornerLink(storage);
+  const link = own ? cornerToggle(source, storage, ownSession, deck, now, strings.allLabel, domain) : cornerLink(storage);
   if (link) element.append(link);
 
   /* The library's handle takes back everything this page added as well as

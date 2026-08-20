@@ -453,6 +453,55 @@ describe("openDeck", () => {
         expect(corner().getAttribute("aria-label")).toBe("Alles, was du gesehen hast");
       });
 
+      /* A reader learning English and French wants two dictionaries, not one
+         that mixes both (V2-13.7) — a card from a different domain is not
+         "more" this deck's toggle should offer. */
+      describe("scoped to a domain", () => {
+        it("stamps its own cards with the domain it was opened for", () => {
+          open(cards, { domain: "french" });
+
+          const stored = JSON.parse(localStorage.getItem(CARDS_KEY));
+          expect(stored.a.domain).toBe("french");
+        });
+
+        it("stays absent when the only card beyond this deck is in a different domain", () => {
+          extra(); // domain-less
+          open(cards, { domain: "french" });
+
+          expect(corner()).toBe(null);
+        });
+
+        it("appears once the dictionary holds a same-domain card this deck does not", () => {
+          localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four", domain: "french" } }));
+          open(cards, { domain: "french" });
+
+          expect(corner()).not.toBe(null);
+        });
+
+        it("leads only to cards in the same domain, not the whole dictionary", () => {
+          localStorage.setItem(
+            CARDS_KEY,
+            JSON.stringify({
+              z: { key: "z", frontText: "vier", backText: "four", domain: "french" },
+              y: { key: "y", frontText: "unrelated", backText: "unrelated", domain: "german" },
+            }),
+          );
+          open(cards, { domain: "french" });
+
+          corner().click();
+          const seen = new Set([front()]);
+          for (let i = 0; i < 5; i++) {
+            press("ArrowRight");
+            seen.add(front());
+          }
+
+          /* The deck's own cards are french too, so the dictionary side is all
+             four of them — "unrelated" (german) is the one word that must
+             never come up, however far this pages around. */
+          expect(seen).toEqual(new Set(["vier", "eins", "zwei", "drei"]));
+        });
+      });
+
       /* It draws what it leads to: the dictionary is many decks at once, a
          deck is one — both the 4:3 of the real card, and both swapped for
          the other the moment the reader presses it. */
