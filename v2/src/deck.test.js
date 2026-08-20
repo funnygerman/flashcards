@@ -188,6 +188,12 @@ describe("openDeck", () => {
       expect(front()).toBe("eins");
     });
 
+    it("deals the guide in the reader's language, given one", () => {
+      open(cards, { lang: "de" });
+
+      expect(front()).toBe("Tippe auf diese Karte");
+    });
+
     /* Guide cards have no key, which is what keeps them out of the dictionary
        and out of the schedule. Nothing the reader does to one is recorded. */
     it("leaves nothing behind in the dictionary", () => {
@@ -376,6 +382,15 @@ describe("openDeck", () => {
       expect(message()).toMatch(/already rated today/i);
     });
 
+    it("explains itself in the reader's language, given one", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+      open(cards, { lang: "ru" });
+
+      press("ArrowDown");
+
+      expect(message()).toMatch(/сегодня/i);
+    });
+
     it("says the same thing about a card graded and left in this session", () => {
       open();
 
@@ -429,6 +444,13 @@ describe("openDeck", () => {
 
         expect(corner().tagName).toBe("BUTTON");
         expect(corner().getAttribute("aria-label")).toBe("Everything you have seen");
+      });
+
+      it("labels itself in the reader's language, given one", () => {
+        extra();
+        open(cards, { lang: "de" });
+
+        expect(corner().getAttribute("aria-label")).toBe("Alles, was du gesehen hast");
       });
 
       /* It draws what it leads to: the dictionary is many decks at once, a

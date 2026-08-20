@@ -20,21 +20,9 @@ import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
 import { mount } from "./flashcards.js";
 import { pageStorage, readMap, writeMap } from "./storage.js";
+import { stringsFor } from "./strings.js";
 
 const SVG = "http://www.w3.org/2000/svg";
-
-/**
- * What a refused gesture says. The library reports that it refused and why
- * (`onRefuse`, V2-5.15); the wording is this layer's, because "today" is the
- * schedule's idea and mount() has none — it knows only that this card's grade
- * is no longer the reader's to change.
- *
- * Short, because of where it goes: the card's own grade mark grows into a band
- * and says it, and a band across a phone-sized card holds about this much. The
- * rule behind it — one rating a day — is the help view's to explain; what the
- * reader needs at the moment their swipe does nothing is why it did nothing.
- */
-const SETTLED = "Already rated today";
 
 /** Where the reader last was, so the dictionary knows what "back" means. */
 export const DECK_KEY = "flashcards.deck";
@@ -85,37 +73,12 @@ export const HINTS_KEY = "flashcards.hints";
  * normally touches: they are not written to the dictionary (V2-6.3), never
  * turn up in it later, and carry no schedule. `category` names them so nobody
  * mistakes one for a word they are supposed to know.
+ *
+ * The four cards themselves \u2014 English default plus translations \u2014 live in
+ * strings.js (`stringsFor(lang).guide`) alongside the rest of the app's own
+ * words, so a reader's chosen `lang` (V2-14.4) picks the guide's language the
+ * same way it picks everything else here.
  */
-const GUIDE = [
-  {
-    category: "guide",
-    frontText: "Tap this card",
-    frontDetails: "or press Space",
-    backText: "You see the answer",
-    backDetails: "Swipe left for the next one \u2014 or press \u2192",
-  },
-  {
-    category: "guide",
-    frontText: "Swipe up if you knew it",
-    frontDetails: "Tap this card",
-    backText: "Swipe down if you didn't know it",
-    backDetails: "Swipe left",
-  },
-  {
-    category: "guide",
-    frontText: "Stars are days you got it right",
-    frontDetails: "Tap this card",
-    backText: "Wrong answer clears them all",
-    backDetails: "Swipe left",
-  },
-  {
-    category: "guide",
-    frontText: "That is all of it",
-    frontDetails: "Tap this card",
-    backText: "These cards are not part of your deck",
-    backDetails: "Swipe left to start learning",
-  },
-];
 
 /**
  * The deck the reader last opened, as `{ href, label }`, or null.
@@ -174,13 +137,6 @@ function cornerIcon(stacked) {
 }
 
 /**
- * What the toggle calls the dictionary side of itself — the title
- * `empty-deck.html` used to carry when it was still the page a deck's corner
- * linked to (V2-13.1).
- */
-const ALL_LABEL = "Everything you have seen";
-
-/**
  * Whether this is a reader's first time here.
  *
  * One flag says so, and a review schedule already in storage overrules it: a
@@ -228,7 +184,7 @@ function rememberGuide(storage = pageStorage()) {
  * page's own furniture too rather than being relaxed where it happens to be
  * safe.
  */
-function cornerToggle(cards, storage, ownSession, deck, now) {
+function cornerToggle(cards, storage, ownSession, deck, now, allLabel) {
   if (!holdsMoreThan(cards, storage)) return null;
 
   const button = document.createElement("button");
@@ -241,7 +197,7 @@ function cornerToggle(cards, storage, ownSession, deck, now) {
   const draw = () => {
     button.replaceChildren(cornerIcon(!showingAll));
 
-    const label = showingAll ? document.title : ALL_LABEL;
+    const label = showingAll ? document.title : allLabel;
     button.title = label;
     button.setAttribute("aria-label", label);
   };
@@ -304,10 +260,15 @@ function cornerLink(storage) {
  * that, and with it the reason a phone's address bar stays put under a swipe.
  *
  * `storage`, `random` and `now` exist so this can be tested without globals,
- * exactly as they do in the modules underneath.
+ * exactly as they do in the modules underneath. `lang` picks the app's own
+ * words — the guide, the toggle's dictionary label, the "already rated"
+ * refusal — from strings.js, English where it is unset or names a language
+ * strings.js has none for. Card content is never touched by it: that stays
+ * whatever a deck author wrote.
  */
 export function openDeck(cards, options = {}) {
-  const { element = document.body, storage, random, now } = options;
+  const { element = document.body, storage, random, now, lang } = options;
+  const strings = stringsFor(lang);
 
   const own = cards.length > 0;
 
@@ -318,7 +279,7 @@ export function openDeck(cards, options = {}) {
      replay it (V2-15.6). A reload part-way through is a reader who has
      already met it, not one who needs it again from the top, which is what
      makes remembering it at all worthwhile. */
-  const guide = firstRun(storage) ? GUIDE : [];
+  const guide = firstRun(storage) ? strings.guide : [];
 
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
@@ -372,7 +333,7 @@ export function openDeck(cards, options = {}) {
        rated today, since a grade in this session was recorded today by the line
        above. One message, and true in both. */
     onRefuse: (card, reason) => {
-      if (reason === "settled") deck.say(SETTLED);
+      if (reason === "settled") deck.say(strings.settled);
     },
 
     /* The box is the count outright, so box 0 fills no marks — what a card
@@ -391,7 +352,7 @@ export function openDeck(cards, options = {}) {
 
   /* The way out, added after mounting rather than hidden in the markup, so it
      is never in the document at a moment when it should not be seen. */
-  const link = own ? cornerToggle(cards, storage, ownSession, deck, now) : cornerLink(storage);
+  const link = own ? cornerToggle(cards, storage, ownSession, deck, now, strings.allLabel) : cornerLink(storage);
   if (link) element.append(link);
 
   /* The library's handle takes back everything this page added as well as
