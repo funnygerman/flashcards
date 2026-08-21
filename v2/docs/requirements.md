@@ -641,6 +641,15 @@ special case. `syncCards` settles a `domain` disagreement over the same `key` th
 other disagreement about a card's content: the first deck to write that key keeps it, and a later deck
 naming a different domain for the same key does not move it.
 
+Both kinds of disagreement — the same `key` meaning two different cards, or the same subject spread across
+two differently-named domains — are only ever possible within one origin: `localStorage` is scoped to
+protocol, host and port by the browser itself, not by anything this project does, so decks on two different
+sites never share a dictionary to disagree over in the first place. Within one origin, `key` uniqueness
+across a site's own decks was already the deck author's responsibility before `domain` existed — one shared
+dictionary only works if the same word is always the same `key` — and `domain` does not loosen that; it
+asks the same author to also spell a domain the same way across their own decks, not to coordinate with
+anyone else's.
+
 **V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
 the agreed shape — there is no empty state (V2-13.5). V2-6.4 asks a deck to render whether or not
 storage works, and this page cannot, because without storage it has no cards to render. On
