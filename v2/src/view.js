@@ -119,10 +119,21 @@ export function createView(container, steps) {
 
   let flipped = false;
 
+  /**
+   * Both faces sit in the DOM at once — `backface-visibility` is what turns
+   * one of them away, not removal — so without this a screen reader reads
+   * both faces' text together regardless of which way the card is turned.
+   * `aria-hidden` follows the same flip this class does, on the face that
+   * is not the one showing.
+   */
   const setFlipped = (value) => {
     flipped = value;
     card.classList.toggle("is-flipped", flipped);
+    front.node.setAttribute("aria-hidden", String(flipped));
+    back.node.setAttribute("aria-hidden", String(!flipped));
   };
+
+  setFlipped(false); /* establishes the initial aria-hidden pair; the class toggle is a no-op */
 
   /**
    * Show a card's grade by marking the edge the gesture went towards: the
