@@ -627,28 +627,29 @@ which is what this section used to describe as the deck's default — is deferre
 shuffles whatever deck it is handed and knows nothing about boxes or due dates. It lives in its own
 module rather than in each deck file so that every page shares one rule with one set of tests.
 
-**V2-13.7** The dictionary is not one global pool but several, split by `domain` — a reader learning
-English and French wants two dictionaries, not one that mixes both. Cards are still not attributed to the
-*deck* they came from: the same word can belong to several decks within one domain, so that would need a
-mapping rather than a field, and nothing here reads it. `domain` is a fact about a deck, not a card —
-`openDeck(cards, { domain })` stamps it onto each of `cards` once, so a deck author writes it nowhere else
-(§14). Left unset, a card carries none, which is its own domain: every card written before this existed
-reads exactly as it always did, not as suddenly scattered across many empty dictionaries.
+**V2-13.7** There is not one shared dictionary but several: `openDeck`'s `dictionary` option splits the
+storage bucket, so a reader learning English and French gets two, not one that mixes both. Cards are still
+not attributed to the *deck* they came from: the same word can belong to several decks within one
+dictionary, so that would need a mapping rather than a field, and nothing here reads it. `dictionary` is a
+fact about a deck, not a card — `openDeck(cards, { dictionary })` stamps it onto each of `cards` once, so a
+deck author writes it nowhere else (§14). Left unset, a card carries none, which is its own dictionary:
+every card written before this existed reads exactly as it always did, not as suddenly scattered across
+many empty ones.
 
-`allCards` and `holdsMoreThan` (store.js) both take `domain` and match only cards carrying that same value
-— `undefined` included, so an old, domain-less dictionary is one domain among the others rather than a
-special case. `syncCards` settles a `domain` disagreement over the same `key` the same way it settles any
-other disagreement about a card's content: the first deck to write that key keeps it, and a later deck
-naming a different domain for the same key does not move it.
+`allCards` and `holdsMoreThan` (store.js) both take `dictionary` and match only cards carrying that same
+value — `undefined` included, so an old, undivided storage bucket is one dictionary among the others rather
+than a special case. `syncCards` settles a `dictionary` disagreement over the same `key` the same way it
+settles any other disagreement about a card's content: the first deck to write that key keeps it, and a
+later deck naming a different dictionary for the same key does not move it.
 
 Both kinds of disagreement — the same `key` meaning two different cards, or the same subject spread across
-two differently-named domains — are only ever possible within one origin: `localStorage` is scoped to
+two differently-named dictionaries — are only ever possible within one origin: `localStorage` is scoped to
 protocol, host and port by the browser itself, not by anything this project does, so decks on two different
-sites never share a dictionary to disagree over in the first place. Within one origin, `key` uniqueness
-across a site's own decks was already the deck author's responsibility before `domain` existed — one shared
-dictionary only works if the same word is always the same `key` — and `domain` does not loosen that; it
-asks the same author to also spell a domain the same way across their own decks, not to coordinate with
-anyone else's.
+sites never share storage to disagree over in the first place. Within one origin, `key` uniqueness across a
+site's own decks was already the deck author's responsibility before `dictionary` existed — the whole
+premise only works if the same word is always the same `key` — and `dictionary` does not loosen that; it
+asks the same author to also spell a dictionary's name the same way across their own decks, not to
+coordinate with anyone else's.
 
 **V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
 the agreed shape — there is no empty state (V2-13.5). V2-6.4 asks a deck to render whether or not
@@ -710,8 +711,9 @@ imports, the same `onGrade`, the same `gradeOf` and the same box-to-marks mappin
 to drift did drift: a row of five marks was once written out beside a ladder of six boxes, which is
 what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot disagree with itself.
 
-**V2-14.4** `options` are `element`, `storage`, `random`, `now`, `lang`, and `domain`. `storage`, `random`
-and `now` exist so this can be tested without globals, exactly as they do in the modules underneath. There
+**V2-14.4** `options` are `element`, `storage`, `random`, `now`, `lang`, and `dictionary`. `storage`,
+`random` and `now` exist so this can be tested without globals, exactly as they do in the modules
+underneath. There
 is no `corner` option: the way out is never something a deck page names (V2-13.9) — `openDeck` decides both
 what it is and, where it is a link, what it points to, from `cards` and `storage` alone. It returns the
 library's own handle, so `destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself
@@ -725,10 +727,10 @@ teaches, the same as before this option existed. `strings.js` is a plain lookup 
 runtime dependency (V2-9.1): the app's own text is a handful of short lines in a small, fixed set of
 languages, not enough surface to justify one.
 
-`domain` splits the dictionary into several (V2-13.7), unlike `lang`: it does reach `cards`, stamped onto
-each one before anything is stored, since it is what decides which cards the toggle's dictionary side draws
-from. Two unrelated options that happen to both default to "unset" — a deck can pick a UI language without
-picking a domain, or the reverse.
+`dictionary` splits storage into several (V2-13.7), unlike `lang`: it does reach `cards`, stamped onto each
+one before anything is stored, since it is what decides which cards the toggle's other side draws from. Two
+unrelated options that happen to both default to "unset" — a deck can pick a UI language without picking a
+dictionary, or the reverse.
 
 **V2-14.6** `element` defaults to the document's body, so a deck page names none. One HTML file is one
 deck (V2-1.2) and the card is the only thing on the page (V2-7.1), so there is nothing for it to go

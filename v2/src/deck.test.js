@@ -454,39 +454,39 @@ describe("openDeck", () => {
       });
 
       /* A reader learning English and French wants two dictionaries, not one
-         that mixes both (V2-13.7) — a card from a different domain is not
+         that mixes both (V2-13.7) — a card from a different dictionary is not
          "more" this deck's toggle should offer. */
-      describe("scoped to a domain", () => {
-        it("stamps its own cards with the domain it was opened for", () => {
-          open(cards, { domain: "french" });
+      describe("scoped to a dictionary", () => {
+        it("stamps its own cards with the dictionary it was opened for", () => {
+          open(cards, { dictionary: "french" });
 
           const stored = JSON.parse(localStorage.getItem(CARDS_KEY));
-          expect(stored.a.domain).toBe("french");
+          expect(stored.a.dictionary).toBe("french");
         });
 
-        it("stays absent when the only card beyond this deck is in a different domain", () => {
-          extra(); // domain-less
-          open(cards, { domain: "french" });
+        it("stays absent when the only card beyond this deck is in a different dictionary", () => {
+          extra(); // dictionary-less
+          open(cards, { dictionary: "french" });
 
           expect(corner()).toBe(null);
         });
 
-        it("appears once the dictionary holds a same-domain card this deck does not", () => {
-          localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four", domain: "french" } }));
-          open(cards, { domain: "french" });
+        it("appears once another card in the same dictionary exists", () => {
+          localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four", dictionary: "french" } }));
+          open(cards, { dictionary: "french" });
 
           expect(corner()).not.toBe(null);
         });
 
-        it("leads only to cards in the same domain, not the whole dictionary", () => {
+        it("leads only to cards in the same dictionary, not the whole dictionary", () => {
           localStorage.setItem(
             CARDS_KEY,
             JSON.stringify({
-              z: { key: "z", frontText: "vier", backText: "four", domain: "french" },
-              y: { key: "y", frontText: "unrelated", backText: "unrelated", domain: "german" },
+              z: { key: "z", frontText: "vier", backText: "four", dictionary: "french" },
+              y: { key: "y", frontText: "unrelated", backText: "unrelated", dictionary: "german" },
             }),
           );
-          open(cards, { domain: "french" });
+          open(cards, { dictionary: "french" });
 
           corner().click();
           const seen = new Set([front()]);
