@@ -3,8 +3,11 @@
 Flashcards in the browser. One card on the screen and nothing else on it, a swipe to say whether you
 knew it, and a Leitner schedule deciding when you see it again.
 
-No accounts, no server, no build step, no dependencies: the browser loads the sources in this repository
-as they are, and everything you have studied lives in your own `localStorage`.
+No accounts, no server, no build step to develop it, no runtime dependencies: `npm run serve` loads the
+sources in this repository exactly as they are, and everything you have studied lives in your own
+`localStorage`. The deployed site is the one exception — `npm run build` bundles and minifies `v2/src` into
+`v2/dist` purely to cut what a reader's phone downloads; nothing about developing, testing, or forking this
+repository needs it.
 
 **Live:** [Everyday German](https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html) ·
 [Numbers and Time](https://funnygerman.github.io/flashcards/v2/decks/numbers-and-time.html) ·
@@ -22,6 +25,7 @@ ES modules do not load over `file://`, which is the only reason a server is need
 ```sh
 npm test        # vitest, jsdom
 npm run lint    # eslint
+npm run build   # bundles + minifies v2/src into v2/dist, for deployment only
 ```
 
 ## A deck
@@ -47,7 +51,9 @@ v2/docs/requirements.md what it is, statement by statement (`V2-*`)
 v2/src/                 the library, the schedule, and the page that assembles them
 v2/decks/               one file per deck
 v2/dictionary.html      every card you have opened, as a deck
+v2/dist/                built by npm run build; deployment's minified v2/src, not committed
 scripts/dev-server.mjs  a static file server, because file:// cannot load modules
+scripts/build.mjs       bundles + minifies v2/src for the deployed site only
 ```
 
 Start with [`v2/README.md`](v2/README.md).

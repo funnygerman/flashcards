@@ -2,7 +2,10 @@ import js from "@eslint/js";
 
 export default [
   {
-    ignores: ["**/node_modules/**"],
+    /* v2/dist is esbuild's own minified output, not source this project
+       writes (V2-9.1) — nothing here is meant to satisfy this config's rules,
+       any more than a dependency in node_modules would. */
+    ignores: ["**/node_modules/**", "v2/dist/**"],
   },
 
   js.configs.recommended,
