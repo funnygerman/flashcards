@@ -120,6 +120,40 @@ describe("mount", () => {
     expect(isFlipped()).toBe(false);
   });
 
+  /* Both faces sit in the DOM at once — backface-visibility turns one away,
+     not removal — so without aria-hidden a screen reader reads both faces'
+     text together regardless of which way the card is turned. */
+  describe("hides whichever face is not showing from assistive tech", () => {
+    it("hides the back to start with, showing only the front", () => {
+      open();
+
+      expect(document.querySelector(".fc-front").getAttribute("aria-hidden")).toBe("false");
+      expect(document.querySelector(".fc-back").getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("swaps which face is hidden on a flip", () => {
+      open();
+
+      press(" ");
+      expect(document.querySelector(".fc-front").getAttribute("aria-hidden")).toBe("true");
+      expect(document.querySelector(".fc-back").getAttribute("aria-hidden")).toBe("false");
+
+      press(" ");
+      expect(document.querySelector(".fc-front").getAttribute("aria-hidden")).toBe("false");
+      expect(document.querySelector(".fc-back").getAttribute("aria-hidden")).toBe("true");
+    });
+
+    it("hides the back again once a page turn faces the front, even from a flipped card", () => {
+      open();
+
+      press(" ");
+      press("ArrowRight");
+
+      expect(document.querySelector(".fc-front").getAttribute("aria-hidden")).toBe("false");
+      expect(document.querySelector(".fc-back").getAttribute("aria-hidden")).toBe("true");
+    });
+  });
+
   it("grades the card in front of the reader and stays on it", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });

@@ -378,6 +378,12 @@ itself the first time the reader sees it. (Two separate bugs said otherwise: the
 re-read only once the whole slide had finished — so paging between two cards graded differently looked
 like the page turn had changed the card's grade a fifth of a second after delivering it.)
 
+**V2-8.9** The face not showing is `aria-hidden`. Both faces sit in the DOM at once — `backface-visibility`
+turns one of them away, not removal (V2-8.1) — so without this a screen reader reads the front's and the
+back's text together regardless of which way the card is turned, which is worth fixing whether or not
+V2-10.5's live region ever gets built: it is a correctness gap in what already renders, not part of that
+open design question.
+
 ---
 
 ## 9. Code
@@ -423,7 +429,9 @@ card with far more text than the design assumes fills its card and may run under
 live region — including for a refused grade (V2-15.2), which was briefly a live region while it was a
 separate line of text and stopped being one when it became part of the card. Moving it onto the mark
 bought the reply its meaning and cost it that announcement; the trade is recorded here rather than
-hidden, and a live region for it remains available if a reader ever needs one.
+hidden, and a live region for it remains available if a reader ever needs one. `V2-8.9`'s fix (hiding
+whichever face is not showing) is a prerequisite this now has, not an answer to it: a live region and its
+wording are still entirely open.
 
 ---
 
