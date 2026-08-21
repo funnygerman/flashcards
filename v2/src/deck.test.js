@@ -453,6 +453,55 @@ describe("openDeck", () => {
         expect(corner().getAttribute("aria-label")).toBe("Alles, was du gesehen hast");
       });
 
+      /* A reader learning English and French wants two dictionaries, not one
+         that mixes both (V2-13.7) — a card from a different dictionary is not
+         "more" this deck's toggle should offer. */
+      describe("scoped to a dictionary", () => {
+        it("stamps its own cards with the dictionary it was opened for", () => {
+          open(cards, { dictionary: "french" });
+
+          const stored = JSON.parse(localStorage.getItem(CARDS_KEY));
+          expect(stored.a.dictionary).toBe("french");
+        });
+
+        it("stays absent when the only card beyond this deck is in a different dictionary", () => {
+          extra(); // dictionary-less
+          open(cards, { dictionary: "french" });
+
+          expect(corner()).toBe(null);
+        });
+
+        it("appears once another card in the same dictionary exists", () => {
+          localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four", dictionary: "french" } }));
+          open(cards, { dictionary: "french" });
+
+          expect(corner()).not.toBe(null);
+        });
+
+        it("leads only to cards in the same dictionary, not the whole dictionary", () => {
+          localStorage.setItem(
+            CARDS_KEY,
+            JSON.stringify({
+              z: { key: "z", frontText: "vier", backText: "four", dictionary: "french" },
+              y: { key: "y", frontText: "unrelated", backText: "unrelated", dictionary: "german" },
+            }),
+          );
+          open(cards, { dictionary: "french" });
+
+          corner().click();
+          const seen = new Set([front()]);
+          for (let i = 0; i < 5; i++) {
+            press("ArrowRight");
+            seen.add(front());
+          }
+
+          /* The deck's own cards are french too, so the dictionary side is all
+             four of them — "unrelated" (german) is the one word that must
+             never come up, however far this pages around. */
+          expect(seen).toEqual(new Set(["vier", "eins", "zwei", "drei"]));
+        });
+      });
+
       /* It draws what it leads to: the dictionary is many decks at once, a
          deck is one — both the 4:3 of the real card, and both swapped for
          the other the moment the reader presses it. */
