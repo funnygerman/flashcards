@@ -382,8 +382,13 @@ like the page turn had changed the card's grade a fifth of a second after delive
 
 ## 9. Code
 
-**V2-9.1** Plain ES modules and CSS, loaded by the browser as written. No build step, no bundler, no
-framework, no runtime dependency.
+**V2-9.1** Plain ES modules and CSS, loaded by the browser as written. No build step to develop or test
+this repository, no framework, no runtime dependency. The deployed site is the one deliberate exception:
+`npm run build` (esbuild, a dev-only dependency) bundles and minifies `v2/src` into `v2/dist`, which only
+the deployed deck pages are rewritten to load instead of `v2/src` directly (`.github/workflows/deploy.yml`)
+— purely to cut what a reader's phone downloads. Nothing this repository is loaded, tested, or forked with
+requires it; `v2/dist` is not committed, built fresh before every deploy the same way the tests are run
+fresh.
 
 **V2-9.2** Each module owns one concern: order (`deck`), storage (`store`), input (`input`), the DOM and
 its animations (`view`), and the wiring between them (`flashcards`).

@@ -1,8 +1,13 @@
 name: Deploy to GitHub Pages
 
-# v2 needs no build: the sources the browser loads are the ones in the
-# repository, copied in as they are. Every push to main publishes, so what is
-# on main is what is live — there is no separate release step to forget.
+# Developing and testing v2 needs no build: the sources the browser loads at
+# `npm run serve` are the ones in the repository, exactly as written. The
+# deployed site is the one exception — its deck pages are rewritten below to
+# load the minified build (`npm run build`, v2/dist/) instead of v2/src
+# directly, purely to cut what a reader's phone downloads. The repository
+# itself, and every other way of running it, is untouched by this. Every push
+# to main publishes, so what is on main is what is live — there is no
+# separate release step to forget.
 
 on:
   push:
@@ -33,6 +38,7 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+      - run: npm run build
 
       - name: Assemble Pages site
         run: |
@@ -40,10 +46,22 @@ jobs:
           rm -rf _site
           mkdir -p _site
 
-          # No build step, so the sources the browser loads are the ones in
-          # the repository. The tests are not part of the site.
+          # The sources the browser loads for development are the ones in the
+          # repository, copied in as they are. The tests are not part of the
+          # site.
           cp -r v2 _site/v2
           rm -f _site/v2/src/*.test.js
+
+          # Deployment's one exception (see this file's header comment):
+          # each deck page is rewritten to load the minified build instead of
+          # v2/src directly. v2/src itself still ships too — the built output
+          # is smaller only because esbuild bundles and minifies it, not
+          # because anything is held back — so nothing here is a stripped-down
+          # or different version of the app, only a smaller-to-download one.
+          sed -i \
+            -e 's#href="\.\./src/flashcards\.css"#href="../dist/flashcards.min.css"#' \
+            -e 's#from "\.\./src/deck\.js"#from "../dist/flashcards.min.js"#' \
+            _site/v2/decks/*.html
 
           cat > _site/index.html <<'HTML'
           <!doctype html>
