@@ -28,7 +28,7 @@ import { isDue, reviewState } from "./review.js";
  * a session has no end (V2-3.5), so an uncapped deck of everything would simply
  * bury the overdue cards among cards that are not due yet.
  */
-export const SESSION_LIMIT = 20;
+export const SESSION_LIMIT = 50;
 
 /**
  * The cards to study, out of `cards`.

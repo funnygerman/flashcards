@@ -615,7 +615,7 @@ dictionary — it switches to it in place (V2-13.9) — so this file is what rem
 with no deck open at all.
 
 **V2-13.4** A deck and the dictionary select the same way: both are *study what's due*, up to
-`SESSION_LIMIT` (20), out of their own pool of cards — a deck's own, the dictionary everything the reader
+`SESSION_LIMIT` (50), out of their own pool of cards — a deck's own, the dictionary everything the reader
 has ever opened. "All of it" is not a session either way, so a card that is not due is held back while due
 ones wait. They differ only in which pool feeds that rule, not in the rule itself.
 
