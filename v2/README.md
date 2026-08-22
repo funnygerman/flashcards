@@ -401,7 +401,7 @@ deck, switch to the dictionary, and the card is already there wearing its mark a
 grade today.
 
 A deck and the dictionary ask for different things, because they mean different things. **A deck offers
-all of its own cards**, up to twenty — you chose that deck, and being handed three cards out of nineteen
+all of its own cards**, up to fifty — you chose that deck, and being handed three cards out of nineteen
 because the rest aren't due yet isn't what you asked for. **The dictionary offers what's due**, out of
 everything you've ever opened, because "all of it" isn't a session; when nothing at all is due it falls
 back to the cards closest to being due, so there's no "nothing due today" screen.
