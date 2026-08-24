@@ -34,12 +34,20 @@ describe("syncCards", () => {
     expect(JSON.parse(storage.read())).toEqual({ [card.key]: card });
   });
 
-  it("loads the stored copy instead of the deck's, and does not rewrite it", () => {
+  it("overwrites the stored copy when the deck's has changed", () => {
     const stored = { ...card, backText: "water (stored)" };
     storage = createStorage(JSON.stringify({ [card.key]: stored }));
 
-    expect(syncCards([card], storage)).toEqual([stored]);
-    expect(JSON.parse(storage.read())).toEqual({ [card.key]: stored });
+    expect(syncCards([card], storage)).toEqual([card]);
+    expect(JSON.parse(storage.read())).toEqual({ [card.key]: card });
+  });
+
+  it("does not rewrite storage when the deck's copy matches what is stored", () => {
+    const initial = JSON.stringify({ [card.key]: card });
+    storage = createStorage(initial);
+
+    expect(syncCards([card], storage)).toEqual([card]);
+    expect(storage.read()).toBe(initial);
   });
 
   it("adds new cards to a dictionary that already holds others", () => {
@@ -100,12 +108,13 @@ describe("syncCards", () => {
     expect(STORAGE_KEY).toBe("flashcards.cards");
   });
 
-  it("settles a dictionary disagreement over the same key by first write, like any other field", () => {
-    const stored = { ...card, dictionary: "french" };
+  it("keeps the stored dictionary even while other fields are overwritten", () => {
+    const stored = { ...card, backText: "water (stored)", dictionary: "french" };
     storage = createStorage(JSON.stringify({ [card.key]: stored }));
 
-    expect(syncCards([{ ...card, dictionary: "german" }], storage)).toEqual([stored]);
-    expect(JSON.parse(storage.read())).toEqual({ [card.key]: stored });
+    const expected = { ...card, dictionary: "french" };
+    expect(syncCards([{ ...card, dictionary: "german" }], storage)).toEqual([expected]);
+    expect(JSON.parse(storage.read())).toEqual({ [card.key]: expected });
   });
 });
 

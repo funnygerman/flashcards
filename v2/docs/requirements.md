@@ -276,8 +276,11 @@ schedule's idea and `mount()` has none of it.
 **V2-6.1** Every card the reader opens is recorded in one storage key, `flashcards.cards`, as a
 `{ [key]: card }` map.
 
-**V2-6.2** A card the store has not seen is written to it; a card it has seen is loaded from it. Card
-content is assumed not to change, so the stored copy wins.
+**V2-6.2** A card the store has not seen is written to it. A card it has seen is updated from the deck's
+current copy when that copy differs from what is stored, so a fix to a word list reaches readers who have
+already opened the deck. `dictionary` is the exception: it stays whatever it was first set to, since a
+deck passing a different one for an existing key is treated as a mistake, not a move to another
+dictionary.
 
 **V2-6.3** A card without a `key` is displayed but not stored.
 
