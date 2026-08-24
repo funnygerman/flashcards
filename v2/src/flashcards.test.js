@@ -680,11 +680,11 @@ describe("mount", () => {
     expect(Object.keys(JSON.parse(localStorage.getItem(STORAGE_KEY)))).toEqual(["a", "b", "c"]);
   });
 
-  it("shows the stored copy of a card it has seen before", () => {
+  it("overwrites a stale stored copy with the deck's current one", () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({ a: { key: "a", frontText: "stored", backText: "one" } }));
     open();
 
-    expect(front(".fc-text").textContent).toBe("stored");
+    expect(front(".fc-text").textContent).toBe("eins");
   });
 
   it("leaves the keyboard alone while the reader is typing", () => {

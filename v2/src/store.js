@@ -65,33 +65,54 @@ export function holdsMoreThan(cards, storage = pageStorage(), dictionary = undef
 }
 
 /**
+ * Whether `a` and `b` describe the same card — every field, not just the ones
+ * one side happens to carry, so a field dropped from a deck's word list is a
+ * change too.
+ */
+function sameCard(a, b) {
+  for (const key of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (a[key] !== b[key]) return false;
+  }
+
+  return true;
+}
+
+/**
  * Merge a deck into its dictionary and return the cards to display.
  *
- * A card the dictionary has not seen is written to it; a card it has seen is
- * loaded from it. Card content is assumed not to change, so the stored copy
- * wins — `dictionary` included, first write settling it the same way a
- * disagreement over `frontText` would: whichever deck this reader opened
- * first keeps it, even if a later deck passes a different one for the same
- * key. Cards without a `key` are displayed but not stored.
+ * A card the dictionary has not seen is written to it. A card it has seen is
+ * updated from the deck's copy — a word list is allowed to fix a typo or
+ * reword a translation, and readers should see that the next time they open
+ * the deck, not the version frozen from their first visit. `dictionary` is
+ * the one field this does not touch: it stays whatever it was first set to,
+ * the same way it always has, since a deck passing a different one for the
+ * same key is a mistake to shrug off rather than a real move to another
+ * dictionary. Cards without a `key` are displayed but not stored.
+ *
+ * Storage is only rewritten when something in it actually changed —
+ * `writeMap` serializes the whole dictionary, so paying that cost on every
+ * visit to an unchanged deck would be wasteful.
  */
 export function syncCards(cards, storage = pageStorage()) {
   const stored = readMap(storage, STORAGE_KEY);
-  let added = false;
+  let changed = false;
 
   const resolved = cards.map((card) => {
     if (!card.key) return card;
 
     const known = storedCard(stored, card.key);
-    if (known) return known;
+    const merged = known ? { ...card, dictionary: known.dictionary } : card;
 
-    /* Anything unusable under this key is replaced rather than left to break
-       every future visit the same way. */
-    stored[card.key] = card;
-    added = true;
-    return card;
+    /* Anything unusable under this key, or genuinely different from it, is
+       replaced rather than left to break every future visit the same way. */
+    if (known && sameCard(merged, known)) return known;
+
+    stored[card.key] = merged;
+    changed = true;
+    return merged;
   });
 
-  if (added) writeMap(storage, STORAGE_KEY, stored);
+  if (changed) writeMap(storage, STORAGE_KEY, stored);
 
   return resolved;
 }
