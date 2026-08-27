@@ -37,11 +37,15 @@ One HTML file is one deck: its cards, and one call.
   import { openDeck } from "../src/deck.js";
 
   openDeck([
-    { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
-    { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run" },
+    { frontText: "das Wasser", backText: "water", category: "noun" },
+    { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
   ]);
 </script>
 ```
+
+Two words per card. The card's identity in storage — its `key` — is derived from those two words
+(`wasser-water`, `laufen-to-run`) unless you write one yourself; see
+[§ Keys](v2/README.md#keys) for when you should.
 
 ## Where things are
 
@@ -49,6 +53,7 @@ One HTML file is one deck: its cards, and one call.
 v2/README.md            how it works, and why it works that way
 v2/docs/requirements.md what it is, statement by statement (`V2-*`)
 v2/src/                 the library, the schedule, and the page that assembles them
+v2/src/key.js           how a card's key is derived, shared with anything that generates a deck
 v2/decks/               one file per deck
 v2/dictionary.html      every card you have opened, as a deck
 v2/dist/                built by npm run build; deployment's minified v2/src, not committed

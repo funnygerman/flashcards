@@ -164,6 +164,47 @@ describe("openDeck", () => {
     expect(() => openDeck([], { storage: localStorage })).toThrow(/at least one card/);
   });
 
+  /* A deck author writes the two words on the card and nothing else; the key
+     they used to transcribe by hand is derived from those words (V2-2.7). */
+  describe("keys", () => {
+    it("files a keyless card under a key derived from its own words", () => {
+      open([{ frontText: "das Wasser", backText: "water" }]);
+
+      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["wasser-water"]);
+    });
+
+    it("schedules it under that same key, so the two agree", () => {
+      open([{ frontText: "das Wasser", backText: "water" }]);
+
+      press("ArrowUp");
+
+      expect(schedule("wasser-water")).toBeDefined();
+    });
+
+    it("keeps a pinned key, so an edited word list does not orphan a reader's schedule", () => {
+      open([{ key: "hundert-hundred", frontText: "hundert", backText: "a hundred" }]);
+
+      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["hundert-hundred"]);
+    });
+
+    it("stores a card whose text yields no key no more than it stores a guide card", () => {
+      open([{ frontText: "…", backText: "???" }]);
+
+      expect(localStorage.getItem(CARDS_KEY)).toBe(null);
+    });
+
+    /* The dictionary's cards come back out of storage already keyed, and keyed
+       the way they were first filed — deriving over that could only disagree. */
+    it("leaves a stored card's key alone when the dictionary is what is being studied", () => {
+      localStorage.setItem(CARDS_KEY, JSON.stringify({ "wie-spaet": { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?" } }));
+
+      open([]);
+      press("ArrowUp");
+
+      expect(schedule("wie-spaet")).toBeDefined();
+    });
+  });
+
   /* Nothing on a card with no chrome advertises that swiping exists, so a first
      session is led by four cards that teach the deck by being one. */
   describe("the first-run guide", () => {

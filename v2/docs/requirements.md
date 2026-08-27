@@ -39,8 +39,9 @@ definitions and terminology are all the same to it.
 }
 ```
 
-**V2-2.2** `frontText` and `backText` are required. `frontDetails`, `backDetails` and `category` are
-optional; a field with no content is not rendered rather than rendered empty.
+**V2-2.2** `frontText` and `backText` are required. `key`, `frontDetails`, `backDetails` and `category`
+are optional; a field with no content is not rendered rather than rendered empty. `key` is optional in a
+different sense from the rest — it is filled in rather than left out (V2-2.7).
 
 **V2-2.3** `key` identifies the card in storage and is otherwise opaque: the library assigns it no
 meaning, derives nothing from it, and never displays it.
@@ -53,6 +54,34 @@ between a deck file and the browser.
 
 **V2-2.6** Card content is text. It is written to the DOM as text and must never be interpreted as
 markup.
+
+**V2-2.7** `key` is optional in a deck file. Where a card has none, `openDeck` derives one from the
+card's own two words — lower-cased, hyphenated, the definite article dropped, umlauts spelled out the
+way German writes them without the mark: `das Wasser`/`water` is filed under `wasser-water`, and `fünf`
+under `fuenf`. Both sides, because the front is not unique — `laufen` is two cards, and only the back
+tells them apart. `details` are not part of it, so rewording a hint moves nothing.
+
+This is transcription, not a new scheme. Every key in both shipped decks was already the two words
+hyphenated; the rule reproduced thirty-five of thirty-seven exactly before it was wired up, and the two
+it did not are the two that now carry a key of their own.
+
+**V2-2.8** An explicit `key` always wins, and pinning one is how a card's text becomes safe to edit. A
+derived key moves when the text it was derived from moves, and V2-6.2 expects a word list to fix a typo
+or reword a translation — do that to an underived card and it is not corrected but replaced: a new key,
+an empty schedule, and the old entry left in the dictionary with nobody to claim it. So derivation is
+for a card written for the first time; a card whose wording has to change without its identity changing
+with it names its key. `numbers-and-time.html` carries the two cases — a back text that has already been
+reworded, and a key deliberately shorter than the sentence on the card.
+
+A word list kept outside this repository, generating a deck file, should therefore derive each key once
+as a row is added and write it back into the list, so the generated deck carries pinned keys rather than
+re-deriving them on every regeneration. That is not the pipeline V2-2.5 rules out: V2-2.5 is about what
+stands between a deck file and the browser, and nothing does.
+
+**V2-2.9** A card whose text yields no key — punctuation, or a script the rule cannot spell — is given
+none rather than a made-up one. A counter or a hash would be unique and meaningless, and two decks
+naming the same word would disagree, which is the one thing a key must not do (V2-13.7). V2-6.3 already
+says what a keyless card is: displayed, not stored.
 
 ---
 

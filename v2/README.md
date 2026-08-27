@@ -16,11 +16,15 @@ A deck file holds its cards and one call:
   import { openDeck } from "../src/deck.js";
 
   openDeck([
-    { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
-    { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run" },
+    { frontText: "das Wasser", backText: "water", category: "noun" },
+    { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
   ]);
 </script>
 ```
+
+Two words per card and nothing else. `key` — the card's identity in storage — is derived from those two
+words if you leave it out: `wasser-water`, `laufen-to-run`, which is what a deck author was writing by
+hand until now. § Keys below is the one thing worth knowing about that.
 
 `openDeck()` assembles the whole thing: it picks the session, records grades against the schedule,
 brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the way
@@ -54,14 +58,62 @@ Once this is on `main` it is published at
 
 ```js
 {
-  key: "wasser-water",       // the card's identity in local storage; opaque to the library
   frontText: "das Wasser",
-  frontDetails: "…",         // optional
   backText: "water",
+  key: "wasser-water",       // optional — derived from the two words above if omitted
+  frontDetails: "…",         // optional
   backDetails: "…",          // optional
   category: "noun",          // optional
 }
 ```
+
+### Keys
+
+A card's `key` is its identity in local storage — the dictionary files it under that, and so does the
+review schedule, independently. The library itself never reads it, displays it, or derives anything from
+it.
+
+Omit it and `openDeck` derives one from the card's own two words: lower-cased and hyphenated, the
+definite article dropped, umlauts spelled the way German spells them without the mark.
+
+| | |
+|---|---|
+| `das Wasser` / `water` | `wasser-water` |
+| `fünf` / `five` | `fuenf-five` |
+| `guten Morgen` / `good morning` | `guten-morgen-good-morning` |
+| `laufen` / `to run` · `laufen` / `to operate` | `laufen-to-run` · `laufen-to-operate` |
+
+Both sides, because the front is not unique — `laufen` is two cards and only the back tells them apart.
+The details are not part of it, so rewording a hint moves nothing. This is not a new scheme: it is the
+one both shipped decks were already written in, and it reproduced thirty-five of their thirty-seven
+hand-written keys exactly.
+
+**A derived key moves when the text it came from moves.** A word list is allowed to fix a typo or reword
+a translation and expects readers to see it (§ Local storage) — but do that to a card whose key was
+derived and the card is not corrected, it is replaced: a new key, an empty schedule, and the old entry
+left in the dictionary with nobody to claim it.
+
+So derivation is for a card being written for the first time. Once written, **an explicit `key` always
+wins**, and pinning one is what makes the card's text safe to edit afterwards. `decks/numbers-and-time.html`
+carries the only two in this repository, and they are the two reasons to pin:
+
+```js
+/* keyed before the back text read "a hundred"; deriving now would say
+   `hundert-a-hundred`, which is a different card to a reader's schedule */
+{ key: "hundert-hundred", frontText: "hundert", backText: "a hundred" },
+
+/* a key deliberately shorter than the card — derivation cannot know which
+   words of a sentence are the card, and would use all of both sides */
+{ key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?" },
+```
+
+If you keep a word list somewhere else and generate a deck file from it, derive each key **once**, as
+you add the row, and write it back into the list — then the generated deck carries pinned keys and no
+later edit can move one. `src/key.js` is that rule, exported as `deriveKey(card)` and `slug(text)` so the
+generator and the browser cannot drift apart.
+
+A card whose text yields no key at all — punctuation, or a script the rule cannot spell — is given none
+rather than a made-up one, and a card with no key is displayed but not stored (§ Local storage).
 
 ### `mount(element, cards, options?)`
 

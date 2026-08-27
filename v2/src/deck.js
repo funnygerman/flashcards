@@ -18,6 +18,7 @@
 import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, nextBox, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
+import { keyed } from "./key.js";
 import { mount } from "./flashcards.js";
 import { pageStorage, readMap, writeMap } from "./storage.js";
 import { stringsFor } from "./strings.js";
@@ -272,6 +273,13 @@ function cornerLink(storage) {
  * strings.js has none for. Card content is never touched by it: that stays
  * whatever a deck author wrote.
  *
+ * `key` is filled in where a card has none, from the card's own two words
+ * (key.js) — `das Wasser`/`water` files itself under `wasser-water`, which is
+ * the key a deck author would have typed. A card that brings its own `key`
+ * keeps it, always, and that pin is what makes the card's text safe to edit
+ * later: a derived key moves when the text it came from moves, and a moved key
+ * is a new card with an empty schedule rather than a corrected one (V2-2.7).
+ *
  * `dictionary` splits the shared storage into several non-overlapping
  * dictionaries — a reader learning English and French wants two, not cards
  * from both shuffled into one (V2-13.7). It is a fact about the deck, said
@@ -287,7 +295,19 @@ export function openDeck(cards, options = {}) {
   const strings = stringsFor(lang);
 
   const own = cards.length > 0;
-  const source = own && dictionary !== undefined ? cards.map((card) => ({ ...card, dictionary })) : cards;
+
+  /* A deck's own cards, made storable: a key on each, then the deck's
+     dictionary stamped on. Both are facts the deck author should not have to
+     repeat per card — `dictionary` because it is one fact about the whole deck
+     (V2-13.7), `key` because it was only ever the two words already on the card,
+     hyphenated (V2-2.7). Neither overwrites what a card already carries.
+
+     Only a deck's own cards. The dictionary's come back out of storage, where
+     nothing keyless was ever written (V2-6.3), so every one of them is keyed
+     already and by definition keyed the way it was first filed — deriving over
+     that could only disagree with it. */
+  const named = own ? keyed(cards) : cards;
+  const source = own && dictionary !== undefined ? named.map((card) => ({ ...card, dictionary })) : named;
 
   /* Dealt in front of the session on a first run — remembered only once
      mount() actually succeeds, below, rather than here: a card-less page with
