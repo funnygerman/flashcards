@@ -19,25 +19,29 @@
          deck — and they are what the corner mark is for: it switches in place
          to the dictionary and back, and appears at all only once the other
          deck has been opened. */
-      /* Almost none of these carries a `key`: openDeck derives one from the two
-         words on the card (V2-2.7), and for `zwei`/`two` that derivation is
+      /* Most of these carry no `key`: openDeck derives one from the two words
+         on the card (V2-2.7), and for `zwei`/`two` that derivation is
          `zwei-two` — the key that used to be written out here by hand.
 
-         The two that do carry one are the two reasons a card ever should.
+         The three that do carry one are the three reasons a card ever should.
+         `fuenf-five` predates this deck spelling `fünf` with its umlaut in the
+         key at all — derivation now keeps a card's own script rather than
+         transliterating it (V2-2.7), so `fünf` would file as `fünf-five`, a
+         different card as far as a reader's existing schedule is concerned.
          `hundert-hundred` was keyed before its back text read "a hundred";
-         deriving now would file it under `hundert-a-hundred`, which is a
-         different card as far as a reader's existing schedule is concerned. The
-         pin keeps the article out of the identity, so the wording stays free to
-         change again. `wie-spaet` is the other reason: a key deliberately
-         shorter than the card. Derivation cannot know which words of a sentence
-         are the card, and would file this one under the whole of both sides —
-         a perfectly good key that no person would ever have written. */
+         deriving now would file it under `hundert-a-hundred`, the same kind of
+         mismatch. Both pins keep the wording free to change without the card's
+         identity changing with it. `wie-spaet` is the third reason: a key
+         deliberately shorter than the card. Derivation cannot know which words
+         of a sentence are the card, and would file this one under the whole of
+         both sides — a perfectly good key that no person would ever have
+         written. */
       const cards = [
         { frontText: "eins", backText: "one", category: "number" },
         { frontText: "zwei", backText: "two", category: "number" },
         { frontText: "drei", backText: "three", category: "number" },
         { frontText: "vier", backText: "four", category: "number" },
-        { frontText: "fünf", backText: "five", category: "number" },
+        { key: "fuenf-five", frontText: "fünf", backText: "five", category: "number" },
         { frontText: "zehn", backText: "ten", category: "number" },
         { frontText: "zwanzig", backText: "twenty", category: "number" },
         { key: "hundert-hundred", frontText: "hundert", backText: "a hundred", category: "number" },

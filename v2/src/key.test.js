@@ -17,23 +17,45 @@ describe("slug", () => {
     expect(slug("die")).toBe("die");
   });
 
-  it("spells an umlaut out the way German does, instead of dropping the mark", () => {
-    expect(slug("fünf")).toBe("fuenf");
-    expect(slug("spät")).toBe("spaet");
-    expect(slug("Löwe")).toBe("loewe");
-    expect(slug("Straße")).toBe("strasse");
+  it("keeps a card's own script rather than transliterating it", () => {
+    expect(slug("fünf")).toBe("fünf");
+    expect(slug("Straße")).toBe("straße");
+    expect(slug("хороший")).toBe("хороший");
+    expect(slug("σπίτι")).toBe("σπίτι");
   });
 
-  it("drops a mark that carries no such convention", () => {
-    expect(slug("Café")).toBe("cafe");
+  it("keeps a combining mark attached to its letter instead of stripping it", () => {
+    /* Arabic's harakat, Hebrew's niqqud, and the vowel signs of Devanagari and
+       Thai combine with the letter before them -- folding a mark into "not a
+       letter" and stripping it, the way an accent might be, would shatter one
+       word into several hyphen-joined letters instead of leaving it whole. */
+    const arabicWithHarakat = "\u0628\u064E\u064A\u0652\u062A";
+    const hebrewWithNiqqud = "\u05D1\u05B7\u05BC\u05D9\u05B4\u05EA";
+    const devanagariWithMatra = "\u0915\u093F\u0924\u093E\u092C";
+
+    expect(slug(arabicWithHarakat)).toBe(arabicWithHarakat);
+    expect(slug(hebrewWithNiqqud)).toBe(hebrewWithNiqqud);
+    expect(slug(devanagariWithMatra)).toBe(devanagariWithMatra);
+  });
+
+  it("treats two spellings of the same word as the same key", () => {
+    /* "schön" typed on one system and pasted from another can be `ö` as one
+       code point (NFC) or `o` plus a combining diaeresis (NFD) — visually
+       identical, `===` false, and a naive slug would key the same card two
+       ways depending on where the text came from. */
+    const nfc = "schön";
+    const nfd = "schön";
+
+    expect(nfc).not.toBe(nfd);
+    expect(slug(nfc)).toBe(slug(nfd));
   });
 
   it("leaves no punctuation, and no hyphen at either end", () => {
-    expect(slug("Wie spät ist es?")).toBe("wie-spaet-ist-es");
+    expect(slug("Wie spät ist es?")).toBe("wie-spät-ist-es");
     expect(slug("— nicht! —")).toBe("nicht");
   });
 
-  it("has nothing to say about text it cannot spell", () => {
+  it("has nothing to say about text it cannot spell a key from", () => {
     expect(slug("…")).toBe("");
     expect(slug(undefined)).toBe("");
   });
@@ -50,6 +72,20 @@ describe("deriveKey", () => {
 
     expect(run).toBe("laufen-to-run");
     expect(operate).toBe("laufen-to-operate");
+  });
+
+  /* The same guarantee, but for a deck whose back text is not in Latin script
+     at all — the collision a front-only or transliterated key would miss. */
+  it("keeps two cards sharing a front apart in a non-Latin dictionary too", () => {
+    const one = deriveKey({ frontText: "gleich", backText: "одинаковый" });
+    const other = deriveKey({ frontText: "gleich", backText: "сразу" });
+
+    expect(one).not.toBe(other);
+  });
+
+  it("keeps a script the rule was never told about, rather than dropping it", () => {
+    expect(deriveKey({ frontText: "das Haus", backText: "σπίτι" })).toBe("haus-σπίτι");
+    expect(deriveKey({ frontText: "das Haus", backText: "بيت" })).toBe("haus-بيت");
   });
 
   it("ignores the details, so a reworded hint does not move the card", () => {
@@ -70,7 +106,6 @@ describe("deriveKey", () => {
       ["das Haus", "house", "haus-house"],
       ["die Katze", "cat", "katze-cat"],
       ["schlecht", "bad", "schlecht-bad"],
-      ["fünf", "five", "fuenf-five"],
       ["der Samstag", "Saturday", "samstag-saturday"],
       ["morgen", "tomorrow", "morgen-tomorrow"],
     ];

@@ -9,10 +9,9 @@
  *
  * And it was always a label they were writing by hand. Every key in both decks
  * this repository ships is the front word and the back word, hyphenated, with
- * the article dropped: `das Wasser`/`water` filed as `wasser-water`. Thirty-five
- * of thirty-seven were reproduced exactly by the rule below before a line of it
- * was wired up, which is the argument for it — not that this is a good scheme,
- * but that it is already the scheme, transcribed by hand once per card.
+ * the article dropped: `das Wasser`/`water` filed as `wasser-water`. Reproducing
+ * the ones already written by hand, rather than inventing a new scheme, is the
+ * whole argument for deriving at all.
  *
  * Front *and* back, rather than the front alone, because the front is not
  * unique: `laufen` is two cards, `to run` and `to operate`, and a key derived
@@ -29,40 +28,53 @@
  * (`keyed` below never overwrites one), and pinning is what makes the text safe
  * to edit afterwards. A deck generated from a word list should have its keys
  * derived once, at the moment a row is added, and written back into the list.
+ *
+ * This file is imported directly, at this path, by the CSV tooling in
+ * `funnygerman/wortschatz` — fetched live from this project's deployed site
+ * rather than copied, so the two can never disagree about what a key is. Moving
+ * or renaming it, or changing what `deriveKey`/`slug` take or return, breaks
+ * that import with no warning on this side. Keep the path and the signatures
+ * stable, or update that project in the same change.
  */
-
-/** German-aware, because the words being filed are German. */
-const TRANSLITERATIONS = [
-  [/ä/g, "ae"],
-  [/ö/g, "oe"],
-  [/ü/g, "ue"],
-  [/ß/g, "ss"],
-];
 
 /**
  * One side of a card, as a key fragment.
  *
- * The umlauts are spelled out before the accents are stripped, and that order
- * is the whole point: `fünf` is `fuenf`, the way German writes it without the
- * diaeresis, not `funf`, which is what dropping the mark would give. Anything
- * else carrying a mark — a `café`, a borrowed `naïve` — has no such convention,
- * so the mark simply comes off.
+ * A card's own script is kept, not transliterated: `fünf` stays `fünf`,
+ * `хороший` stays `хороший`, `σπίτι` stays `σπίτι`. A transliteration table
+ * was tried first and dropped — one was needed per script (German's umlauts,
+ * Cyrillic, eventually Greek, Arabic, Hebrew, Devanagari, ...), each with its
+ * own house style to invent and maintain, and every one of them was pure
+ * guesswork for a script nobody had written a rule for yet. Keeping the script
+ * needs none of that: `\p{L}` already knows what a letter is in every one of
+ * them.
+ *
+ * `\p{M}` — combining marks — stay too, and separately from `\p{L}`, because a
+ * mark is not a letter of its own: Arabic's harakat, Hebrew's niqqud, and the
+ * vowel signs of Devanagari and Thai are marks that combine with the letter
+ * before them. Folding them into "not a letter" and stripping them, the way an
+ * accent on a Latin letter might be, would shatter `بَيْت` into `ب-ي-ت` — three
+ * hyphen-joined letters standing in for one word, only because Arabic happens
+ * to write its short vowels as marks rather than letters.
+ *
+ * `.normalize("NFC")` first, because two spellings of the same word can be
+ * different strings: `schön` typed on one system and `schön` pasted from
+ * another can be `ö` as one code point or `o` plus a separate combining
+ * diaeresis — visually identical, `===` false. Normalizing before slugging
+ * means both give the same key; skipping it would key the same card two ways
+ * depending on where the text came from, with nothing to see in an editor that
+ * says why.
  *
  * The definite article goes, since `das Wasser` and `wasser` are the same word
  * filed twice. Only where something follows it: a deck teaching `die` as a word
  * in its own right keeps it, because the article is the card.
  */
 export function slug(text) {
-  let out = String(text ?? "")
+  return String(text ?? "")
     .toLowerCase()
-    .replace(/^(der|die|das)\s+/, "");
-
-  for (const [pattern, replacement] of TRANSLITERATIONS) out = out.replace(pattern, replacement);
-
-  return out
-    .normalize("NFD")
-    .replace(/\p{Diacritic}/gu, "")
-    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^(der|die|das)\s+/, "")
+    .normalize("NFC")
+    .replace(/[^\p{L}\p{N}\p{M}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
 }
 

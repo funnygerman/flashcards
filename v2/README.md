@@ -75,19 +75,30 @@ review schedule, independently. The library itself never reads it, displays it, 
 it.
 
 Omit it and `openDeck` derives one from the card's own two words: lower-cased and hyphenated, the
-definite article dropped, umlauts spelled the way German spells them without the mark.
+definite article dropped, a card's own script kept rather than transliterated.
 
 | | |
 |---|---|
 | `das Wasser` / `water` | `wasser-water` |
-| `fünf` / `five` | `fuenf-five` |
+| `fünf` / `five` | `fünf-five` |
 | `guten Morgen` / `good morning` | `guten-morgen-good-morning` |
 | `laufen` / `to run` · `laufen` / `to operate` | `laufen-to-run` · `laufen-to-operate` |
+| `gut` / `хороший` · `gut` / `хорошо` | `gut-хороший` · `gut-хорошо` |
 
-Both sides, because the front is not unique — `laufen` is two cards and only the back tells them apart.
-The details are not part of it, so rewording a hint moves nothing. This is not a new scheme: it is the
-one both shipped decks were already written in, and it reproduced thirty-five of their thirty-seven
-hand-written keys exactly.
+Both sides, because the front is not unique — `laufen` is two cards and only the back tells them apart,
+whatever script the back is written in. The details are not part of it, so rewording a hint moves
+nothing. This is not a new scheme: it is the one both shipped decks were already written in, and it
+reproduced thirty-four of their thirty-seven hand-written keys exactly.
+
+A transliteration table was tried first — spelling `fünf` as `fuenf`, the way German writes it without
+the diaeresis — and dropped. It needs a house style invented and maintained per script, it is guesswork
+for any script nobody has written a rule for yet, and it still cannot promise two different words never
+transliterate to the same spelling. Keeping the script needs none of that, and it is what makes this
+project workable for a language other than German: no rule to write before the first Greek or Arabic
+card can be added. `.normalize("NFC")` runs before slugging so two encodings of one word — `ö` as one
+code point, or `o` plus a combining diaeresis — key identically rather than by accident of where the
+text came from; combining marks (Arabic's harakat, Hebrew's niqqud, the vowel signs of Devanagari and
+Thai) stay attached to their letter instead of being stripped as if they were accents.
 
 **A derived key moves when the text it came from moves.** A word list is allowed to fix a typo or reword
 a translation and expects readers to see it (§ Local storage) — but do that to a card whose key was
@@ -96,9 +107,14 @@ left in the dictionary with nobody to claim it.
 
 So derivation is for a card being written for the first time. Once written, **an explicit `key` always
 wins**, and pinning one is what makes the card's text safe to edit afterwards. `decks/numbers-and-time.html`
-carries the only two in this repository, and they are the two reasons to pin:
+carries the only three in this repository, and they are the three reasons to pin:
 
 ```js
+/* keyed while this project still transliterated a card's own script into its
+   key; deriving now would keep fünf's umlaut and say `fünf-five`, a
+   different card to a reader's schedule */
+{ key: "fuenf-five", frontText: "fünf", backText: "five" },
+
 /* keyed before the back text read "a hundred"; deriving now would say
    `hundert-a-hundred`, which is a different card to a reader's schedule */
 { key: "hundert-hundred", frontText: "hundert", backText: "a hundred" },
@@ -113,8 +129,8 @@ you add the row, and write it back into the list — then the generated deck car
 later edit can move one. `src/key.js` is that rule, exported as `deriveKey(card)` and `slug(text)` so the
 generator and the browser cannot drift apart.
 
-A card whose text yields no key at all — punctuation, or a script the rule cannot spell — is given none
-rather than a made-up one, and a card with no key is displayed but not stored (§ Local storage).
+A card whose text is punctuation only, and yields no key at all, is given none rather than a made-up
+one, and a card with no key is displayed but not stored (§ Local storage).
 
 #### Moving a key
 
