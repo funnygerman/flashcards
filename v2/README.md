@@ -55,6 +55,7 @@ Once this is on `main` it is published at
 ```js
 {
   key: "wasser-water",       // the card's identity in local storage; opaque to the library
+  wasKey: "…",               // optional — a key this card used to be filed under
   frontText: "das Wasser",
   frontDetails: "…",         // optional
   backText: "water",
@@ -62,6 +63,37 @@ Once this is on `main` it is published at
   category: "noun",          // optional
 }
 ```
+
+### Correcting a key
+
+A card's `key` is its identity in local storage — the dictionary files it under that, and so does the
+review schedule, independently. The reader's copy is the only copy, so changing a key in a word list
+does not move their card, it replaces it: an empty schedule for a word they have known for a month, and
+the old entry still turning up in the dictionary as a duplicate nobody can grade away.
+
+`wasKey` is what makes it a move instead:
+
+```js
+{ key: "hundert-one-hundred", wasKey: "hundert-a-hundred", frontText: "hundert", backText: "one hundred" }
+```
+
+On the reader's next visit their entry filed under `hundert-a-hundred` is moved to the new key — the
+dictionary entry *and* the Leitner box, before either is read — and the card carries on with the
+schedule it had.
+
+Corrected twice, it collects either: `wasKey: ["hundert-a-hundred", "hundert-hundred"]`, newest first,
+so a reader who never got the first correction is not stranded by the second. It costs nothing once it
+has run — the old entry is gone, so the next visit finds nothing to move — and nothing at all for a
+reader who never had the old key, so there is no flag to keep and no reason to take it back out. It is
+never displayed and never stored; the dictionary keeps the card, not the note.
+
+Where the reader already has an entry under the *new* key, the old one is dropped rather than merged:
+the entry they have been grading since the correction is the real one, and the stale one would otherwise
+outlive it as a card no deck can name any more.
+
+One thing it cannot do: `empty-deck.html` migrates nothing, because the dictionary's cards come out of
+storage and have no deck author to declare a correction. The declaration lives in the deck that names
+the card, so the reader has to open that deck once.
 
 ### `mount(element, cards, options?)`
 

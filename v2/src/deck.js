@@ -18,6 +18,7 @@
 import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, nextBox, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
+import { migrateKeys } from "./migrate.js";
 import { mount } from "./flashcards.js";
 import { pageStorage, readMap, writeMap } from "./storage.js";
 import { stringsFor } from "./strings.js";
@@ -272,6 +273,11 @@ function cornerLink(storage) {
  * strings.js has none for. Card content is never touched by it: that stays
  * whatever a deck author wrote.
  *
+ * `wasKey` on a card names the key it used to be filed under, and the reader's
+ * entry is moved to the card's current key — schedule and dictionary both —
+ * before anything reads either (migrate.js). That is how a key can be corrected
+ * without the card losing the box a reader spent weeks earning on it.
+ *
  * `dictionary` splits the shared storage into several non-overlapping
  * dictionaries — a reader learning English and French wants two, not cards
  * from both shuffled into one (V2-13.7). It is a fact about the deck, said
@@ -287,7 +293,16 @@ export function openDeck(cards, options = {}) {
   const strings = stringsFor(lang);
 
   const own = cards.length > 0;
-  const source = own && dictionary !== undefined ? cards.map((card) => ({ ...card, dictionary })) : cards;
+
+  /* A card whose key has changed brings the reader's old entry with it, in the
+     dictionary and in the schedule both, before either is read (V2-6.8). Here
+     rather than later because chooseSession is about to ask what is due, and a
+     card whose schedule is still filed under its old key would answer as a card
+     with no schedule at all — due today, box empty, however long the reader has
+     actually been studying it. Only a deck's own cards: the dictionary's come
+     back out of storage, where the rename has already happened. */
+  const settled = own ? migrateKeys(cards, storage) : cards;
+  const source = own && dictionary !== undefined ? settled.map((card) => ({ ...card, dictionary })) : settled;
 
   /* Dealt in front of the session on a first run — remembered only once
      mount() actually succeeds, below, rather than here: a card-less page with
