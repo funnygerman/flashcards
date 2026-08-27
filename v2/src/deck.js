@@ -18,7 +18,6 @@
 import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, nextBox, recordGrade, reviewState } from "./review.js";
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
-import { keyed } from "./key.js";
 import { migrateKeys } from "./migrate.js";
 import { mount } from "./flashcards.js";
 import { pageStorage, readMap, writeMap } from "./storage.js";
@@ -274,24 +273,10 @@ function cornerLink(storage) {
  * strings.js has none for. Card content is never touched by it: that stays
  * whatever a deck author wrote.
  *
- * `key` is filled in where a card has none, from the card's own two words
- * (key.js) — `das Wasser`/`water` files itself under `wasser-water`, which is
- * the key a deck author would have typed. A card that brings its own `key`
- * keeps it, always, and that pin is what makes the card's text safe to edit
- * later: a derived key moves when the text it came from moves, and a moved key
- * is a new card with an empty schedule rather than a corrected one (V2-2.7).
- *
- * `articles` are words a derived key drops from the front of a card's text —
- * `GERMAN_ARTICLES` (key.js) for a German deck, so `das Wasser` files under
- * `wasser-water` rather than `das-wasser-water`. Empty by default: stripping
- * `der|die|das` unconditionally is right for German and silently wrong for
- * every other language, so a deck says which language's articles it means
- * rather than inheriting one deck's grammar by accident (V2-2.11).
- *
  * `wasKey` on a card names the key it used to be filed under, and the reader's
- * entry is moved to its current key — schedule and dictionary both — before
- * anything reads either (migrate.js). That is the way to move a key that has to
- * move; pinning one that does not is still cheaper.
+ * entry is moved to the card's current key — schedule and dictionary both —
+ * before anything reads either (migrate.js). That is how a key can be corrected
+ * without the card losing the box a reader spent weeks earning on it.
  *
  * `dictionary` splits the shared storage into several non-overlapping
  * dictionaries — a reader learning English and French wants two, not cards
@@ -304,31 +289,19 @@ function cornerLink(storage) {
  * settles any other disagreement about a card: first write wins.
  */
 export function openDeck(cards, options = {}) {
-  const { element = document.body, storage, random, now, lang, dictionary, articles = [] } = options;
+  const { element = document.body, storage, random, now, lang, dictionary } = options;
   const strings = stringsFor(lang);
 
   const own = cards.length > 0;
 
-  /* A deck's own cards, made storable: a key on each, then the deck's
-     dictionary stamped on. Both are facts the deck author should not have to
-     repeat per card — `dictionary` because it is one fact about the whole deck
-     (V2-13.7), `key` because it was only ever the two words already on the card,
-     hyphenated (V2-2.7). Neither overwrites what a card already carries.
-
-     Only a deck's own cards. The dictionary's come back out of storage, where
-     nothing keyless was ever written (V2-6.3), so every one of them is keyed
-     already and by definition keyed the way it was first filed — deriving over
-     that could only disagree with it. */
-  const named = own ? keyed(cards, articles) : cards;
-
-  /* Any card whose key has moved brings the reader's old entry with it, in the
+  /* A card whose key has changed brings the reader's old entry with it, in the
      dictionary and in the schedule both, before either is read (V2-6.8). Here
      rather than later because chooseSession is about to ask what is due, and a
-     card whose schedule is still filed under last week's key would answer as a
-     card with no schedule at all — due today, box empty, a month of recall
-     thrown away. Keyed first: a rename is to the card's current key, and for a
-     deck that omits it that key does not exist until keyed() derives it. */
-  const settled = own ? migrateKeys(named, storage) : named;
+     card whose schedule is still filed under its old key would answer as a card
+     with no schedule at all — due today, box empty, however long the reader has
+     actually been studying it. Only a deck's own cards: the dictionary's come
+     back out of storage, where the rename has already happened. */
+  const settled = own ? migrateKeys(cards, storage) : cards;
   const source = own && dictionary !== undefined ? settled.map((card) => ({ ...card, dictionary })) : settled;
 
   /* Dealt in front of the session on a first run — remembered only once

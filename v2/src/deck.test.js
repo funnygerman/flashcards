@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_KEY as CARDS_KEY } from "./store.js";
 import { STORAGE_KEY as REVIEW_KEY } from "./review.js";
 import { DECK_KEY, HINTS_KEY, lastDeck, openDeck } from "./deck.js";
-import { GERMAN_ARTICLES } from "./key.js";
 
 /* jsdom has no Web Animations API, so slides swap instantly and every
    assertion below can stay synchronous. */
@@ -165,112 +164,61 @@ describe("openDeck", () => {
     expect(() => openDeck([], { storage: localStorage })).toThrow(/at least one card/);
   });
 
-  /* A deck author writes the two words on the card and nothing else; the key
-     they used to transcribe by hand is derived from those words (V2-2.7). */
-  describe("keys", () => {
-    it("files a keyless card under a key derived from its own words", () => {
-      open([{ frontText: "das Wasser", backText: "water" }], { articles: GERMAN_ARTICLES });
+  /* A key that has to be corrected takes the reader's progress with it (V2-6.8),
+     which is the whole difference between correcting a card and replacing it. */
+  describe("a key that has moved", () => {
+    const before = "hundert-a-hundred";
+    const after = "hundert-one-hundred";
+    const card = { key: after, wasKey: before, frontText: "hundert", backText: "one hundred" };
 
-      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["wasser-water"]);
+    it("keeps the box the reader earned under the old key", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ [before]: { box: 4, dueAt: 0 } }));
+
+      open([card]);
+
+      expect(schedule(after).box).toBe(4);
+      expect(schedule(before)).toBeUndefined();
     });
 
-    it("schedules it under that same key, so the two agree", () => {
-      open([{ frontText: "das Wasser", backText: "water" }], { articles: GERMAN_ARTICLES });
+    it("stays settled if today's grade was given under the old key", () => {
+      localStorage.setItem(
+        REVIEW_KEY,
+        JSON.stringify({ [before]: { box: 3, dueAt: 0, baseBox: 2, day: today(), grade: "easier" } }),
+      );
 
-      press("ArrowUp");
+      open([card]);
 
-      expect(schedule("wasser-water")).toBeDefined();
+      /* Marked on arrival, exactly as it would be had the key never moved. */
+      expect(marks()).toBe("is-easier");
+      expect(schedule(after).box).toBe(3);
     });
 
-    /* A deck says which language's articles its keys should drop; nothing is
-       dropped for a deck that never said (V2-2.11). */
-    it("keeps a leading article for a deck that never declared one", () => {
-      open([{ frontText: "das Wasser", backText: "water" }]);
+    it("does not leave the old card behind in the dictionary", () => {
+      localStorage.setItem(
+        CARDS_KEY,
+        JSON.stringify({ [before]: { key: before, frontText: "hundert", backText: "a hundred" } }),
+      );
 
-      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["das-wasser-water"]);
+      open([card]);
+
+      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual([after]);
     });
 
-    it("keeps a pinned key, so an edited word list does not orphan a reader's schedule", () => {
-      open([{ key: "hundert-hundred", frontText: "hundert", backText: "a hundred" }]);
+    it("stores the card's text, not the note that moved it", () => {
+      open([card]);
 
-      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["hundert-hundred"]);
-    });
-
-    it("stores a card whose text yields no key no more than it stores a guide card", () => {
-      open([{ frontText: "…", backText: "???" }]);
-
-      expect(localStorage.getItem(CARDS_KEY)).toBe(null);
-    });
-
-    /* A key that has to move takes the reader's progress with it (V2-6.8),
-       which is the whole difference between renaming a card and replacing it. */
-    describe("a key that has moved", () => {
-      const before = "hundert-a-hundred";
-      const after = "hundert-one-hundred";
-      const card = { frontText: "hundert", backText: "one hundred", wasKey: before };
-
-      it("keeps the box the reader earned under the old key", () => {
-        localStorage.setItem(REVIEW_KEY, JSON.stringify({ [before]: { box: 4, dueAt: 0 } }));
-
-        open([card]);
-
-        expect(schedule(after).box).toBe(4);
-        expect(schedule(before)).toBeUndefined();
-      });
-
-      it("stays settled if today's grade was given under the old key", () => {
-        const today = new Date().toISOString().slice(0, 10);
-        localStorage.setItem(
-          REVIEW_KEY,
-          JSON.stringify({ [before]: { box: 3, dueAt: 0, baseBox: 2, day: today, grade: "easier" } }),
-        );
-
-        open([card]);
-
-        /* Marked on arrival, and a second grade today is refused — exactly as
-           it would be had the key never moved. */
-        expect(marks()).toContain("is-easier");
-        expect(schedule(after).box).toBe(3);
-      });
-
-      it("does not leave the old card behind in the dictionary", () => {
-        localStorage.setItem(
-          CARDS_KEY,
-          JSON.stringify({ [before]: { key: before, frontText: "hundert", backText: "a hundred" } }),
-        );
-
-        open([card]);
-
-        expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual([after]);
-      });
-
-      it("stores the card's text, not the note that moved it", () => {
-        open([card]);
-
-        expect(JSON.parse(localStorage.getItem(CARDS_KEY))[after]).toEqual({
-          key: after,
-          frontText: "hundert",
-          backText: "one hundred",
-        });
-      });
-
-      it("costs a reader who never had the old key nothing", () => {
-        open([card]);
-
-        expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual([after]);
-        expect(JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}")).toEqual({});
+      expect(JSON.parse(localStorage.getItem(CARDS_KEY))[after]).toEqual({
+        key: after,
+        frontText: "hundert",
+        backText: "one hundred",
       });
     });
 
-    /* The dictionary's cards come back out of storage already keyed, and keyed
-       the way they were first filed — deriving over that could only disagree. */
-    it("leaves a stored card's key alone when the dictionary is what is being studied", () => {
-      localStorage.setItem(CARDS_KEY, JSON.stringify({ "wie-spaet": { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?" } }));
+    it("costs a reader who never had the old key nothing", () => {
+      open([card]);
 
-      open([]);
-      press("ArrowUp");
-
-      expect(schedule("wie-spaet")).toBeDefined();
+      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual([after]);
+      expect(JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}")).toEqual({});
     });
   });
 

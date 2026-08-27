@@ -39,9 +39,8 @@ definitions and terminology are all the same to it.
 }
 ```
 
-**V2-2.2** `frontText` and `backText` are required. `key`, `frontDetails`, `backDetails` and `category`
-are optional; a field with no content is not rendered rather than rendered empty. `key` is optional in a
-different sense from the rest — it is filled in rather than left out (V2-2.7).
+**V2-2.2** `frontText` and `backText` are required. `frontDetails`, `backDetails` and `category` are
+optional; a field with no content is not rendered rather than rendered empty.
 
 **V2-2.3** `key` identifies the card in storage and is otherwise opaque: the library assigns it no
 meaning, derives nothing from it, and never displays it.
@@ -55,61 +54,16 @@ between a deck file and the browser.
 **V2-2.6** Card content is text. It is written to the DOM as text and must never be interpreted as
 markup.
 
-**V2-2.7** `key` is optional in a deck file. Where a card has none, `openDeck` derives one from the
-card's own two words — lower-cased, hyphenated, and a leading article dropped where the deck asked for
-one (V2-2.11): `das Wasser`/`water` is filed under `wasser-water`. Both sides, because the front is not
-unique — `laufen` is two cards, and only the back tells them apart. `details` are not part of it, so
-rewording a hint moves nothing.
+**V2-2.7** `wasKey` names the key or keys a card used to be filed under, so a key that has to be
+corrected takes the reader's progress with it rather than abandoning it. It accepts one key or several,
+since a card can be renamed more than once and the second rename must not strand readers who never made
+the first. It is a note to the loader, not content: it is never displayed, and never stored (V2-6.8).
 
-A card's own script is kept rather than transliterated — `fünf` stays `fünf`, `хороший` stays
-`хороший`, `σπίτι` stays `σπίτι` — because a transliteration table is a house style invented per
-script, and this project is not only German-to-English. Text is normalized (Unicode NFC) before
-slugging, so two spellings of the same word that only differ in how a mark was encoded — `ö` as one
-code point against `o` plus a combining diaeresis — key identically; and a combining mark stays attached
-to the letter it belongs to rather than being stripped as if it were an accent, since Arabic's harakat,
-Hebrew's niqqud and the vowel signs of Devanagari and Thai are letters' marks, not decoration on them.
-
-This is transcription, not a new scheme. Every key in both shipped decks was already the two words
-hyphenated; the rule reproduced thirty-four of thirty-seven exactly before it was wired up, and the
-three it did not are the three that now carry a key of their own.
-
-**V2-2.8** An explicit `key` always wins, and pinning one is how a card's text becomes safe to edit. A
-derived key moves when the text it was derived from moves, and V2-6.2 expects a word list to fix a typo
-or reword a translation — do that to an underived card and it is not corrected but replaced: a new key,
-an empty schedule, and the old entry left in the dictionary with nobody to claim it. So derivation is
-for a card written for the first time; a card whose wording has to change without its identity changing
-with it names its key. `numbers-and-time.html` carries all three cases: a key written before this
-project spelled a card's own script into its key, a back text that has already been reworded, and a key
-deliberately shorter than the sentence on the card.
-
-A word list kept outside this repository, generating a deck file, should therefore derive each key once
-as a row is added and write it back into the list, so the generated deck carries pinned keys rather than
-re-deriving them on every regeneration. That is not the pipeline V2-2.5 rules out: V2-2.5 is about what
-stands between a deck file and the browser, and nothing does.
-
-**V2-2.9** A card whose text is punctuation only, and yields no key, is given none rather than a made-up
-one. A counter or a hash would be unique and meaningless, and two decks naming the same word would
-disagree, which is the one thing a key must not do (V2-13.7). V2-6.3 already says what a keyless card
-is: displayed, not stored.
-
-**V2-2.10** `wasKey` names the key or keys a card used to be filed under, so a key that has to move can
-take the reader's progress with it rather than abandon it. It accepts one key or several, since a card
-can be renamed more than once and the second rename must not strand readers who never made the first.
-It is a note to the loader, not content: it is never displayed, and never stored (V2-6.8).
-
-`wasKey` is the alternative to pinning, not a replacement for it. A card whose key does not move needs
-nothing — which is why the three pinned cards in `numbers-and-time.html` stay pinned rather than being
-renamed into line with what derivation would say. Reach for `wasKey` when the key has to move anyway: a
-typo baked into a key, a deliberate re-slug, an old hand-written key being brought into line.
-
-**V2-2.11** A derived key drops a leading article only from the list a deck passes as `articles`
-(`GERMAN_ARTICLES` for these decks); a deck that passes none keeps every word. Stripping `der|die|das`
-unconditionally is right for German and silently wrong for anything else — an English `die young` filed
-as `young`, a Portuguese `das casas` as `casas`, with nothing in the key to say why. The article is
-dropped only where a word follows it, so a deck teaching `die` as a word in its own right keeps it.
-
-This is the one language-specific rule in a function that is otherwise language-neutral (V2-2.7), so it
-is the one thing a deck has to say out loud rather than inherit.
+A key is a card's identity in storage, and the reader's copy is the only copy. Correcting one plainly is
+therefore not an edit to a word list but an edit to data this project cannot reach: the card does not
+move, it is replaced — an empty schedule for a word the reader has known for a month, and the entry they
+built left in the dictionary as a duplicate nobody can grade away. `wasKey` is what makes the correction
+a move.
 
 ---
 
@@ -353,7 +307,7 @@ visit the same way.
 **V2-6.7** `storage.js` — reading and writing a `{ [key]: value }` map safely — is shared by this module
 and by review.js (§11), so the two agree on what "storage is unusable" means without saying so twice.
 
-**V2-6.8** A card carrying `wasKey` (V2-2.10) has the reader's entry moved from the old key to its
+**V2-6.8** A card carrying `wasKey` (V2-2.7) has the reader's entry moved from the old key to its
 current one, in this dictionary and in the review schedule (§11) both, before either is read. The two
 are moved separately because they are independent: a reader can hold a schedule for a card whose
 dictionary entry was lost to a bad write, or the reverse.

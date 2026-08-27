@@ -11,22 +11,21 @@
  * duplicate nobody can grade away.
  *
  * `wasKey` is the deck author saying which entry the card used to be, so the
- * rename can be carried out in the reader's storage instead of merely happening
- * to it:
+ * rename is carried out in the reader's storage instead of merely happening to
+ * them:
  *
  * ```js
- * { frontText: "hundert", backText: "one hundred", wasKey: "hundert-a-hundred" }
+ * { key: "hundert-one-hundred", wasKey: "hundert-a-hundred", frontText: "hundert", backText: "one hundred" }
  * ```
  *
- * That card now derives as `hundert-one-hundred` (V2-2.7). On the reader's next
- * visit the entry filed under `hundert-a-hundred` is moved to it, in both the
- * dictionary and the schedule, and the card carries on with the box it had.
+ * On the reader's next visit the entry filed under `hundert-a-hundred` is moved
+ * to `hundert-one-hundred`, in both the dictionary and the schedule, and the
+ * card carries on with the box it had.
  *
- * This is the alternative to pinning, not a replacement for it, and pinning is
- * still the cheaper answer: a card that keeps its key needs nothing here. Reach
- * for `wasKey` when the key has to move anyway — a typo in the German that was
- * baked into the key, a deliberate re-slug, an old hand-written key being
- * brought in line with what derivation would say.
+ * A key that never changes needs nothing here — most do not, and that is the
+ * cheap case. This exists for the ones that have to: a typo baked into a key, a
+ * key written before a naming convention settled, an old one being brought into
+ * line with the rest of a word list.
  *
  * It costs nothing after it has run. The old entry is gone once it is moved, so
  * the next visit finds nothing to move and does nothing, and a reader who never

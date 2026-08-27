@@ -14,21 +14,13 @@ A deck file holds its cards and one call:
 
 <script type="module">
   import { openDeck } from "../src/deck.js";
-  import { GERMAN_ARTICLES } from "../src/key.js";
 
-  openDeck(
-    [
-      { frontText: "das Wasser", backText: "water", category: "noun" },
-      { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
-    ],
-    { articles: GERMAN_ARTICLES }, /* German deck: `das Wasser` keys as `wasser-water` */
-  );
+  openDeck([
+    { key: "wasser-water", frontText: "das Wasser", backText: "water", category: "noun" },
+    { key: "laufen-to-run", frontText: "laufen", frontDetails: "on foot", backText: "to run" },
+  ]);
 </script>
 ```
-
-Two words per card and nothing else. `key` — the card's identity in storage — is derived from those two
-words if you leave it out: `wasser-water`, `laufen-to-run`, which is what a deck author was writing by
-hand until now. § Keys below is the one thing worth knowing about that.
 
 `openDeck()` assembles the whole thing: it picks the session, records grades against the schedule,
 brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the way
@@ -62,124 +54,46 @@ Once this is on `main` it is published at
 
 ```js
 {
+  key: "wasser-water",       // the card's identity in local storage; opaque to the library
+  wasKey: "…",               // optional — a key this card used to be filed under
   frontText: "das Wasser",
-  backText: "water",
-  key: "wasser-water",       // optional — derived from the two words above if omitted
-  wasKey: "…",               // optional — the key this card used to be filed under
   frontDetails: "…",         // optional
+  backText: "water",
   backDetails: "…",          // optional
   category: "noun",          // optional
 }
 ```
 
-### Keys
+### Correcting a key
 
 A card's `key` is its identity in local storage — the dictionary files it under that, and so does the
-review schedule, independently. The library itself never reads it, displays it, or derives anything from
-it.
+review schedule, independently. The reader's copy is the only copy, so changing a key in a word list
+does not move their card, it replaces it: an empty schedule for a word they have known for a month, and
+the old entry still turning up in the dictionary as a duplicate nobody can grade away.
 
-Omit it and `openDeck` derives one from the card's own two words: lower-cased and hyphenated, a card's
-own script kept rather than transliterated, and a leading article dropped from the list the deck passed
-as `articles`.
-
-| | |
-|---|---|
-| `das Wasser` / `water` | `wasser-water` |
-| `fünf` / `five` | `fünf-five` |
-| `guten Morgen` / `good morning` | `guten-morgen-good-morning` |
-| `laufen` / `to run` · `laufen` / `to operate` | `laufen-to-run` · `laufen-to-operate` |
-| `gut` / `хороший` · `gut` / `хорошо` | `gut-хороший` · `gut-хорошо` |
-
-Both sides, because the front is not unique — `laufen` is two cards and only the back tells them apart,
-whatever script the back is written in. The details are not part of it, so rewording a hint moves
-nothing. This is not a new scheme: it is the one both shipped decks were already written in, and it
-reproduced thirty-four of their thirty-seven hand-written keys exactly.
-
-A transliteration table was tried first — spelling `fünf` as `fuenf`, the way German writes it without
-the diaeresis — and dropped. It needs a house style invented and maintained per script, it is guesswork
-for any script nobody has written a rule for yet, and it still cannot promise two different words never
-transliterate to the same spelling. Keeping the script needs none of that, and it is what makes this
-project workable for a language other than German: no rule to write before the first Greek or Arabic
-card can be added. `.normalize("NFC")` runs before slugging so two encodings of one word — `ö` as one
-code point, or `o` plus a combining diaeresis — key identically rather than by accident of where the
-text came from; combining marks (Arabic's harakat, Hebrew's niqqud, the vowel signs of Devanagari and
-Thai) stay attached to their letter instead of being stripped as if they were accents.
-
-**A derived key moves when the text it came from moves.** A word list is allowed to fix a typo or reword
-a translation and expects readers to see it (§ Local storage) — but do that to a card whose key was
-derived and the card is not corrected, it is replaced: a new key, an empty schedule, and the old entry
-left in the dictionary with nobody to claim it.
-
-So derivation is for a card being written for the first time. Once written, **an explicit `key` always
-wins**, and pinning one is what makes the card's text safe to edit afterwards. `decks/numbers-and-time.html`
-carries the only three in this repository, and they are the three reasons to pin:
+`wasKey` is what makes it a move instead:
 
 ```js
-/* keyed while this project still transliterated a card's own script into its
-   key; deriving now would keep fünf's umlaut and say `fünf-five`, a
-   different card to a reader's schedule */
-{ key: "fuenf-five", frontText: "fünf", backText: "five" },
-
-/* keyed before the back text read "a hundred"; deriving now would say
-   `hundert-a-hundred`, which is a different card to a reader's schedule */
-{ key: "hundert-hundred", frontText: "hundert", backText: "a hundred" },
-
-/* a key deliberately shorter than the card — derivation cannot know which
-   words of a sentence are the card, and would use all of both sides */
-{ key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?" },
+{ key: "hundert-one-hundred", wasKey: "hundert-a-hundred", frontText: "hundert", backText: "one hundred" }
 ```
 
-**The one language-specific part is opt-in.** `articles` is the list of words a derived key drops from
-the front of a card's text, and nothing is dropped for a deck that passes none:
+On the reader's next visit their entry filed under `hundert-a-hundred` is moved to the new key — the
+dictionary entry *and* the Leitner box, before either is read — and the card carries on with the
+schedule it had.
 
-```js
-import { GERMAN_ARTICLES } from "../src/key.js";   /* ["der", "die", "das"] */
+Corrected twice, it collects either: `wasKey: ["hundert-a-hundred", "hundert-hundred"]`, newest first,
+so a reader who never got the first correction is not stranded by the second. It costs nothing once it
+has run — the old entry is gone, so the next visit finds nothing to move — and nothing at all for a
+reader who never had the old key, so there is no flag to keep and no reason to take it back out. It is
+never displayed and never stored; the dictionary keeps the card, not the note.
 
-openDeck(cards, { articles: GERMAN_ARTICLES });    /* das Wasser -> wasser-water */
-openDeck(cards);                                   /* das Wasser -> das-wasser-water */
-```
-
-This used to strip `der|die|das` unconditionally, which is right for German and silently wrong for
-anything else: an English `die young` filed itself as `young`, a Portuguese `das casas` as `casas`, and
-nothing in the resulting key said why. A deck saying which language's articles it means cannot do that
-to a deck written in another. Only where a word follows it, so a deck teaching `die` as a word in its
-own right keeps it.
-
-If you keep a word list somewhere else and generate a deck file from it, derive each key **once**, as
-you add the row, and write it back into the list — then the generated deck carries pinned keys and no
-later edit can move one. `src/key.js` is that rule, exported as `deriveKey(card, articles)`,
-`slug(text, articles)` and `GERMAN_ARTICLES`, so the generator and the browser cannot drift apart.
-
-A card whose text is punctuation only, and yields no key at all, is given none rather than a made-up
-one, and a card with no key is displayed but not stored (§ Local storage).
-
-#### Moving a key
-
-Pinning keeps a key still. `wasKey` is for the other case — the key has to move anyway, because it has a
-typo baked into it, or it was hand-written years ago and you want it in line with the rest:
-
-```js
-{ frontText: "hundert", backText: "one hundred", wasKey: "hundert-a-hundred" }
-```
-
-That card now derives as `hundert-one-hundred`. On the reader's next visit their entry filed under
-`hundert-a-hundred` is moved to it — the dictionary entry *and* the Leitner box, before either is read —
-and the card carries on with the schedule it had. Without it the card would arrive as a stranger: box
-empty, due today, a month of recall thrown away, and the old entry still turning up in the dictionary as
-a duplicate nobody can grade away.
-
-Renamed twice, it collects either: `wasKey: ["hundert-a-hundred", "hundert-hundred"]`, newest first. It
-costs nothing once it has run — the old entry is gone, so the next visit finds nothing to move — and
-nothing at all for a reader who never had the old key, so there is no flag to keep and no reason to take
-it back out. It is never displayed and never stored; the dictionary keeps the card, not the note.
-
-Where the reader already has an entry under the *current* key, the old one is dropped rather than merged:
-the entry they have been grading since the rename is the real one, and the stale one would otherwise
-outlive the rename as a card no deck can name any more.
+Where the reader already has an entry under the *new* key, the old one is dropped rather than merged:
+the entry they have been grading since the correction is the real one, and the stale one would otherwise
+outlive it as a card no deck can name any more.
 
 One thing it cannot do: `empty-deck.html` migrates nothing, because the dictionary's cards come out of
-storage and have no deck author to declare a rename. The declaration lives in the deck that names the
-card, so the reader has to open that deck once.
+storage and have no deck author to declare a correction. The declaration lives in the deck that names
+the card, so the reader has to open that deck once.
 
 ### `mount(element, cards, options?)`
 

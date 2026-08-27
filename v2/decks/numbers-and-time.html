@@ -13,57 +13,34 @@
 
     <script type="module">
       import { openDeck } from "../src/deck.js";
-      import { GERMAN_ARTICLES } from "../src/key.js";
 
       /* A second deck, on a subject the first one does not touch. Two decks are
          what make the dictionary worth having — one deck's dictionary is that
          deck — and they are what the corner mark is for: it switches in place
          to the dictionary and back, and appears at all only once the other
          deck has been opened. */
-      /* Most of these carry no `key`: openDeck derives one from the two words
-         on the card (V2-2.7), and for `zwei`/`two` that derivation is
-         `zwei-two` — the key that used to be written out here by hand.
-
-         The three that do carry one are the three reasons a card ever should.
-         `fuenf-five` predates this deck spelling `fünf` with its umlaut in the
-         key at all — derivation now keeps a card's own script rather than
-         transliterating it (V2-2.7), so `fünf` would file as `fünf-five`, a
-         different card as far as a reader's existing schedule is concerned.
-         `hundert-hundred` was keyed before its back text read "a hundred";
-         deriving now would file it under `hundert-a-hundred`, the same kind of
-         mismatch. Both pins keep the wording free to change without the card's
-         identity changing with it. `wie-spaet` is the third reason: a key
-         deliberately shorter than the card. Derivation cannot know which words
-         of a sentence are the card, and would file this one under the whole of
-         both sides — a perfectly good key that no person would ever have
-         written. */
       const cards = [
-        { frontText: "eins", backText: "one", category: "number" },
-        { frontText: "zwei", backText: "two", category: "number" },
-        { frontText: "drei", backText: "three", category: "number" },
-        { frontText: "vier", backText: "four", category: "number" },
+        { key: "eins-one", frontText: "eins", backText: "one", category: "number" },
+        { key: "zwei-two", frontText: "zwei", backText: "two", category: "number" },
+        { key: "drei-three", frontText: "drei", backText: "three", category: "number" },
+        { key: "vier-four", frontText: "vier", backText: "four", category: "number" },
         { key: "fuenf-five", frontText: "fünf", backText: "five", category: "number" },
-        { frontText: "zehn", backText: "ten", category: "number" },
-        { frontText: "zwanzig", backText: "twenty", category: "number" },
+        { key: "zehn-ten", frontText: "zehn", backText: "ten", category: "number" },
+        { key: "zwanzig-twenty", frontText: "zwanzig", backText: "twenty", category: "number" },
         { key: "hundert-hundred", frontText: "hundert", backText: "a hundred", category: "number" },
-        { frontText: "der Montag", backText: "Monday", category: "day" },
-        { frontText: "der Mittwoch", backText: "Wednesday", category: "day" },
-        { frontText: "der Samstag", backText: "Saturday", backDetails: "also: der Sonnabend", category: "day" },
-        { frontText: "der Sonntag", backText: "Sunday", category: "day" },
-        { frontText: "heute", backText: "today", category: "time" },
-        { frontText: "morgen", frontDetails: "lower case", backText: "tomorrow", backDetails: "der Morgen, capitalised, is the morning", category: "time" },
-        { frontText: "gestern", backText: "yesterday", category: "time" },
-        { frontText: "jetzt", backText: "now", category: "time" },
-        { frontText: "immer", backText: "always", category: "time" },
+        { key: "montag-monday", frontText: "der Montag", backText: "Monday", category: "day" },
+        { key: "mittwoch-wednesday", frontText: "der Mittwoch", backText: "Wednesday", category: "day" },
+        { key: "samstag-saturday", frontText: "der Samstag", backText: "Saturday", backDetails: "also: der Sonnabend", category: "day" },
+        { key: "sonntag-sunday", frontText: "der Sonntag", backText: "Sunday", category: "day" },
+        { key: "heute-today", frontText: "heute", backText: "today", category: "time" },
+        { key: "morgen-tomorrow", frontText: "morgen", frontDetails: "lower case", backText: "tomorrow", backDetails: "der Morgen, capitalised, is the morning", category: "time" },
+        { key: "gestern-yesterday", frontText: "gestern", backText: "yesterday", category: "time" },
+        { key: "jetzt-now", frontText: "jetzt", backText: "now", category: "time" },
+        { key: "immer-always", frontText: "immer", backText: "always", category: "time" },
         { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?", category: "phrase" },
       ];
 
-      /* This deck's front text is German, so a derived key drops a leading
-         der/die/das — `das Wasser` files under `wasser-water`, the key that
-         was written out here by hand. Said rather than assumed: stripping
-         those three words unconditionally would quietly mangle a deck written
-         in any other language (V2-2.11). */
-      openDeck(cards, { articles: GERMAN_ARTICLES });
+      openDeck(cards);
     </script>
   </body>
 </html>
