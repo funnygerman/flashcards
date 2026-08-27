@@ -56,9 +56,10 @@ between a deck file and the browser.
 markup.
 
 **V2-2.7** `key` is optional in a deck file. Where a card has none, `openDeck` derives one from the
-card's own two words — lower-cased, hyphenated, the definite article dropped: `das Wasser`/`water` is
-filed under `wasser-water`. Both sides, because the front is not unique — `laufen` is two cards, and
-only the back tells them apart. `details` are not part of it, so rewording a hint moves nothing.
+card's own two words — lower-cased, hyphenated, and a leading article dropped where the deck asked for
+one (V2-2.11): `das Wasser`/`water` is filed under `wasser-water`. Both sides, because the front is not
+unique — `laufen` is two cards, and only the back tells them apart. `details` are not part of it, so
+rewording a hint moves nothing.
 
 A card's own script is kept rather than transliterated — `fünf` stays `fünf`, `хороший` stays
 `хороший`, `σπίτι` stays `σπίτι` — because a transliteration table is a house style invented per
@@ -87,9 +88,9 @@ re-deriving them on every regeneration. That is not the pipeline V2-2.5 rules ou
 stands between a deck file and the browser, and nothing does.
 
 **V2-2.9** A card whose text is punctuation only, and yields no key, is given none rather than a made-up
-one. A counter or a hash would be unique and meaningless, and two decks
-naming the same word would disagree, which is the one thing a key must not do (V2-13.7). V2-6.3 already
-says what a keyless card is: displayed, not stored.
+one. A counter or a hash would be unique and meaningless, and two decks naming the same word would
+disagree, which is the one thing a key must not do (V2-13.7). V2-6.3 already says what a keyless card
+is: displayed, not stored.
 
 **V2-2.10** `wasKey` names the key or keys a card used to be filed under, so a key that has to move can
 take the reader's progress with it rather than abandon it. It accepts one key or several, since a card
@@ -100,6 +101,15 @@ It is a note to the loader, not content: it is never displayed, and never stored
 nothing — which is why the three pinned cards in `numbers-and-time.html` stay pinned rather than being
 renamed into line with what derivation would say. Reach for `wasKey` when the key has to move anyway: a
 typo baked into a key, a deliberate re-slug, an old hand-written key being brought into line.
+
+**V2-2.11** A derived key drops a leading article only from the list a deck passes as `articles`
+(`GERMAN_ARTICLES` for these decks); a deck that passes none keeps every word. Stripping `der|die|das`
+unconditionally is right for German and silently wrong for anything else — an English `die young` filed
+as `young`, a Portuguese `das casas` as `casas`, with nothing in the key to say why. The article is
+dropped only where a word follows it, so a deck teaching `die` as a word in its own right keeps it.
+
+This is the one language-specific rule in a function that is otherwise language-neutral (V2-2.7), so it
+is the one thing a deck has to say out loud rather than inherit.
 
 ---
 

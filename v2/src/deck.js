@@ -281,6 +281,13 @@ function cornerLink(storage) {
  * later: a derived key moves when the text it came from moves, and a moved key
  * is a new card with an empty schedule rather than a corrected one (V2-2.7).
  *
+ * `articles` are words a derived key drops from the front of a card's text —
+ * `GERMAN_ARTICLES` (key.js) for a German deck, so `das Wasser` files under
+ * `wasser-water` rather than `das-wasser-water`. Empty by default: stripping
+ * `der|die|das` unconditionally is right for German and silently wrong for
+ * every other language, so a deck says which language's articles it means
+ * rather than inheriting one deck's grammar by accident (V2-2.11).
+ *
  * `wasKey` on a card names the key it used to be filed under, and the reader's
  * entry is moved to its current key — schedule and dictionary both — before
  * anything reads either (migrate.js). That is the way to move a key that has to
@@ -297,7 +304,7 @@ function cornerLink(storage) {
  * settles any other disagreement about a card: first write wins.
  */
 export function openDeck(cards, options = {}) {
-  const { element = document.body, storage, random, now, lang, dictionary } = options;
+  const { element = document.body, storage, random, now, lang, dictionary, articles = [] } = options;
   const strings = stringsFor(lang);
 
   const own = cards.length > 0;
@@ -312,7 +319,7 @@ export function openDeck(cards, options = {}) {
      nothing keyless was ever written (V2-6.3), so every one of them is keyed
      already and by definition keyed the way it was first filed — deriving over
      that could only disagree with it. */
-  const named = own ? keyed(cards) : cards;
+  const named = own ? keyed(cards, articles) : cards;
 
   /* Any card whose key has moved brings the reader's old entry with it, in the
      dictionary and in the schedule both, before either is read (V2-6.8). Here

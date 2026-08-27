@@ -35,11 +35,15 @@ One HTML file is one deck: its cards, and one call.
 ```html
 <script type="module">
   import { openDeck } from "../src/deck.js";
+  import { GERMAN_ARTICLES } from "../src/key.js";
 
-  openDeck([
-    { frontText: "das Wasser", backText: "water", category: "noun" },
-    { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
-  ]);
+  openDeck(
+    [
+      { frontText: "das Wasser", backText: "water", category: "noun" },
+      { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
+    ],
+    { articles: GERMAN_ARTICLES }, /* German deck: `das Wasser` keys as `wasser-water` */
+  );
 </script>
 ```
 

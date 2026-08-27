@@ -38,6 +38,40 @@
  */
 
 /**
+ * The words `slug` will drop from the front of a card's text, given them.
+ *
+ * German, because these decks are German — but named and passed in rather than
+ * built in, because nothing else here is language-specific and this was.
+ * Hard-coded, the rule quietly mangled any deck whose text was not German:
+ * `die young` filed as `young`, `das casas` as `casas`, and the author would
+ * never see it happen. A list a deck opts into cannot do that to a deck that
+ * did not ask for it.
+ */
+export const GERMAN_ARTICLES = ["der", "die", "das"];
+
+/** Built once per list — `slug` runs twice a card, and this is a regex. */
+const patterns = new Map();
+
+function articlePattern(articles) {
+  if (!articles || articles.length === 0) return null;
+
+  const cacheKey = articles.join("\u0000");
+  let pattern = patterns.get(cacheKey);
+
+  if (!pattern) {
+    /* Escaped, since an article is a caller's string and this is a regex. */
+    const alternatives = articles
+      .map((article) => String(article).toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+      .join("|");
+
+    pattern = new RegExp(`^(?:${alternatives})\\s+`);
+    patterns.set(cacheKey, pattern);
+  }
+
+  return pattern;
+}
+
+/**
  * One side of a card, as a key fragment.
  *
  * A card's own script is kept, not transliterated: `fünf` stays `fünf`,
@@ -65,14 +99,23 @@
  * depending on where the text came from, with nothing to see in an editor that
  * says why.
  *
- * The definite article goes, since `das Wasser` and `wasser` are the same word
- * filed twice. Only where something follows it: a deck teaching `die` as a word
- * in its own right keeps it, because the article is the card.
+ * A leading article in `articles` goes, since `das Wasser` and `wasser` are the
+ * same word filed twice. Only where something follows it: a deck teaching `die`
+ * as a word in its own right keeps it, because there the article is the card.
+ *
+ * Nothing is dropped unless a caller asks. This used to strip `der|die|das`
+ * always, which is right for German and silently wrong for everything else —
+ * an English `die young` filed as `young`, a Portuguese `das casas` as `casas`,
+ * with nothing to see in the key that says why. Opting in is what keeps a rule
+ * about one language from reaching a deck written in another.
  */
-export function slug(text) {
-  return String(text ?? "")
-    .toLowerCase()
-    .replace(/^(der|die|das)\s+/, "")
+export function slug(text, articles = []) {
+  const pattern = articlePattern(articles);
+  let out = String(text ?? "").toLowerCase();
+
+  if (pattern) out = out.replace(pattern, "");
+
+  return out
     .normalize("NFC")
     .replace(/[^\p{L}\p{N}\p{M}]+/gu, "-")
     .replace(/^-+|-+$/g, "");
@@ -87,8 +130,8 @@ export function slug(text) {
  * not do (V2-13.7). A card that cannot be filed is better left unfiled, and
  * V2-6.3 already says what that means: displayed, not stored.
  */
-export function deriveKey(card) {
-  return [slug(card.frontText), slug(card.backText)].filter(Boolean).join("-");
+export function deriveKey(card, articles = []) {
+  return [slug(card.frontText, articles), slug(card.backText, articles)].filter(Boolean).join("-");
 }
 
 /**
@@ -99,11 +142,11 @@ export function deriveKey(card) {
  * that comes out empty is dropped rather than set, so the card stays keyless in
  * the sense V2-6.3 means, instead of keyed to the empty string.
  */
-export function keyed(cards) {
+export function keyed(cards, articles = []) {
   return cards.map((card) => {
     if (card.key) return card;
 
-    const derived = deriveKey(card);
+    const derived = deriveKey(card, articles);
     return derived ? { ...card, key: derived } : card;
   });
 }

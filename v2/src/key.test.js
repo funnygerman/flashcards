@@ -1,20 +1,34 @@
 import { describe, expect, it } from "vitest";
 
-import { deriveKey, keyed, slug } from "./key.js";
+import { GERMAN_ARTICLES, deriveKey, keyed, slug } from "./key.js";
 
 describe("slug", () => {
   it("lower-cases and hyphenates", () => {
     expect(slug("guten Morgen")).toBe("guten-morgen");
   });
 
-  it("drops the definite article, which is not part of the word", () => {
-    expect(slug("das Wasser")).toBe("wasser");
-    expect(slug("der Montag")).toBe("montag");
-    expect(slug("die Katze")).toBe("katze");
+  it("drops a leading article the caller asked it to drop", () => {
+    expect(slug("das Wasser", GERMAN_ARTICLES)).toBe("wasser");
+    expect(slug("der Montag", GERMAN_ARTICLES)).toBe("montag");
+    expect(slug("die Katze", GERMAN_ARTICLES)).toBe("katze");
   });
 
   it("keeps an article that is the card, rather than the card's", () => {
-    expect(slug("die")).toBe("die");
+    expect(slug("die", GERMAN_ARTICLES)).toBe("die");
+  });
+
+  /* Stripping der/die/das unconditionally is right for German and silently
+     wrong for every other language -- an English `die young` filed as `young`,
+     with nothing in the key to say why. */
+  it("drops nothing at all unless asked, so one language's grammar cannot reach another's deck", () => {
+    expect(slug("die young")).toBe("die-young");
+    expect(slug("das casas")).toBe("das-casas");
+    expect(slug("das Wasser")).toBe("das-wasser");
+  });
+
+  it("takes an article list literally, rather than as a pattern", () => {
+    expect(slug("a.b c", ["a.b"])).toBe("c");
+    expect(slug("axb c", ["a.b"])).toBe("axb-c");
   });
 
   it("keeps a card's own script rather than transliterating it", () => {
@@ -63,7 +77,7 @@ describe("slug", () => {
 
 describe("deriveKey", () => {
   it("files a card under both its words", () => {
-    expect(deriveKey({ frontText: "das Wasser", backText: "water" })).toBe("wasser-water");
+    expect(deriveKey({ frontText: "das Wasser", backText: "water" }, GERMAN_ARTICLES)).toBe("wasser-water");
   });
 
   it("keeps two cards sharing a front apart, which the front alone could not", () => {
@@ -84,8 +98,8 @@ describe("deriveKey", () => {
   });
 
   it("keeps a script the rule was never told about, rather than dropping it", () => {
-    expect(deriveKey({ frontText: "das Haus", backText: "σπίτι" })).toBe("haus-σπίτι");
-    expect(deriveKey({ frontText: "das Haus", backText: "بيت" })).toBe("haus-بيت");
+    expect(deriveKey({ frontText: "das Haus", backText: "σπίτι" }, GERMAN_ARTICLES)).toBe("haus-σπίτι");
+    expect(deriveKey({ frontText: "das Haus", backText: "بيت" }, GERMAN_ARTICLES)).toBe("haus-بيت");
   });
 
   it("ignores the details, so a reworded hint does not move the card", () => {
@@ -111,14 +125,14 @@ describe("deriveKey", () => {
     ];
 
     for (const [frontText, backText, key] of written) {
-      expect(deriveKey({ frontText, backText })).toBe(key);
+      expect(deriveKey({ frontText, backText }, GERMAN_ARTICLES)).toBe(key);
     }
   });
 });
 
 describe("keyed", () => {
   it("fills in a key where a card has none", () => {
-    expect(keyed([{ frontText: "das Brot", backText: "bread" }])).toEqual([
+    expect(keyed([{ frontText: "das Brot", backText: "bread" }], GERMAN_ARTICLES)).toEqual([
       { key: "brot-bread", frontText: "das Brot", backText: "bread" },
     ]);
   });

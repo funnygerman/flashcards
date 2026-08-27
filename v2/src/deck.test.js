@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_KEY as CARDS_KEY } from "./store.js";
 import { STORAGE_KEY as REVIEW_KEY } from "./review.js";
 import { DECK_KEY, HINTS_KEY, lastDeck, openDeck } from "./deck.js";
+import { GERMAN_ARTICLES } from "./key.js";
 
 /* jsdom has no Web Animations API, so slides swap instantly and every
    assertion below can stay synchronous. */
@@ -168,17 +169,25 @@ describe("openDeck", () => {
      they used to transcribe by hand is derived from those words (V2-2.7). */
   describe("keys", () => {
     it("files a keyless card under a key derived from its own words", () => {
-      open([{ frontText: "das Wasser", backText: "water" }]);
+      open([{ frontText: "das Wasser", backText: "water" }], { articles: GERMAN_ARTICLES });
 
       expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["wasser-water"]);
     });
 
     it("schedules it under that same key, so the two agree", () => {
-      open([{ frontText: "das Wasser", backText: "water" }]);
+      open([{ frontText: "das Wasser", backText: "water" }], { articles: GERMAN_ARTICLES });
 
       press("ArrowUp");
 
       expect(schedule("wasser-water")).toBeDefined();
+    });
+
+    /* A deck says which language's articles its keys should drop; nothing is
+       dropped for a deck that never said (V2-2.11). */
+    it("keeps a leading article for a deck that never declared one", () => {
+      open([{ frontText: "das Wasser", backText: "water" }]);
+
+      expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["das-wasser-water"]);
     });
 
     it("keeps a pinned key, so an edited word list does not orphan a reader's schedule", () => {

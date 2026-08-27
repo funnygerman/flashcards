@@ -14,11 +14,15 @@ A deck file holds its cards and one call:
 
 <script type="module">
   import { openDeck } from "../src/deck.js";
+  import { GERMAN_ARTICLES } from "../src/key.js";
 
-  openDeck([
-    { frontText: "das Wasser", backText: "water", category: "noun" },
-    { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
-  ]);
+  openDeck(
+    [
+      { frontText: "das Wasser", backText: "water", category: "noun" },
+      { frontText: "laufen", frontDetails: "on foot", backText: "to run" },
+    ],
+    { articles: GERMAN_ARTICLES }, /* German deck: `das Wasser` keys as `wasser-water` */
+  );
 </script>
 ```
 
@@ -74,8 +78,9 @@ A card's `key` is its identity in local storage — the dictionary files it unde
 review schedule, independently. The library itself never reads it, displays it, or derives anything from
 it.
 
-Omit it and `openDeck` derives one from the card's own two words: lower-cased and hyphenated, the
-definite article dropped, a card's own script kept rather than transliterated.
+Omit it and `openDeck` derives one from the card's own two words: lower-cased and hyphenated, a card's
+own script kept rather than transliterated, and a leading article dropped from the list the deck passed
+as `articles`.
 
 | | |
 |---|---|
@@ -124,10 +129,26 @@ carries the only three in this repository, and they are the three reasons to pin
 { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?" },
 ```
 
+**The one language-specific part is opt-in.** `articles` is the list of words a derived key drops from
+the front of a card's text, and nothing is dropped for a deck that passes none:
+
+```js
+import { GERMAN_ARTICLES } from "../src/key.js";   /* ["der", "die", "das"] */
+
+openDeck(cards, { articles: GERMAN_ARTICLES });    /* das Wasser -> wasser-water */
+openDeck(cards);                                   /* das Wasser -> das-wasser-water */
+```
+
+This used to strip `der|die|das` unconditionally, which is right for German and silently wrong for
+anything else: an English `die young` filed itself as `young`, a Portuguese `das casas` as `casas`, and
+nothing in the resulting key said why. A deck saying which language's articles it means cannot do that
+to a deck written in another. Only where a word follows it, so a deck teaching `die` as a word in its
+own right keeps it.
+
 If you keep a word list somewhere else and generate a deck file from it, derive each key **once**, as
 you add the row, and write it back into the list — then the generated deck carries pinned keys and no
-later edit can move one. `src/key.js` is that rule, exported as `deriveKey(card)` and `slug(text)` so the
-generator and the browser cannot drift apart.
+later edit can move one. `src/key.js` is that rule, exported as `deriveKey(card, articles)`,
+`slug(text, articles)` and `GERMAN_ARTICLES`, so the generator and the browser cannot drift apart.
 
 A card whose text is punctuation only, and yields no key at all, is given none rather than a made-up
 one, and a card with no key is displayed but not stored (§ Local storage).

@@ -13,6 +13,7 @@
 
     <script type="module">
       import { openDeck } from "../src/deck.js";
+      import { GERMAN_ARTICLES } from "../src/key.js";
 
       /* A second deck, on a subject the first one does not touch. Two decks are
          what make the dictionary worth having — one deck's dictionary is that
@@ -57,7 +58,12 @@
         { key: "wie-spaet", frontText: "Wie spät ist es?", backText: "What time is it?", category: "phrase" },
       ];
 
-      openDeck(cards);
+      /* This deck's front text is German, so a derived key drops a leading
+         der/die/das — `das Wasser` files under `wasser-water`, the key that
+         was written out here by hand. Said rather than assumed: stripping
+         those three words unconditionally would quietly mangle a deck written
+         in any other language (V2-2.11). */
+      openDeck(cards, { articles: GERMAN_ARTICLES });
     </script>
   </body>
 </html>
