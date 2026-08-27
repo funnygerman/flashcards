@@ -193,6 +193,66 @@ describe("openDeck", () => {
       expect(localStorage.getItem(CARDS_KEY)).toBe(null);
     });
 
+    /* A key that has to move takes the reader's progress with it (V2-6.8),
+       which is the whole difference between renaming a card and replacing it. */
+    describe("a key that has moved", () => {
+      const before = "hundert-a-hundred";
+      const after = "hundert-one-hundred";
+      const card = { frontText: "hundert", backText: "one hundred", wasKey: before };
+
+      it("keeps the box the reader earned under the old key", () => {
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ [before]: { box: 4, dueAt: 0 } }));
+
+        open([card]);
+
+        expect(schedule(after).box).toBe(4);
+        expect(schedule(before)).toBeUndefined();
+      });
+
+      it("stays settled if today's grade was given under the old key", () => {
+        const today = new Date().toISOString().slice(0, 10);
+        localStorage.setItem(
+          REVIEW_KEY,
+          JSON.stringify({ [before]: { box: 3, dueAt: 0, baseBox: 2, day: today, grade: "easier" } }),
+        );
+
+        open([card]);
+
+        /* Marked on arrival, and a second grade today is refused — exactly as
+           it would be had the key never moved. */
+        expect(marks()).toContain("is-easier");
+        expect(schedule(after).box).toBe(3);
+      });
+
+      it("does not leave the old card behind in the dictionary", () => {
+        localStorage.setItem(
+          CARDS_KEY,
+          JSON.stringify({ [before]: { key: before, frontText: "hundert", backText: "a hundred" } }),
+        );
+
+        open([card]);
+
+        expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual([after]);
+      });
+
+      it("stores the card's text, not the note that moved it", () => {
+        open([card]);
+
+        expect(JSON.parse(localStorage.getItem(CARDS_KEY))[after]).toEqual({
+          key: after,
+          frontText: "hundert",
+          backText: "one hundred",
+        });
+      });
+
+      it("costs a reader who never had the old key nothing", () => {
+        open([card]);
+
+        expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual([after]);
+        expect(JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}")).toEqual({});
+      });
+    });
+
     /* The dictionary's cards come back out of storage already keyed, and keyed
        the way they were first filed — deriving over that could only disagree. */
     it("leaves a stored card's key alone when the dictionary is what is being studied", () => {

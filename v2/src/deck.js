@@ -19,6 +19,7 @@ import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, nextBox, recordGrade
 import { allCards, holdsMoreThan } from "./store.js";
 import { chooseSession } from "./session.js";
 import { keyed } from "./key.js";
+import { migrateKeys } from "./migrate.js";
 import { mount } from "./flashcards.js";
 import { pageStorage, readMap, writeMap } from "./storage.js";
 import { stringsFor } from "./strings.js";
@@ -280,6 +281,11 @@ function cornerLink(storage) {
  * later: a derived key moves when the text it came from moves, and a moved key
  * is a new card with an empty schedule rather than a corrected one (V2-2.7).
  *
+ * `wasKey` on a card names the key it used to be filed under, and the reader's
+ * entry is moved to its current key — schedule and dictionary both — before
+ * anything reads either (migrate.js). That is the way to move a key that has to
+ * move; pinning one that does not is still cheaper.
+ *
  * `dictionary` splits the shared storage into several non-overlapping
  * dictionaries — a reader learning English and French wants two, not cards
  * from both shuffled into one (V2-13.7). It is a fact about the deck, said
@@ -307,7 +313,16 @@ export function openDeck(cards, options = {}) {
      already and by definition keyed the way it was first filed — deriving over
      that could only disagree with it. */
   const named = own ? keyed(cards) : cards;
-  const source = own && dictionary !== undefined ? named.map((card) => ({ ...card, dictionary })) : named;
+
+  /* Any card whose key has moved brings the reader's old entry with it, in the
+     dictionary and in the schedule both, before either is read (V2-6.8). Here
+     rather than later because chooseSession is about to ask what is due, and a
+     card whose schedule is still filed under last week's key would answer as a
+     card with no schedule at all — due today, box empty, a month of recall
+     thrown away. Keyed first: a rename is to the card's current key, and for a
+     deck that omits it that key does not exist until keyed() derives it. */
+  const settled = own ? migrateKeys(named, storage) : named;
+  const source = own && dictionary !== undefined ? settled.map((card) => ({ ...card, dictionary })) : settled;
 
   /* Dealt in front of the session on a first run — remembered only once
      mount() actually succeeds, below, rather than here: a card-less page with

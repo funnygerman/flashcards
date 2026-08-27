@@ -83,6 +83,16 @@ none rather than a made-up one. A counter or a hash would be unique and meaningl
 naming the same word would disagree, which is the one thing a key must not do (V2-13.7). V2-6.3 already
 says what a keyless card is: displayed, not stored.
 
+**V2-2.10** `wasKey` names the key or keys a card used to be filed under, so a key that has to move can
+take the reader's progress with it rather than abandon it. It accepts one key or several, since a card
+can be renamed more than once and the second rename must not strand readers who never made the first.
+It is a note to the loader, not content: it is never displayed, and never stored (V2-6.8).
+
+`wasKey` is the alternative to pinning, not a replacement for it. A card whose key does not move needs
+nothing — which is why the two pinned cards in `numbers-and-time.html` stay pinned rather than being
+renamed into line with what derivation would say. Reach for `wasKey` when the key has to move anyway: a
+typo baked into a key, a deliberate re-slug, an old hand-written key being brought into line.
+
 ---
 
 ## 3. Deck and session
@@ -324,6 +334,21 @@ visit the same way.
 
 **V2-6.7** `storage.js` — reading and writing a `{ [key]: value }` map safely — is shared by this module
 and by review.js (§11), so the two agree on what "storage is unusable" means without saying so twice.
+
+**V2-6.8** A card carrying `wasKey` (V2-2.10) has the reader's entry moved from the old key to its
+current one, in this dictionary and in the review schedule (§11) both, before either is read. The two
+are moved separately because they are independent: a reader can hold a schedule for a card whose
+dictionary entry was lost to a bad write, or the reverse.
+
+Where the current key is already taken, the old entry is dropped rather than merged or kept. Kept, it
+would outlive the rename as a card no deck can name any more and no reader can grade away — the
+duplicate the move exists to prevent. Merged, it would need a rule deciding which of two boxes is the
+truth, and the entry under the current key is the one the reader has been grading since the rename.
+
+It leaves no record that it ran, because the absence of the old entry is the record: the next visit
+finds nothing to move and does nothing. It runs only for a deck's own cards. The dictionary's come from
+storage and have no deck author to declare a rename, so a reader who only ever opens `empty-deck.html`
+migrates nothing — the declaration lives in the deck that names the card.
 
 ---
 

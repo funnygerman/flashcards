@@ -61,6 +61,7 @@ Once this is on `main` it is published at
   frontText: "das Wasser",
   backText: "water",
   key: "wasser-water",       // optional — derived from the two words above if omitted
+  wasKey: "…",               // optional — the key this card used to be filed under
   frontDetails: "…",         // optional
   backDetails: "…",          // optional
   category: "noun",          // optional
@@ -114,6 +115,34 @@ generator and the browser cannot drift apart.
 
 A card whose text yields no key at all — punctuation, or a script the rule cannot spell — is given none
 rather than a made-up one, and a card with no key is displayed but not stored (§ Local storage).
+
+#### Moving a key
+
+Pinning keeps a key still. `wasKey` is for the other case — the key has to move anyway, because it has a
+typo baked into it, or it was hand-written years ago and you want it in line with the rest:
+
+```js
+{ frontText: "hundert", backText: "one hundred", wasKey: "hundert-a-hundred" }
+```
+
+That card now derives as `hundert-one-hundred`. On the reader's next visit their entry filed under
+`hundert-a-hundred` is moved to it — the dictionary entry *and* the Leitner box, before either is read —
+and the card carries on with the schedule it had. Without it the card would arrive as a stranger: box
+empty, due today, a month of recall thrown away, and the old entry still turning up in the dictionary as
+a duplicate nobody can grade away.
+
+Renamed twice, it collects either: `wasKey: ["hundert-a-hundred", "hundert-hundred"]`, newest first. It
+costs nothing once it has run — the old entry is gone, so the next visit finds nothing to move — and
+nothing at all for a reader who never had the old key, so there is no flag to keep and no reason to take
+it back out. It is never displayed and never stored; the dictionary keeps the card, not the note.
+
+Where the reader already has an entry under the *current* key, the old one is dropped rather than merged:
+the entry they have been grading since the rename is the real one, and the stale one would otherwise
+outlive the rename as a card no deck can name any more.
+
+One thing it cannot do: `empty-deck.html` migrates nothing, because the dictionary's cards come out of
+storage and have no deck author to declare a rename. The declaration lives in the deck that names the
+card, so the reader has to open that deck once.
 
 ### `mount(element, cards, options?)`
 
