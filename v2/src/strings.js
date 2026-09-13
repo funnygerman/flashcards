@@ -1,19 +1,20 @@
 /**
- * The app's own words — the guide, the toggle's dictionary label, and the
- * "already rated" refusal message — translated. Card content (`frontText`,
- * `backText`, ...) is never touched here: that is whatever a deck author
- * wrote, in whatever language the deck teaches, and i18n has no opinion on
- * it.
+ * The app's own words — the guide and the toggle's dictionary label —
+ * translated. Card content (`frontText`, `backText`, ...) is never touched
+ * here: that is whatever a deck author wrote, in whatever language the deck
+ * teaches, and i18n has no opinion on it.
  *
  * A plain lookup table rather than a library dependency (V2-9.1's no-runtime-
  * dependency rule): three short languages is not enough surface to justify
  * one, and deck.js already has everywhere it would plug in.
  *
- * `settled` is short on purpose, not just by habit: it grows into the band
- * across the card's own grade mark (V2-5.15's `onRefuse`), and a band on a
- * phone-sized card holds about this much. The rule behind it — one rating a
- * day — is the help view's to explain; what the reader needs at the moment
- * their swipe does nothing is why it did nothing, not the rule itself.
+ * There is no refusal message here any more. There was one — "Already rated
+ * today", said on the card when a grading gesture was dropped — and it went
+ * when the gesture stopped being droppable: a grade takes the card away
+ * (V2-8.4) and `previous` brings it back to be changed (V2-5.13), so there is
+ * no longer a swipe that does nothing and nothing left for the card to
+ * apologise for. `say()` remains as the seam it always was; nothing in this
+ * repository currently has a sentence for it.
  *
  * `allLabel` is what the toggle calls the dictionary side of itself — the
  * title `empty-deck.html` used to carry when it was still the page a deck's
@@ -22,7 +23,6 @@
 
 const STRINGS = {
   en: {
-    settled: "Already rated today",
     allLabel: "Everything you have seen",
     guide: [
       {
@@ -35,8 +35,15 @@ const STRINGS = {
       {
         category: "guide",
         frontText: "Swipe up if you knew it",
-        frontDetails: "Tap this card",
-        backText: "Swipe down if you didn't know it",
+        frontDetails: "or press ↑",
+        backText: "The card leaves with your mark",
+        backDetails: "Swipe left",
+      },
+      {
+        category: "guide",
+        frontText: "Swipe down if you didn't",
+        frontDetails: "or press ↓",
+        backText: "Swipe right takes it back",
         backDetails: "Swipe left",
       },
       {
@@ -57,7 +64,6 @@ const STRINGS = {
   },
 
   de: {
-    settled: "Heute schon bewertet",
     allLabel: "Alles, was du gesehen hast",
     guide: [
       {
@@ -70,8 +76,15 @@ const STRINGS = {
       {
         category: "Anleitung",
         frontText: "Wische nach oben, wenn du es wusstest",
-        frontDetails: "Tippe auf diese Karte",
-        backText: "Wische nach unten, wenn du es nicht wusstest",
+        frontDetails: "oder drücke ↑",
+        backText: "Die Karte geht mit deiner Bewertung",
+        backDetails: "Wische nach links",
+      },
+      {
+        category: "Anleitung",
+        frontText: "Wische nach unten, wenn nicht",
+        frontDetails: "oder drücke ↓",
+        backText: "Wische nach rechts, um sie zurückzuholen",
         backDetails: "Wische nach links",
       },
       {
@@ -92,7 +105,6 @@ const STRINGS = {
   },
 
   ru: {
-    settled: "Уже оценено сегодня",
     allLabel: "Всё, что ты видел",
     guide: [
       {
@@ -105,8 +117,15 @@ const STRINGS = {
       {
         category: "инструкция",
         frontText: "Смахни вверх, если знал",
-        frontDetails: "Нажми на эту карточку",
-        backText: "Смахни вниз, если не знал",
+        frontDetails: "или нажми ↑",
+        backText: "Карточка уходит с твоей оценкой",
+        backDetails: "Смахни влево",
+      },
+      {
+        category: "инструкция",
+        frontText: "Смахни вниз, если не знал",
+        frontDetails: "или нажми ↓",
+        backText: "Смахни вправо, чтобы вернуть её",
         backDetails: "Смахни влево",
       },
       {

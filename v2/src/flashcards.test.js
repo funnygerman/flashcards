@@ -154,38 +154,43 @@ describe("mount", () => {
     });
   });
 
-  it("grades the card in front of the reader and stays on it", () => {
+  it("grades the card and takes it away, delivering the next one", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
     press("ArrowUp");
 
-    expect(front(".fc-text").textContent).toBe("eins");
+    expect(front(".fc-text").textContent).toBe("zwei");
     expect(graded).toEqual([["a", "easier"]]);
   });
 
-  it("counts a grade once however many times it is repeated", () => {
+  /* The reader agreeing with a mark they can see is not an error: the host
+     hears about the grade once (V2-5.4), and the card leaves either way,
+     because a gesture with no result at all is the one thing this interface
+     cannot afford (V2-15.1). */
+  it("counts a grade once however many times it is repeated, and moves on each time", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push(level) });
 
-    press("ArrowDown");
-    press("ArrowDown");
-    press("ArrowDown");
+    press("ArrowDown"); // card a: harder
+    press("ArrowLeft"); // back to card a, still marked harder — card b merely seen
+    press("ArrowDown"); // the same grade again: nothing new to say
 
-    expect(graded).toEqual(["harder"]);
+    expect(front(".fc-text").textContent).toBe("zwei"); // but the card still leaves
+    expect(graded).toEqual(["harder", "neutral"]);
   });
 
   it("counts a change of mind, and counts changing back", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push(level) });
 
-    press("ArrowDown");
-    press("ArrowDown");
-    press("ArrowUp");
-    press("ArrowUp");
-    press("ArrowDown");
+    press("ArrowDown"); // card a: harder
+    press("ArrowLeft"); // back to card a, card b reported as merely seen
+    press("ArrowUp"); // a change of mind, and it counts
+    press("ArrowLeft"); // back to card a again, and card b seen again
+    press("ArrowDown"); // and changing back counts too
 
-    expect(graded).toEqual(["harder", "easier", "harder"]);
+    expect(graded).toEqual(["harder", "neutral", "easier", "neutral", "harder"]);
   });
 
   it("starts the next card ungraded, so the same grade counts again", () => {
@@ -193,7 +198,6 @@ describe("mount", () => {
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
     press("ArrowDown");
-    press("ArrowRight");
     press("ArrowDown");
 
     expect(graded).toEqual([
@@ -215,12 +219,13 @@ describe("mount", () => {
     ]);
   });
 
-  it("does not also report a graded card as neutral when the reader pages past it", () => {
+  /* The grade is recorded before the card is let go of, so the card that has
+     just been graded is never also reported as one paged past ungraded. */
+  it("does not also report a graded card as neutral when its grade takes it away", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
-    press("ArrowDown"); // grades card a
-    press("ArrowRight");
+    press("ArrowDown"); // grades card a, which leaves on its own
 
     expect(graded).toEqual([["a", "harder"]]);
   });
@@ -316,19 +321,33 @@ describe("mount", () => {
     }
   });
 
-  it("re-reads progress immediately after a grade, since onGrade already ran", () => {
-    const levels = { a: 0 };
+  /* The graded card's own row is redrawn before it leaves, which is the whole
+     of what the hold before the exit is for (V2-8.10): it is the one moment a
+     reader sees a star fill as a consequence of their own verdict. jsdom has no
+     Web Animations API, so the hold is instant here and only the order of the
+     reads can be seen — the arriving card's row is read second, in the
+     off-screen frame (V2-8.6). */
+  it("re-reads progress for the graded card before the next one arrives, since onGrade already ran", () => {
+    const levels = { a: 0, b: 0 };
+    const reads = [];
     open({
       onGrade: (card) => {
         levels[card.key] += 1;
       },
-      progress: { steps: 5, of: (card) => levels[card.key] },
+      progress: {
+        steps: 5,
+        of: (card) => {
+          reads.push(`${card.key}:${levels[card.key]}`);
+          return levels[card.key];
+        },
+      },
     });
 
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(0);
-
+    reads.length = 0; /* the read that drew the first card, before any gesture */
     press("ArrowUp");
-    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(1);
+
+    expect(reads).toEqual(["a:1", "b:0"]);
+    expect(document.querySelectorAll(".fc-dot.is-filled")).toHaveLength(0); /* card b's row now */
   });
 
   it("marks the card on the edge the gesture went towards, and shows no mark on an ungraded card paged to", () => {
@@ -336,9 +355,11 @@ describe("mount", () => {
     const card = () => document.querySelector(".fc-card").className;
 
     press("ArrowDown");
+    press("ArrowLeft"); // back to card a, wearing what it was given
     expect(card()).toContain("is-harder");
 
     press("ArrowUp");
+    press("ArrowLeft"); // back again: the grade was replaced, not added to
     expect(card()).toContain("is-easier");
     expect(card()).not.toContain("is-harder");
 
@@ -346,46 +367,35 @@ describe("mount", () => {
     expect(card()).not.toContain("is-easier");
   });
 
-  it("counts a change of mind only while the card is still in front of the reader", () => {
-    const graded = [];
-    open({ onGrade: (card, level) => graded.push(level) });
-
-    press("ArrowDown");
-    press("ArrowUp"); // still on the card: a change of mind, and it counts
-    press("ArrowRight"); // leaving card a settles it at easier
-    press("ArrowLeft"); // back to card a
-
-    press("ArrowDown"); // too late: card a settled at easier when it was left
-    press("ArrowUp");
-    press("ArrowDown");
-
-    expect(graded).toEqual(["harder", "easier", "neutral"]); /* the neutral is card b */
-  });
-
-  it("keeps a card's grade once the reader has left it: the mark returns and further grades are dropped", () => {
+  /* `previous` is the undo. A grade takes the card away immediately, so the
+     reader's own last answer has to stay theirs to change — otherwise a swipe
+     in the wrong direction would be unfixable for the day, at every card
+     (V2-5.13). What keeps that from inflating a host's own data is the host's
+     own rule, not a lock here (V2-11.10). */
+  it("keeps a card's grade and lets the reader take it back by paging to the card", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
     const card = () => document.querySelector(".fc-card").className;
 
-    press("ArrowUp"); // card a: easier
-    press("ArrowRight"); // to card b, ungraded — and card a is settled
-    press("ArrowLeft"); // back to card a
+    press("ArrowUp"); // card a: easier, and away it goes
+    press("ArrowLeft"); // back to card a, card b reported as merely seen
 
     expect(front(".fc-text").textContent).toBe("eins");
     expect(card()).toContain("is-easier");
 
     press("ArrowUp"); // the same grade again: nothing new to say
-    press("ArrowDown"); // and a change of mind now comes too late
+    press("ArrowLeft"); // back to card a once more
+    press("ArrowDown"); // and a change of mind, which does count
 
-    expect(card()).toContain("is-easier");
-    expect(card()).not.toContain("is-harder");
     expect(graded).toEqual([
       ["a", "easier"],
       ["b", "neutral"],
+      ["b", "neutral"],
+      ["a", "harder"],
     ]);
   });
 
-  it("shows the mark of a card the host says is already graded, and lets no one change it", () => {
+  it("shows the mark of a card the host says is already graded, and lets the reader change it", () => {
     const graded = [];
     open({
       gradeOf: (card) => (card.key === "b" ? "harder" : null),
@@ -398,19 +408,19 @@ describe("mount", () => {
     press("ArrowRight"); // to card b, graded before this deck was mounted
     expect(card()).toContain("is-harder");
 
-    press("ArrowUp");
-    expect(card()).toContain("is-harder");
+    press("ArrowUp"); // disagreeing with a grade from an earlier visit counts
 
-    press("ArrowRight"); // and it does not report as neutral, either
-    expect(graded).toEqual([["a", "neutral"]]);
+    expect(graded).toEqual([
+      ["a", "neutral"],
+      ["b", "easier"],
+    ]);
   });
 
   it("does not report a card as neutral on a revisit if it was graded in an earlier visit", () => {
     const graded = [];
     open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
-    press("ArrowUp"); // card a: easier
-    press("ArrowRight"); // to card b
+    press("ArrowUp"); // card a: easier, which delivers card b
     press("ArrowRight"); // to card c
     press("ArrowLeft"); // back to card b
     press("ArrowLeft"); // back to card a, already graded
@@ -425,54 +435,17 @@ describe("mount", () => {
     ]);
   });
 
-  /* A settled card is the one interaction with no visible result: the gesture
-     is dropped and the screen is exactly as it was, which is what a reader who
-     has not discovered the swipe also sees. The host is told, so it can say so
-     (deck.js does); the library only reports that it happened. */
-  it("reports a grading gesture refused because the card is settled", () => {
-    const refused = [];
-    open({ onRefuse: (card, reason) => refused.push([card.key, reason]) });
-
-    press("ArrowUp"); // card a: easier, and it counts
-    press("ArrowRight"); // leaving settles it
-    press("ArrowLeft"); // back to card a
-
-    press("ArrowDown");
-    press("ArrowUp");
-
-    expect(refused).toEqual([
-      ["a", "settled"],
-      ["a", "settled"],
-    ]);
-  });
-
-  it("reports a card the host handed over already graded as settled too", () => {
-    const refused = [];
-    open({ gradeOf: () => "harder", onRefuse: (card, reason) => refused.push([card.key, reason]) });
-
-    press("ArrowUp");
-    expect(refused).toEqual([["a", "settled"]]);
-  });
-
-  /* Repeating the grade a card already carries is a different silence: the
-     mark on the card is already the answer to what the reader just asked for,
-     so there is nothing left unsaid and nothing to report. */
-  it("does not report a repeated grade as a refusal", () => {
-    const refused = [];
-    open({ onRefuse: (card, reason) => refused.push([card.key, reason]) });
-
-    press("ArrowUp");
-    press("ArrowUp");
-    press("ArrowUp");
-
-    expect(refused).toEqual([]);
-  });
-
-  it("refuses a settled card without an onRefuse callback", () => {
+  /* There is no refused gesture left to report. Every grading gesture now has
+     a visible result — the card leaves, wearing the mark — so nothing is
+     dropped and there is nothing for a host to explain (V2-15.2). */
+  it("answers every grading gesture by taking the card away, whatever the card already carried", () => {
     open({ gradeOf: () => "easier" });
 
-    expect(() => press("ArrowDown")).not.toThrow();
-    expect(document.querySelector(".fc-card").className).toContain("is-easier");
+    press("ArrowDown");
+    expect(front(".fc-text").textContent).toBe("zwei");
+
+    press("ArrowUp"); // the grade card b arrived with, repeated
+    expect(front(".fc-text").textContent).toBe("drei");
   });
 
   /* `switchTo` is what deck.js's deck ↔ dictionary toggle (V2-13.9) is built
@@ -529,10 +502,14 @@ describe("mount", () => {
       const graded = [];
       open({ onGrade: (card, level) => graded.push([card.key, level]) });
 
-      press("ArrowUp"); // card a: easier
+      press("ArrowUp"); // card a: easier, which delivers card b
+      press("ArrowLeft"); // back to card a, so the switch leaves a graded card
       mounted.at(-1).switchTo(other);
 
-      expect(graded).toEqual([["a", "easier"]]);
+      expect(graded).toEqual([
+        ["a", "easier"],
+        ["b", "neutral"],
+      ]);
     });
 
     it("re-reads progress for whichever card the switch actually lands on", () => {
@@ -582,6 +559,86 @@ describe("mount", () => {
     });
   });
 
+  /* Vertical is the reader's verdict, horizontal is the deck moving on, so a
+     graded card leaves the way it was pushed and the next one arrives the way
+     every next card does. jsdom has no Web Animations API, so the keyframes
+     have to be read off a stub — everywhere else in this file the exchange is
+     instant and says nothing about which way anything went. */
+  describe("a graded card leaving", () => {
+    const withAnimate = async (run) => {
+      const legs = [];
+      Element.prototype.animate = (keyframes, options) => {
+        legs.push({ frames: keyframes.map((frame) => frame.transform), ...options });
+        return { finished: Promise.resolve() };
+      };
+
+      try {
+        await run(legs);
+      } finally {
+        delete Element.prototype.animate;
+      }
+    };
+
+    it("flies up for easier and arrives from the right", async () => {
+      await withAnimate(async (legs) => {
+        open();
+        press("ArrowUp");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(legs).toHaveLength(2);
+        expect(legs[0].frames.at(-1)).toBe("translateY(-100%)");
+        expect(legs[1].frames.at(0)).toBe("translateX(100%)");
+        expect(front(".fc-text").textContent).toBe("zwei");
+      });
+    });
+
+    it("flies down for harder", async () => {
+      await withAnimate(async (legs) => {
+        open();
+        press("ArrowDown");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(legs[0].frames.at(-1)).toBe("translateY(100%)");
+      });
+    });
+
+    /* The card holds still wearing its finished mark before it goes, which is
+       a keyframe rather than a timer so that nothing can put the card back in
+       the middle between the hold and the exit (V2-8.10). */
+    it("holds where the gesture left it before it goes", async () => {
+      await withAnimate(async (legs) => {
+        open();
+        drag(0, -60); /* past the threshold: 40px resisted, 20px free */
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        const [held, gone] = legs[0].frames;
+        expect(held).toBe("translateY(-28.8px)");
+        expect(gone).toBe("translateY(-28.8px)"); /* still there, one keyframe later */
+        expect(legs[0].frames.at(-1)).toBe("translateY(-100%)");
+      });
+    });
+
+    /* A reader grading quickly makes the next swipe before the last card has
+       finished leaving. Dropping an intent costs nothing when it is a page
+       turn they will simply make again; it costs a grade now that a grade is
+       what was dropped — so the guard comes off at the swap (V2-4.9). */
+    it("takes the next grade as soon as the cards have been exchanged", async () => {
+      await withAnimate(async () => {
+        const graded = [];
+        open({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+        press("ArrowUp");
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        press("ArrowUp"); /* mid-arrival, on the card already on screen */
+
+        expect(graded).toEqual([
+          ["a", "easier"],
+          ["b", "easier"],
+        ]);
+      });
+    });
+  });
+
   /* The card answers a gesture while it is being made, which is the only thing
      on a chrome-less card that can say the gesture exists at all. */
   describe("a gesture in progress", () => {
@@ -596,11 +653,18 @@ describe("mount", () => {
       expect(Number(edge("bottom"))).toBe(1);
     });
 
-    it("gives the card a little against a vertical drag, and moves it with a horizontal one", () => {
+    /* Short of the threshold a vertical drag is resisted, because a gesture
+       that stops there is not a grade; past it the card breaks free and takes
+       every further pixel one for one, because past it the card really is
+       leaving (V2-4.10). A horizontal drag is a page turn throughout. */
+    it("resists a vertical drag until it is a grade, then lets the card go", () => {
       open();
 
-      drag(0, -100, { release: false });
-      expect(slider().style.transform).toBe("translate(0, -22px)"); /* resistance, not travel */
+      drag(0, -20, { release: false }); /* half the threshold */
+      expect(slider().style.transform).toBe("translate(0, -4.4px)"); /* resistance, not travel */
+
+      drag(0, -100, { release: false }); /* 40px resisted, then 60px free */
+      expect(slider().style.transform).toBe("translate(0, -68.8px)");
 
       drag(-100, 0, { release: false });
       expect(slider().style.transform).toBe("translate(-100px, 0)"); /* on its way out */
@@ -671,7 +735,7 @@ describe("mount", () => {
     open();
 
     expect(() => press("ArrowDown")).not.toThrow();
-    expect(front(".fc-text").textContent).toBe("eins");
+    expect(front(".fc-text").textContent).toBe("zwei");
   });
 
   it("records every card of the deck in local storage", () => {

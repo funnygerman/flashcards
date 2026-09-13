@@ -32,7 +32,7 @@ export const DECK_KEY = "flashcards.deck";
 export const HINTS_KEY = "flashcards.hints";
 
 /**
- * The guide: four cards that teach the deck by being one.
+ * The guide: five cards that teach the deck by being one.
  *
  * Nothing on a card with no chrome on it advertises that swiping exists. A
  * reader can tap, read the back, tap again and page with the arrows for ever
@@ -44,18 +44,21 @@ export const HINTS_KEY = "flashcards.hints";
  * the reader to use. An overlay is a second interface — a thing to read, then
  * dismiss, then act on — and it was tried here first and thrown out for exactly
  * that: a lid over the app, in a register the rest of the design does not use.
- * These four are the app. Each one asks for the gesture it is teaching, and its
- * other side is the reader's own gesture answering: tap this card, and the back
- * is the answer; swipe up where it says to, and the mark appears on the edge it
- * named. The reader is never told what would happen — they do it, and the deck
- * agrees with them. Learning the deck and using the deck become the same act,
- * and the guide costs the interface nothing, because it *is* the interface.
+ * These five are the app. Each one asks for the gesture it is teaching, and the
+ * reader's own gesture is what answers: tap this card, and the back is the
+ * answer; swipe up where it says to, and the card leaves wearing the mark and
+ * the next card is already there. The reader is never told what would happen —
+ * they do it, and the deck agrees with them. Learning the deck and using the
+ * deck become the same act, and the guide costs the interface nothing, because
+ * it *is* the interface.
  *
- * Every front ends "tap this card" and every back "swipe left for the next
- * one", which is repetition on purpose: four cards is four turns of the same
- * two gestures, and a reader who starts reading at card three still knows how
- * to go on. Card two splits the two grades across its faces — up on the front,
- * down on the back — so both are performed rather than read about.
+ * The two grades used to share card two, up on its front and down on its back.
+ * They cannot now: a grade takes the card away (V2-8.4), so swiping up on that
+ * front delivers the next card rather than the same card's other side, and the
+ * half of the lesson written on the back would never be read. One grade per
+ * card, and the advance the reader's own swipe causes is what turns the page
+ * to the other one — which is the guide's own principle applied to a gesture it
+ * could not previously apply it to, rather than a concession to the change.
  *
  * Every line is short on purpose too. Card text is sized for a word, not a
  * sentence (V2-7.7), so a line that runs to three of them on a phone is a line
@@ -64,18 +67,25 @@ export const HINTS_KEY = "flashcards.hints";
  * down (V2-4.10), which says it without spending a line.
  *
  * "Swipe left for the next one — or press →" is spelled out once, on the
- * first card, because that is the only time the keyboard equivalent needs
- * saying — cards two through four just say "Swipe left", trusting what card
- * one already taught rather than repeating it in full three more times. No
- * full stops anywhere: these are instructions and labels, not sentences, and
- * a card is not a page of prose.
+ * first card, because that is the only time that form needs saying — the rest
+ * just say "Swipe left", trusting what card one already taught rather than
+ * repeating it in full four more times. The two grading cards name their own
+ * key in the same breath as their swipe, where card one names the tap's, since
+ * a reader on a keyboard has no swipe to discover and nothing else would tell
+ * them the arrows grade. No full stops anywhere: these are instructions and
+ * labels, not sentences, and a card is not a page of prose.
+ *
+ * Card three's back is where `previous` is taught as the way to take a grade
+ * back. It is worth a line now that a grade leaves immediately: the reader's
+ * own last answer is the one they are most likely to want to change, and there
+ * is no longer a refusal message to explain itself when they try (V2-15.2).
  *
  * No `key` on any of them, which is what keeps them out of everything a card
  * normally touches: they are not written to the dictionary (V2-6.3), never
  * turn up in it later, and carry no schedule. `category` names them so nobody
  * mistakes one for a word they are supposed to know.
  *
- * The four cards themselves \u2014 English default plus translations \u2014 live in
+ * The five cards themselves \u2014 English default plus translations \u2014 live in
  * strings.js (`stringsFor(lang).guide`) alongside the rest of the app's own
  * words, so a reader's chosen `lang` (V2-14.4) picks the guide's language the
  * same way it picks everything else here.
@@ -357,16 +367,12 @@ export function openDeck(cards, options = {}) {
 
       recordGrade(card.key, level, storage, now);
     },
+    /* What the reader said about this card earlier today, so a card comes back
+       after a reload wearing the mark it already had (V2-5.14). It is not a
+       refusal waiting to happen: they may swipe the other way and change it,
+       and review.js applies the change to the box the day found the card in
+       rather than stacking it on the first grade (V2-11.10). */
     gradeOf: (card) => card.key && gradedToday(card.key, storage, now),
-
-    /* Both settled cases are the same fact from the reader's side and get the
-       same sentence: a card graded before a page reload (gradeOf, V2-5.14) and
-       one graded and paged away from in this session (V2-5.13) have both been
-       rated today, since a grade in this session was recorded today by the line
-       above. One message, and true in both. */
-    onRefuse: (card, reason) => {
-      if (reason === "settled") deck.say(strings.settled);
-    },
 
     /* The box is the count outright, so box 0 fills no marks — what a card
        the reader has never got right should look like (V2-12.10) — and the row

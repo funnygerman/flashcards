@@ -6,17 +6,37 @@
  * card be paged away while it is still showing its back.
  */
 
+import { SWIPE_THRESHOLD } from "./input.js";
+
 const SLIDE_MS = 220;
 
 /** How long the card holds a message before going back to being a card. */
 const MESSAGE_MS = 2400;
 
 /**
- * How far the card actually travels under a vertical drag, as a fraction of
- * the distance dragged. Grading does not move the card anywhere (V2-8.4), so
- * this is resistance rather than travel: the card gives a little, the edge it
- * is being pushed towards fills, and it springs back on release. A horizontal
- * drag is a page turn and follows the finger outright.
+ * A graded card holds still, wearing the mark it has just been given, before
+ * it leaves — and then leaves faster than it would page. The hold is the only
+ * moment in a session where the reader sees the row of stars answer their own
+ * verdict (V2-8.10), so it has to be long enough to read; the exit is a flick
+ * rather than a page turn, because the card is being got rid of rather than
+ * filed. Both are short on purpose: fifty cards at a fifth of a second each is
+ * ten seconds of a session spent watching confirmations.
+ *
+ * The hold also covers a graded card that was never dragged. A grade from the
+ * keyboard draws its mark through the stylesheet's own 160 ms transition, and
+ * without somewhere for that to happen the card would leave before the mark it
+ * is leaving with had finished appearing — `↑` and a swipe up have to look
+ * like the same thing (V2-9.3).
+ */
+const GRADE_HOLD_MS = 180;
+const GRADE_EXIT_MS = 160;
+
+/**
+ * How far the card gives under a vertical drag that is still short of the
+ * threshold, as a fraction of the distance dragged: resistance rather than
+ * travel, because a gesture that stops here is not a grade and leaves nothing
+ * behind (V2-4.11). Past the threshold the card breaks free and follows the
+ * finger outright — see `verticalTravel`.
  */
 const VERTICAL_GIVE = 0.22;
 
@@ -58,15 +78,20 @@ function prefersReducedMotion() {
   return globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 }
 
+/** Whether there is any motion to run at all, for a caller that has to know. */
+function moves(element) {
+  return !prefersReducedMotion() && typeof element.animate === "function";
+}
+
 /**
  * Run one leg of the slide, or return null where there is no motion to run —
  * reduced-motion preferences and DOM implementations without the Web
  * Animations API both take the instant path.
  */
-function animate(element, keyframes) {
-  if (prefersReducedMotion() || typeof element.animate !== "function") return null;
+function animate(element, keyframes, duration = SLIDE_MS, easing = "ease") {
+  if (!moves(element)) return null;
 
-  return element.animate(keyframes, { duration: SLIDE_MS, easing: "ease" }).finished.catch(() => {});
+  return element.animate(keyframes, { duration, easing }).finished.catch(() => {});
 }
 
 /**
@@ -79,6 +104,42 @@ const offscreen = (percent, from = 0) => [
   { transform: `translateX(${from}px)`, opacity: 1 },
   { transform: `translateX(${percent}%)`, opacity: 0 },
 ];
+
+/**
+ * A graded card leaving, as keyframes: it holds where the gesture left it,
+ * wearing its finished mark, and then flies off the edge it was pushed towards
+ * (V2-8.4). The hold is a keyframe rather than a timer so that it is part of
+ * the same animation as the exit — the card must not spring back to the middle
+ * between the two, and `release()` clearing the drag's inline transform while
+ * the hold is still running would do exactly that.
+ *
+ * `from` is where the drag left the card, for the same reason `offscreen`
+ * takes one (V2-8.7): the card carries on from under the finger rather than
+ * snapping back and setting off again.
+ */
+const departure = (percent, from = 0) => [
+  { transform: `translateY(${from}px)`, opacity: 1, offset: 0 },
+  { transform: `translateY(${from}px)`, opacity: 1, offset: GRADE_HOLD_MS / (GRADE_HOLD_MS + GRADE_EXIT_MS) },
+  { transform: `translateY(${percent}%)`, opacity: 0, offset: 1 },
+];
+
+/**
+ * How far the card actually moves under a vertical drag of `dy`.
+ *
+ * Short of the threshold it gives rather than travels: a gesture that stops
+ * there is not a grade, and the card springing back is what says so (V2-4.11).
+ * Past it the card breaks free and takes every further pixel one for one,
+ * because past it the gesture *is* a grade and the card really is leaving.
+ * The change of régime at the threshold is the point — it is the one moment
+ * a finger can feel the difference between a drag and a swipe, on the axis
+ * where nothing else distinguishes them.
+ */
+function verticalTravel(dy) {
+  const held = Math.min(Math.abs(dy), SWIPE_THRESHOLD) * VERTICAL_GIVE;
+  const free = Math.max(0, Math.abs(dy) - SWIPE_THRESHOLD);
+
+  return Math.sign(dy) * (held + free);
+}
 
 /**
  * The progress row: `steps` marks along the card's bottom edge, the first
@@ -212,26 +273,32 @@ export function createView(container, steps) {
   };
 
   /**
-   * Where the card has been dragged to, in pixels, while a finger is down.
+   * Where the card has been dragged to, in pixels, while a finger is down —
+   * one axis or the other, never both, since a gesture is resolved on its
+   * dominant axis (V2-4.3).
    *
-   * Kept so that a page turn can start its slide from where the drag left the
-   * card rather than from the middle: releasing a card 80 px to the left and
-   * watching it jump back before it leaves is the sort of hitch that makes a
+   * Kept so that the card leaves from where the drag left it rather than from
+   * the middle, whichever way it is leaving: releasing a card 80 px to the left
+   * and watching it jump back before it goes is the sort of hitch that makes a
    * direct-manipulation gesture feel like a button press with extra steps.
    */
-  let dragged = 0;
+  let dragged = { x: 0, y: 0 };
 
   /**
    * Follow a drag in progress.
    *
    * Horizontal is a page turn, so the card goes with the finger one for one:
    * the reader is already moving the card towards the edge it will leave by.
-   * Vertical is a grade, and grading does not move the card anywhere (V2-8.4)
-   * — so the card gives a little against the drag and springs back, while the
-   * edge being pushed towards fills in proportion to how much of the threshold
-   * the drag has covered. That is what tells the reader, before they have
-   * committed to anything, that up and down mean something and what: the mark
-   * they are about to leave on the card is already forming under their finger.
+   * Vertical is a grade, which now also takes the card away (V2-8.4) — but not
+   * until the gesture is one: short of the threshold the card gives against the
+   * drag and springs back, and past it it breaks free and follows the finger
+   * like any other card on its way out (`verticalTravel`). The edge being
+   * pushed towards fills in proportion to how much of the threshold the drag
+   * has covered, so it is full at exactly the moment the card comes loose.
+   * That is what tells the reader, before they have committed to anything, that
+   * up and down mean something and what: the mark they are about to leave on
+   * the card is already forming under their finger, and the card is already
+   * beginning to go.
    *
    * Under `prefers-reduced-motion` the card does not move at all and only the
    * mark fills: the information is in the mark, and the travel is the part
@@ -240,10 +307,11 @@ export function createView(container, steps) {
   const drag = ({ dx, dy, horizontal, progress }) => {
     slider.classList.add("is-dragging");
 
-    dragged = horizontal ? dx : 0;
+    const travel = horizontal ? dx : verticalTravel(dy);
+    dragged = horizontal ? { x: travel, y: 0 } : { x: 0, y: travel };
 
     const still = prefersReducedMotion();
-    const offset = horizontal ? `${still ? 0 : dx}px, 0` : `0, ${still ? 0 : dy * VERTICAL_GIVE}px`;
+    const offset = horizontal ? `${still ? 0 : travel}px, 0` : `0, ${still ? 0 : travel}px`;
 
     slider.style.transform = `translate(${offset})`;
 
@@ -268,7 +336,7 @@ export function createView(container, steps) {
     slider.style.transform = "";
     card.style.removeProperty("--fc-mark-top");
     card.style.removeProperty("--fc-mark-bottom");
-    dragged = 0;
+    dragged = { x: 0, y: 0 };
   };
 
   return {
@@ -302,7 +370,7 @@ export function createView(container, steps) {
      * change with it rather than after the slide has finished delivering it.
      */
     slide(direction, data, level = null, onSwap) {
-      const from = dragged;
+      const from = dragged.x;
 
       /* The drag is over the moment the slide takes the card on: its offset has
          been handed to the first keyframe, and leaving the inline transform in
@@ -318,6 +386,46 @@ export function createView(container, steps) {
       return out.then(() => {
         swap(data, level, onSwap);
         return animate(slider, offscreen(direction * 100).reverse());
+      });
+    },
+
+    /**
+     * Page away from a card that has just been graded: it holds still for a
+     * moment wearing its finished mark, leaves by the edge the gesture went
+     * towards — `up` for `easier`, down for `harder` — and the next card
+     * arrives from the right exactly as it does for `next`.
+     *
+     * The two axes are saying two different things, which is why they are not
+     * the same animation. Vertical is the reader's verdict, so the card goes
+     * the way they pushed it and takes their mark with it. Horizontal is the
+     * deck moving on, so the next card arrives the way every next card does:
+     * one motion for what the reader said, one for what the deck did about it.
+     * Bringing the next card up from the bottom instead would make the deck a
+     * vertical feed, which is both a different claim about what the deck is
+     * and a swipe the phone would rather use for its own address bar
+     * (V2-7.10).
+     *
+     * Otherwise this is `slide`: same swap in the same off-screen frame
+     * (V2-8.6), same instant path where there is no motion to run — the hold
+     * included, since a hold is motion nobody asked to watch.
+     */
+    gradeSlide(up, data, level = null, onSwap) {
+      const from = dragged.y;
+
+      /* The drag is over the moment the exit takes the card on, exactly as it
+         is for a page turn — its offset is in the first keyframe now, and the
+         inline transform left behind would fight the animation as it ends. */
+      release();
+
+      const out = animate(slider, departure(up ? -100 : 100, from), GRADE_HOLD_MS + GRADE_EXIT_MS, "ease-in");
+      if (!out) {
+        swap(data, level, onSwap);
+        return null;
+      }
+
+      return out.then(() => {
+        swap(data, level, onSwap);
+        return animate(slider, offscreen(100).reverse());
       });
     },
 

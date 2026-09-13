@@ -72,8 +72,8 @@ a move.
 **V2-3.1** `mount(element, cards, options?)` renders a deck into `element` and returns a handle with
 `destroy()` and `switchTo(cards)` (V2-3.8).
 
-**V2-3.2** `options` are `onGrade(card, level)`, `onRefuse(card, reason)`, `gradeOf(card)`, `progress`,
-`lead`, `storage`, and `random`. `storage` and `random` exist so the library can be tested and embedded
+**V2-3.2** `options` are `onGrade(card, level)`, `gradeOf(card)`, `progress`, `lead`, `storage`, and
+`random`. `storage` and `random` exist so the library can be tested and embedded
 without reaching for globals.
 
 **V2-3.3** The deck is shuffled on mount. The caller's array is not reordered.
@@ -152,6 +152,10 @@ map onto this one set.
 travelled, and the same motion carries over to the keyboard: pressing `→` for "forward" arrives from
 ahead, the way paging forward through a sequence usually looks. `previous` is the mirror image.
 
+`easier` and `harder` also take the card away, by the edge the gesture went towards (V2-5.2). All four
+therefore move the deck, and the axis says which of the two things the reader is doing: sideways is
+moving through the cards, up and down is answering one.
+
 **V2-4.2** A pointer gesture shorter than the swipe threshold is a tap. The threshold is 40 px.
 
 **V2-4.3** A swipe is resolved on its dominant axis: the larger of the horizontal and vertical distance
@@ -184,11 +188,25 @@ screen to explain the silence.
 **V2-4.9** An intent arriving while a page turn is in flight is dropped rather than queued. So is a
 drag: the card being dragged is already on its way off the screen and is no longer the reader's to move.
 
+"In flight" ends when the cards are exchanged (V2-8.6), not when the animation finishes. From that
+moment the card on screen is the arriving one, so the intent the reader is making is about that card and
+is theirs to make. The distinction did not matter while only page turns were dropped — a reader whose
+`→` went nowhere simply pressed it again — and started mattering the moment a grade could be dropped:
+someone answering three cards quickly makes the second swipe before the first card has finished leaving,
+and would lose the answer rather than a keystroke.
+
 **V2-4.10** A pointer gesture is answered while it is being made, not only when it is released. The card
-follows a horizontal drag one for one, because that drag is a page turn and the card is going that way;
-it gives a little against a vertical drag and springs back, because grading does not move the card
-(V2-8.4) — and the edge being dragged towards fills in proportion to how much of the threshold the drag
-has covered, reaching a full mark exactly where the gesture becomes a grade.
+follows a horizontal drag one for one, because that drag is a page turn and the card is going that way.
+A vertical drag is resisted and then let go of: short of the threshold the card gives a little and
+springs back, because a gesture that stops there is not a grade and leaves nothing behind (V2-4.11);
+past it the card breaks free and takes every further pixel one for one, because past it the gesture is a
+grade and the card really is leaving (V2-8.4). The edge being dragged towards fills in proportion to how
+much of the threshold the drag has covered, reaching a full mark exactly where the card comes loose.
+
+The change of régime at the threshold is the point, not a side effect of the card now leaving. Up and
+down are the one axis where nothing else distinguishes a drag from a swipe — sideways, the card is
+visibly on its way to an edge the whole time — so the threshold was previously something a reader could
+only discover by crossing it and seeing what happened afterwards. Now the finger can feel it.
 
 This is the answer to the discoverability problem §15 also addresses, and the more durable half of it:
 words have to be read once and remembered, whereas a card that visibly responds to a finger says *there
@@ -206,16 +224,31 @@ is already marked easier does not shrink that mark on the way to redrawing it.
 
 **V2-5.1** `harder` means *not known well enough*; `easier` means *known well enough*.
 
-**V2-5.2** Grading does not move the deck. The card stays in front of the reader.
+**V2-5.2** Grading moves the deck: the card leaves by the edge the gesture went towards and the next one
+arrives (V2-8.4). Answering a card and moving on from it are one act, because the reader made one
+gesture.
+
+This is a reversal. Grading used to leave the card exactly where it was, on the reasoning that a grade
+is a fact filed about a card rather than a movement through the deck, and that a reader should be able
+to change their mind for as long as they are looking at it. The first readers to be given the thing
+reported the same complaint independently: they swiped up, and the card came back. `V2-4.10` spends the
+whole of its design effort teaching a finger that the card obeys it, and the old `V2-8.4` then revoked
+that at the one moment the reader had committed to something. Two gestures were being charged for what
+every comparable app charges one, and the second of them — a swipe left, to a card that had already been
+answered — carried no information at all.
+
+The freedom that was lost is smaller than it looks, and `V2-5.13` gives it back in the only form that
+was ever used: paging back to a card re-opens it.
 
 **V2-5.3** A card carries at most one grade at a time. Grading it the other way replaces the first.
 
-**V2-5.4** Repeating a grade the card already carries is not an event: it is dropped, and `onGrade` is
-not called again.
+**V2-5.4** Repeating a grade the card already carries is not an event: `onGrade` is not called again. The
+card still leaves, because a gesture with no result at all is the one thing this interface cannot afford
+(V2-15.1), and a reader agreeing with a mark they can see is not making a mistake to be corrected.
 
-**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier, for
-as long as the card is still in front of the reader. Five swipes up then two swipes down then one swipe
-up is three events: `easier`, `harder`, `easier`.
+**V2-5.5** Changing the grade is an event, including changing back to one the card carried earlier. A
+grade takes the card away, so changing one means paging back to the card first (V2-5.13): swipe up, swipe
+right, swipe down is two events — `easier`, then `harder`.
 
 **V2-5.6** Moving to another card changes what's on screen, not what any card carries: a card's grade,
 once given, is remembered for the rest of the session, and its mark reappears exactly as left if the
@@ -227,8 +260,8 @@ paging away and back was, by itself, indistinguishable from a fresh correct reca
 extra keypress) could walk a card from the first box to the last in seconds, with no attempt at recall in
 between.)
 
-**V2-5.7** A grade is visible on the card for as long as it is held: a bar is drawn along the edge the
-gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder` (swipe
+**V2-5.7** A grade is visible on the card for as long as the card is on screen, and again whenever the
+reader pages back to it: a bar is drawn along the edge the gesture went towards — the top edge for `easier` (V2-4.1's swipe up), the bottom for `harder` (swipe
 down).
 
 The mark changes nothing about the card's layout. It was the card's own border thickening at first,
@@ -259,26 +292,38 @@ whatever is listening, from a card that was never shown at all.
 in an earlier visit, not just the current one — and never fires for the card left on screen when the deck
 is destroyed; only an actual page turn away from an ungraded card reports it.
 
-**V2-5.13** Paging away from a card settles the grade it carries: the reader may say anything they like
-about a card, and change their mind as often as they like, for as long as it is in front of them, and
-what it carries when they leave it is the answer. A settled card still shows its mark when revisited,
-but grading it again is not an event — the swipe is dropped exactly as a repeat of the same grade is
-(V2-5.4). This is V2-5.6 one level up: a card's grade is worth what the reader said about it, once, not
-once per visit — otherwise "I know this one" is worth however many times they care to page back to it.
+**V2-5.13** No grade is settled. Paging back to a card re-opens it: it is still wearing the mark it was
+given (V2-5.6), and swiping again replaces that grade and counts (V2-5.5). `previous` is the undo, and
+it is a gesture the reader already has.
 
-**V2-5.14** A card can arrive already settled. `gradeOf(card)` — a host option, `null` or absent when the
+This too is a reversal, and it is the half of V2-5.2 that makes V2-5.2 safe. Leaving a card used to
+settle the grade it carried, on the reasoning that a grade is worth what the reader said once rather
+than once per visit. Under V2-5.2 grading *is* leaving, so that rule would settle every grade at the
+instant it was given — making the reader's own last answer the single thing they could not take back,
+and a swipe in the wrong direction unfixable for the day, at every card. A swipe-to-answer interface
+without an undo is the complaint that interface always attracts, and it would be entirely self-inflicted
+here.
+
+What the settling rule was protecting is protected anyway, by the schedule rather than by the library.
+`V2-11.10` counts one grade per card per day and applies it to the box the day found the card in, so a
+reader who changes their mind five times ends up exactly where saying it once would have left them. The
+lock was belt and braces; the braces hold.
+
+The guide teaches it (V2-15.4), because a reader who does not know `previous` takes a grade back has no
+way to discover it from a card that simply left.
+
+**V2-5.14** A card can arrive already graded. `gradeOf(card)` — a host option, `null` or absent when the
 host has nothing to say — is the grade the card carried before this deck was mounted, and a card the
-host answers for wears its mark from the moment it appears and is settled per V2-5.13. It is asked once
-per card, and never about a card this session has already seen graded. This is the seam a deck page uses
-to make a grade survive a page reload (§11); the library still stores nothing itself (V2-5.9).
+host answers for wears its mark from the moment it appears. It is asked once per card, and never about a
+card this session has already seen graded. This is the seam a deck page uses to make a grade survive a
+page reload (§11); the library still stores nothing itself (V2-5.9). Such a card is no more settled than
+any other: a reader may disagree with a grade they gave before a reload exactly as they may disagree
+with one they gave a moment ago.
 
-**V2-5.15** A grading gesture dropped because the card is settled (V2-5.13, V2-5.14) is reported to the
-host as `onRefuse(card, "settled")`. A repeat of the grade the card already carries (V2-5.4) is not
-reported: the mark on the card is already the answer to what the reader asked for, so nothing is left
-unsaid. A settled card answers with nothing at all — the gesture worked, the card heard it, and the
-screen is identical to one nobody swiped at, which is indistinguishable from the gesture not existing.
-The library reports that it happened; what to say about it is the host's (§15), because "today" is the
-schedule's idea and `mount()` has none of it.
+**V2-5.15** *(retired)* There was an `onRefuse(card, "settled")`, for a grading gesture dropped because
+the card's grade was no longer the reader's to change. V2-5.13 leaves no such gesture: every grading
+gesture is accepted and every one takes the card away, so there is nothing to drop and nothing for a host
+to explain. §15.2, which was the sentence it prompted, goes with it.
 
 ---
 
@@ -328,10 +373,18 @@ migrates nothing — the declaration lives in the deck that names the card.
 
 **V2-7.1** The card is the only element on the page, apart from one control out of it (§13) — and that
 control is absent unless it leads somewhere new (V2-13.9). No header, no footer, no chrome, no other
-controls. Everything v2 has to say to a reader it says as cards or on the card: the guide is four cards
-(V2-15.3), and a refused gesture is answered on the card's own mark (V2-15.2). Neither adds an element to
-the page, which is why this requirement reads as it always did — an overlay for the guide was built first
-and it cost exactly this sentence. The corner is the one exception, and what it is depends on what kind of
+controls. Everything v2 has to say to a reader it says as cards or on the card: the guide is five cards
+(V2-15.3), and where the card has a sentence of its own it goes on the card's own mark (V2-15.2). Neither
+adds an element to the page, which is why this requirement reads as it always did — an overlay for the
+guide was built first and it cost exactly this sentence.
+
+This is also the answer to the one question first readers' feedback raised that was not about the
+gesture itself: a preference, so that grading could be made to move the deck or not. There is nowhere
+for a menu to live that does not cost this requirement and V2-10.3 together, it asks a first-time reader
+to decide something they have no basis to decide, and it forks the guide (V2-15.4) across every language
+in `strings.js`. The behaviour was changed instead (V2-5.2). A deck author who ever needs the other one
+gets an `openDeck` option, which is a fact about a deck rather than chrome on a page (V2-14.4) — there is
+no such option today and nothing has asked for one. The corner is the one exception, and what it is depends on what kind of
 page it sits on: on a deck with cards of its own it switches, in place, to the dictionary and back
 (V2-13.9) — not navigation, no second page involved, no element added beyond the corner itself; on a page
 with none it is a real link to the deck the reader came from (V2-13.11), because crossing between two
@@ -384,9 +437,33 @@ pull-to-refresh.
 
 **V2-8.3** Paging returns the card to its front face.
 
-**V2-8.4** Grading animates the mark appearing, and nothing else — the card does not move. A drag is not
-grading: while a finger is down the card follows or resists it (V2-4.10), and what it returns to when the
-finger lifts is a card that has not moved.
+**V2-8.4** A graded card finishes its mark, holds still for a moment wearing it, and then leaves by the
+edge the gesture went towards — up for `easier`, down for `harder`. The next card arrives from the right,
+exactly as it does for `next` (V2-8.2).
+
+The two legs are on different axes because they are saying two different things. Vertical is the reader's
+verdict, so the card goes the way they pushed it and takes their mark with it. Horizontal is the deck
+moving on, so the next card arrives the way every next card does. Bringing it up from the bottom instead
+would make the deck a vertical feed — a different claim about what a deck is, colliding with V2-4.1's
+meaning for that axis, and a swipe a phone would rather use for its own address bar (V2-7.10).
+
+**V2-8.10** The hold between the mark and the exit is ~180 ms, and the exit itself ~160 ms — a flick
+rather than a page turn, because the card is being got rid of rather than filed.
+
+The hold is not decoration. It is the only moment in a session where the reader sees the row of stars
+(§12) move as a consequence of their own verdict: the row belongs to the card on screen, and without a
+pause between the verdict and the card's departure it would only ever be read for the card arriving.
+It is also what makes `↑` look like a swipe up. A grade from the keyboard has had no drag to fill its
+mark, so the mark grows in through the stylesheet's own 160 ms transition, and without somewhere for that
+to happen the card would leave before the mark it is leaving with had appeared (V2-9.3).
+
+Both numbers are small on purpose. Fifty cards in a sitting (V2-13.4) at a fifth of a second each is ten
+seconds of a session spent watching confirmations, and "some visual feedback" means legible, not slow.
+
+The hold is a keyframe of the exit animation rather than a timer before it, so that nothing can put the
+card back in the middle in between: the drag's own inline transform is cleared the moment the exit takes
+the card on (V2-8.7), and a card that sprang back to the centre and then flew off would be the hitch
+V2-8.7 exists to prevent, arrived at from the other direction.
 
 **V2-8.5** Every animation degrades to an instant change under `prefers-reduced-motion`, and where the
 Web Animations API is unavailable.
@@ -397,12 +474,18 @@ difference between the card being dragged away and a swipe being a button press 
 
 **V2-8.8** Under `prefers-reduced-motion` a drag does not move the card at all; the edge still fills.
 The information is in the mark, and the travel is the part somebody asking for less motion is asking to
-be spared.
+be spared. A graded card's hold and exit (V2-8.10) go the same way as every other animation, per V2-8.5:
+the card is simply replaced by the next one, and a hold nobody can see is motion nobody asked to watch.
 
 **V2-8.6** One card is exchanged for another in a single off-screen frame: its content, its mark (V2-5.7)
 and the progress row around it (§12) all change together, between the two legs of the slide, with the
 transitions that would otherwise ease them into place suspended. The arriving card is therefore already
-itself the first time the reader sees it. (Two separate bugs said otherwise: the mark's own
+itself the first time the reader sees it.
+
+This is about the card arriving, not the one leaving. A graded card shows its own finished mark and its
+own updated row while it holds, on screen, before either leg has run (V2-8.10) — that is what the hold is
+for. The rule is that nothing changes under the reader's eye on the *arriving* card; a departing card
+answering the gesture that dismissed it is the opposite case, and is the point. (Two separate bugs said otherwise: the mark's own
 `border-width` transition played over the arriving card *after* it had landed, and the progress row was
 re-read only once the whole slide had finished — so paging between two cards graded differently looked
 like the page turn had changed the card's grade a fifth of a second after delivering it.)
@@ -448,17 +531,16 @@ make this one built: there is still no way to look at the collection rather than
 
 **V2-10.3** Position indicators, a title screen, an info panel, and any configuration of the sizing
 ratios or the type scale. §15's guide is none of those: there is no screen and no panel, nothing to
-dismiss before studying, and no control anywhere that opens it. It is four cards at the front of one
+dismiss before studying, and no control anywhere that opens it. It is five cards at the front of one
 session, and the reader works through them exactly as they work through any card.
 
 **V2-10.4** Text that shrinks to fit its card. Card size is independent of text length (V2-7.8), so a
 card with far more text than the design assumes fills its card and may run under the category label.
 
 **V2-10.5** Announcing the flip or the grade to a screen reader. The card is a passive element with no
-live region — including for a refused grade (V2-15.2), which was briefly a live region while it was a
-separate line of text and stopped being one when it became part of the card. Moving it onto the mark
-bought the reply its meaning and cost it that announcement; the trade is recorded here rather than
-hidden, and a live region for it remains available if a reader ever needs one. `V2-8.9`'s fix (hiding
+live region. The refused grade that used to be the sharpest case for one is gone with the refusal itself
+(V2-15.2), which narrows this gap without closing it: a card leaving on a grade is still a change no
+announcement reports, and now it is the change a grading gesture makes. `V2-8.9`'s fix (hiding
 whichever face is not showing) is a prerequisite this now has, not an answer to it: a live region and its
 wording are still entirely open.
 
@@ -538,8 +620,9 @@ given.
 
 **V2-11.13** `gradedToday(key)` answers what the reader said about a card today, or `null`. This is what
 a deck page hands to `mount()` as `gradeOf` (V2-5.14), so a card graded before a page reload comes back
-wearing its mark, and settled: the daily rule and what the reader sees then agree, rather than the card
-looking untouched while the schedule quietly ignores the next swipe.
+wearing its mark rather than looking untouched. What the reader sees and what the schedule holds then
+agree, and a reader who disagrees with the mark can say so: the swipe is taken, and V2-11.10 applies it
+to the box the day found the card in rather than stacking it on the grade being replaced.
 
 **V2-11.14** The seven-box ladder this replaced had a box 6. A stored entry in it is read as box 5, the
 top box here — a card the reader had actually earned to the top belongs at the top, not back at the
@@ -761,9 +844,8 @@ what it is and, where it is a link, what it points to, from `cards` and `storage
 library's own handle, so `destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself
 added.
 
-`lang` picks the app's own words — the guide (V2-15.3), the toggle's dictionary label (V2-13.9), and the
-"already rated" refusal (V2-15.2) — from `strings.js`, falling back to English where it is unset or names a
-language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
+`lang` picks the app's own words — the guide (V2-15.3) and the toggle's dictionary label (V2-13.9) — from
+`strings.js`, falling back to English where it is unset or names a language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
 `frontText`/`backText`/`details` stay exactly what a deck author wrote, in whatever language the deck
 teaches, the same as before this option existed. `strings.js` is a plain lookup table rather than a
 runtime dependency (V2-9.1): the app's own text is a handful of short lines in a small, fixed set of
@@ -802,33 +884,22 @@ interface with no chrome depends absolutely on every action being answered, and 
 silent were the two places a reader concluded that nothing was there: a gesture with no result, and a
 gesture nobody had mentioned.
 
-**V2-15.2** A grading gesture refused because the card is settled (V2-5.15) is answered on the card
-itself: the grade mark grows into a band deep enough to hold type, says that the card has already been
-rated today, and shrinks back to a plain mark a few seconds later. Both settled cases say the same
-sentence — a card graded before a page reload (V2-5.14) and one graded and paged away from in this
-session (V2-5.13) have both been rated today, since a grade given in this session was recorded today.
-One message, and true of both.
+**V2-15.2** *(retired)* A grading gesture refused because the card was settled used to be answered on the
+card itself: the grade mark grew into a band deep enough to hold type, said "Already rated today", and
+shrank back a few seconds later. There is no refused gesture left to answer (V2-5.13, V2-5.15) — every
+grading gesture is accepted, and the card leaving is the result V2-15.1 asks for — so the sentence, the
+`settled` string in every language, and the `onRefuse` seam that prompted it are all gone.
 
-It is on the mark, and on the edge the mark is on, because the mark is what the reader is arguing with:
-they swiped against a grade they had already given, and the grade answers. A line of text floating below
-the card was tried first and reads as a notification about the page rather than as the card's own reply —
-the same difference as between a card that responds to a finger and a card with instructions printed
-next to it (V2-4.10).
-
-The wording belongs to the deck page, not to the library: `mount()` offers `say(text)` — one place to
-put a sentence, and no sentence of its own — because "today" is the schedule's idea and the library has
-none of it (V2-5.9, V2-11.1). The words are short by necessity: a band across a phone-sized card holds
-about four words, and the rule behind them is §15.6's to explain.
-
-Where the band goes follows the mark: the top edge for a card marked easier, the bottom for one marked
-harder. A card wearing no mark at all takes the bottom edge — unreachable today, since only a settled
-card is refused and a settled card always has a mark, but a band nobody can see would be a silent
-failure of the one thing here whose whole purpose is not to be silent.
+What survives is the band itself and `say(text)`: one place on the card for a host to put a sentence,
+still the right place for one (it reads as the card's own reply rather than as a notification about the
+page), and still the library's only sentence-shaped seam. Nothing in this repository currently has a
+sentence for it. It is kept rather than removed because the reasoning that put the words on the mark is
+not what changed — what changed is that this particular thing no longer needs saying.
 
 **V2-15.9** Whatever the band would otherwise cut in half steps aside while it is up: the category label
 for a band on the top edge, the progress row for one on the bottom. They come back when it goes.
 
-**V2-15.3** A reader's first session is led by four cards that teach the deck by being one. They come
+**V2-15.3** A reader's first session is led by five cards that teach the deck by being one. They come
 first and in their own order (V2-3.3's `lead`), and they are gone from every session after.
 
 Nothing on a card with no chrome advertises that swiping exists. A reader can tap, read the back, tap
@@ -837,11 +908,24 @@ row of stars is never explained either, which invites reading the card as a vert
 counts views. The gestures cannot be inferred; they have to be said once.
 
 **V2-15.4** They are said as cards because a card is the one thing the reader has already been taught to
-use. Each one asks for the gesture it is teaching, and its other side is the reader's own gesture
-answering: tap this card, and the back says you turned it over; swipe up where it says to, and the mark
-appears on the edge it named — and the progress row fills, exactly as the third card claims it will (see
+use. Each one asks for the gesture it is teaching, and the reader's own gesture is what answers: tap this
+card, and the back says you turned it over; swipe up where it says to, and the card leaves wearing the
+mark on the edge it named, with the progress row filled exactly as the stars card claims it will (see
 V2-15.4a). The reader is never told what would happen — they do it, and the deck agrees with them.
 Learning the deck and using the deck are the same act.
+
+The two grades used to share one card, up on its front and down on its back. They cannot now: a grade
+takes the card away (V2-8.4), so swiping up on that front delivers the next card rather than the same
+card's other side, and the half of the lesson written on the back would never be read. One grade per
+card, and the advance the reader's own swipe causes is what turns the page to the other one — which is
+this requirement's own principle reaching a gesture it could not previously reach, rather than a
+concession to V2-5.2. That is the fifth card.
+
+The card teaching `harder` carries `previous`-as-undo on its back, because V2-5.13 has to be taught: a
+reader whose grade takes the card away has no way to discover that swiping back re-opens it, and there
+is no longer a refusal message to explain itself when they try (V2-15.2). The two grading cards also
+name their own arrow key where the others do not, since a reader on a keyboard has no swipe to discover
+and nothing else would tell them the arrows grade.
 
 This replaced an overlay of the same four instructions, which was built first and thrown out. An overlay
 is a second interface — something to read, then dismiss, then act on — in a register the rest of the
@@ -857,15 +941,16 @@ written to storage: the box lives exactly as long as the mount that made it, the
 card's own grade takes (V2-15.5).
 
 **V2-15.4b** Guide text carries no full stops and repeats as little as it can. "Swipe left for the next
-one — or press →" is spelled out once, on the first card, because that is the only time the keyboard
-equivalent needs saying; the rest just say "swipe left", trusting what the first card already taught
-rather than restating it in full on every one. A card is sized for a word, not a sentence (V2-7.7), and
+one — or press →" is spelled out once, on the first card, because that is the only time that form needs
+saying; the rest just say "swipe left", trusting what the first card already taught rather than restating
+it in full on every one. The two grading cards are the exception: they name their own arrow beside their
+own swipe (V2-15.4), which is the one thing card one cannot have taught. A card is sized for a word, not a sentence (V2-7.7), and
 these are instructions and labels, not prose that earns its own punctuation.
 
 **V2-15.5** No guide card has a `key`, which is what keeps it out of everything a card normally touches:
 it is not written to the dictionary (V2-6.3), never turns up in it later, and carries no schedule. It
-can still be flipped, paged and marked — the mark is what card two is teaching — and the mark simply
-goes nowhere. Its `category` reads `guide`, so nobody mistakes one for something they are meant to know.
+can still be flipped, paged, graded and marked — the grades are what cards two and three are teaching —
+and the mark simply goes nowhere. Its `category` reads `guide`, so nobody mistakes one for something they are meant to know.
 
 **V2-15.5a** The guide wraps on its own while it is in progress, and does not admit a deck card until the
 reader has completed it (V2-3.5's two-ring behaviour). Swiping right on the very first guide card, before

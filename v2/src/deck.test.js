@@ -72,13 +72,17 @@ describe("openDeck", () => {
   it("records a grade against the review schedule", () => {
     open();
 
-    press("ArrowUp");
+    press("ArrowUp"); /* card a, which the grade then takes away */
     expect(schedule("a")).toMatchObject({ box: 1, grade: "easier" });
+
+    press("ArrowLeft"); /* back to card a, still wearing its mark */
     expect(marks()).toBe("is-easier");
     expect(filled()).toBe(1);
 
-    press("ArrowDown");
+    press("ArrowDown"); /* a change of mind, applied to the box the day found */
     expect(schedule("a")).toMatchObject({ box: 0, grade: "harder" });
+
+    press("ArrowLeft");
     expect(filled()).toBe(0);
   });
 
@@ -90,7 +94,7 @@ describe("openDeck", () => {
     expect(schedule("a").grade).toBeUndefined();
   });
 
-  it("brings a grade back after a reload, marked and settled", () => {
+  it("brings a grade back after a reload, marked and still the reader's to change", () => {
     open().destroy();
     mounted.length = 0;
     document.body.replaceChildren();
@@ -101,9 +105,14 @@ describe("openDeck", () => {
     open();
     expect(marks()).toBe("is-easier");
 
-    press("ArrowDown"); /* too late: the day's grade is settled */
-    expect(marks()).toBe("is-easier");
-    expect(schedule("a").grade).toBe("easier");
+    /* Disagreeing with it is allowed and counts — and lands on the box the day
+       found the card in rather than stacking on the first grade (V2-11.10), so
+       a card promoted to box 1 this morning goes back to 0 rather than to 1. */
+    press("ArrowDown");
+    expect(schedule("a")).toMatchObject({ box: 0, grade: "harder" });
+
+    press("ArrowLeft");
+    expect(marks()).toBe("is-harder");
   });
 
   it("draws a row of one mark per box above the first", () => {
@@ -242,8 +251,23 @@ describe("openDeck", () => {
     it("hands over to the reader's own cards at the end of it", () => {
       open();
 
-      for (let i = 0; i < 4; i += 1) press("ArrowRight");
+      for (let i = 0; i < 5; i += 1) press("ArrowRight");
       expect(front()).toBe("eins");
+    });
+
+    /* A grading gesture takes the card away (V2-8.4), so it is a forward step
+       through the guide like any other — which is what lets cards two and
+       three teach a grade each and be answered by the next card appearing,
+       rather than by their own backs (V2-15.4). */
+    it("walks forward on a grade, exactly as paging does", () => {
+      open();
+
+      press("ArrowRight"); // guide 2, which asks for a swipe up
+      press("ArrowUp");
+      expect(front()).toBe("Swipe down if you didn't");
+
+      press("ArrowDown");
+      expect(front()).toBe("Stars are days you got it right");
     });
 
     it("deals the guide in the reader's language, given one", () => {
@@ -279,6 +303,7 @@ describe("openDeck", () => {
       open();
 
       press("ArrowUp");
+      press("ArrowLeft"); /* back to the card the swipe was made on */
       expect(marks()).toBe("is-easier");
     });
 
@@ -350,10 +375,10 @@ describe("openDeck", () => {
     it("completes normally once every guide card has actually been shown, shortcut attempt notwithstanding", () => {
       open();
 
-      press("ArrowLeft"); // shortcut attempt: guide 1 -> guide 4
+      press("ArrowLeft"); // shortcut attempt: guide 1 -> guide 5
       press("ArrowRight"); // refused, back to guide 1
 
-      for (let i = 0; i < 4; i += 1) press("ArrowRight"); // a genuine forward walk
+      for (let i = 0; i < 5; i += 1) press("ArrowRight"); // a genuine forward walk
       expect(front()).toBe("eins");
     });
 
@@ -362,7 +387,7 @@ describe("openDeck", () => {
     it("does not go back to the guide once the deck has taken over", () => {
       open();
 
-      for (let i = 0; i < 4; i += 1) press("ArrowRight"); // completes the guide
+      for (let i = 0; i < 5; i += 1) press("ArrowRight"); // completes the guide
       expect(front()).toBe("eins");
 
       press("ArrowLeft"); // wraps within the deck, not back into the guide
@@ -421,67 +446,30 @@ describe("openDeck", () => {
   /* The one interaction that leaves the screen unchanged says so in words, on
      the card's own grade mark: the reader swiped against a grade they already
      gave, and that grade answers. */
-  describe("a refused grade", () => {
+  /* There is no refused grade left to explain. A grade takes the card away
+     and `previous` brings it back to be changed, so no gesture is dropped and
+     the card has nothing to apologise for (V2-15.2). `say()` remains the seam
+     for a host that has a sentence; this one no longer does. */
+  describe("a grade given twice in a day", () => {
     const message = () => document.querySelector(".fc-front").getAttribute("data-message");
 
-    it("says nothing until there is something to say", () => {
+    it("says nothing, because nothing was refused", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
       open();
-      press("ArrowUp");
+
+      press("ArrowDown");
 
       expect(message()).toBe(null);
     });
 
-    it("explains itself when today's grade is already given", () => {
+    it("takes the card away and records the change of mind", () => {
       localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
       open();
 
       press("ArrowDown");
 
-      expect(message()).toMatch(/already rated today/i);
-    });
-
-    it("explains itself in the reader's language, given one", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
-      open(cards, { lang: "ru" });
-
-      press("ArrowDown");
-
-      expect(message()).toMatch(/сегодня/i);
-    });
-
-    it("says the same thing about a card graded and left in this session", () => {
-      open();
-
-      press("ArrowUp"); // card a
-      press("ArrowRight"); // leaving settles it
-      press("ArrowLeft"); // back to card a
-      press("ArrowDown");
-
-      expect(message()).toMatch(/already rated today/i);
-    });
-
-    /* The band grows out of the mark the card already wears, so the words land
-       on the edge carrying the grade the reader is arguing with. */
-    it("says it on the edge that carries the grade", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
-      open();
-
-      press("ArrowDown");
-
-      expect(document.querySelector(".fc-card").className).toContain("is-easier");
-    });
-
-    it("stops saying it when the card is paged away", () => {
-      open();
-
-      press("ArrowUp");
-      press("ArrowRight");
-      press("ArrowLeft");
-      press("ArrowDown");
-      expect(message()).not.toBe(null);
-
-      press("ArrowRight");
-      expect(message()).toBe(null);
+      expect(front()).toBe("zwei");
+      expect(schedule("a")).toMatchObject({ box: 0, grade: "harder" });
     });
   });
 
