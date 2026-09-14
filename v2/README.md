@@ -23,10 +23,11 @@ A deck file holds its cards and one call:
 ```
 
 `openDeck()` assembles the whole thing: it picks the session, records grades against the schedule,
-brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the way
-out to the dictionary — a corner mark that switches the deck to it in place, and back. There is no
-element to name — one HTML file is one deck, so the deck is the page; pass `element` if you want it
-somewhere smaller.
+brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the two
+corner marks — the way out to the dictionary, which switches the deck to it in place and back, and the
+star, which shows every card in whichever of the two is on screen rather than only what's due today.
+There is no element to name — one HTML file is one deck, so the deck is the page; pass `element` if you
+want it somewhere smaller.
 
 It is composition, not library — `mount()` below still knows nothing about any of it, so a page that
 wants a bare card and no schedule imports that instead:
@@ -395,6 +396,12 @@ Leitner rather than a continuous model like SM-2 or FSRS, because the grade here
 outcomes, never a five-point quality — and Leitner is the classic scheduler for exactly that kind of
 signal; it also needs no dependency.
 
+`easier` on a card already in the top box — all five stars showing — is recorded and renews the month:
+there is no box above the last one, and nothing is ever retired. A card you're sure of is worth thirty
+seconds a month to stay sure of. What used to make a full-star card feel over-asked wasn't that rung; it
+was the old fallback that offered the nearest-due cards whenever nothing was due, which is gone
+(§ The dictionary).
+
 **One grade per card per day**, however many times it's given. A grade applies to the box the card stood
 in before the day's *first* grade, not to whatever an earlier grade the same day already made of it, so
 a second grade replaces the first instead of stacking on it — easier, then harder, then easier leaves a
@@ -417,7 +424,7 @@ Deciding which cards a sitting asks for is `session.js`'s job, not something to 
 ```js
 import { chooseSession } from "../src/session.js";
 
-mount(document.body, chooseSession(cards), { /* … */ });
+mount(document.body, chooseSession(cards, { onlyDue: true }), { /* … */ });
 ```
 
 `isDue` and `reviewState` are still exported for anything else you want to ask:
@@ -452,7 +459,7 @@ import { allCards } from "../src/store.js";
 
 const source = cards.length > 0 ? cards : allCards();
 
-mount(document.body, chooseSession(source), { onGrade, gradeOf, progress });
+mount(document.body, chooseSession(source, { onlyDue: true }), { onGrade, gradeOf, progress });
 ```
 
 A deck with cards of its own selects its dictionary session with exactly those lines too, the moment its
@@ -463,18 +470,18 @@ of the switch, because underneath it is the same `mount()` and the same wiring. 
 deck, switch to the dictionary, and the card is already there wearing its mark and refusing another
 grade today.
 
-A deck and the dictionary ask for different things, because they mean different things. **A deck offers
-all of its own cards**, up to fifty — you chose that deck, and being handed three cards out of nineteen
-because the rest aren't due yet isn't what you asked for. **The dictionary offers what's due**, out of
-everything you've ever opened, because "all of it" isn't a session; when nothing at all is due it falls
-back to the cards closest to being due, so there's no "nothing due today" screen.
+A deck and the dictionary ask for the same thing out of different pools: **what's due today**, up to
+fifty, out of this deck's own cards or out of everything you've ever opened. "All of it" isn't a session
+either way, so a card that isn't due is held back while due ones wait.
+
+Held back with no floor under it: a pool with nothing due selects *nothing*, and the page says so with
+one card — "Nothing to repeat today" — instead of reaching for the next-nearest card. There used to be
+that fallback, and what it did to a reader was hand back a card they'd earned five stars on the same
+evening the schedule had put it a month away. A schedule that can be overruled by having nothing else to
+say isn't one, and the stars stop meaning anything.
 
 Both take their cards in the same order: most overdue first, and past those, soonest-due next. A card
 you've never graded counts as due now, so a large deck leads with what you haven't seen.
-
-The trade is that studying a deck reaches cards ahead of their schedule, and grading one there still
-moves it — the schedule governs what the *dictionary* offers you, and working straight through a deck is
-studying on your own terms instead. One grade per card per day is what stops that running away.
 
 `chooseSession` **selects** rather than orders — `mount()` still shuffles what it is
 handed (§ Interactions), because a fixed order studied every session teaches the order along with the
@@ -512,6 +519,35 @@ nothing to switch to or link back from either, so the corner stays away there to
 
 Cards are not attributed to the deck they came from. The same word can belong to several decks, so that
 needs a mapping rather than a field, and nothing reads it yet.
+
+## Every card, when you want it
+
+The other top corner is a star, and it's the schedule's off switch: press it and the session becomes
+every card in the pool you're looking at, whatever its stars, in the same due order as ever. Press it
+again and you're back to today's. It is `chooseSession`'s `onlyDue`, turned off — no second selection
+rule and no third pool.
+
+```js
+chooseSession(source, { onlyDue: true });  /* what's due today */
+chooseSession(source);                     /* every card, stars and all */
+```
+
+It filters whichever pool is on screen, so it works on a single deck and on the dictionary alike, and
+the two corners stay two separate questions: *which* cards, and *how many of them*. Turning it on
+survives a switch between the two; it isn't remembered past the page, because the schedule is the
+default and asking past it is something you should have to say rather than drift into.
+
+Like the corner opposite, it's only there when it would do something: when the schedule is holding
+something back from the pool you're on — which includes a pool with nothing due at all, where you'll be
+looking at the "Nothing to repeat today" card and its back says which corner to press — or when it's
+already on, since a filter you can't turn off is worse than one you were never offered. A deck whose
+cards are all due today carries no star. It draws what pressing it leads to, never the state you're in:
+a solid star for every card, an outlined one for back to today's.
+
+The done card is a card, not a screen: no `key`, so it's never written to the dictionary and keeps no
+schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session. A
+pool with nothing *in* it is still an error rather than a done card — "you're done for today" isn't true
+of a dictionary you've never put anything in.
 
 ## Layout
 

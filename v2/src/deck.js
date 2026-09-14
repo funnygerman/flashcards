@@ -166,6 +166,87 @@ function rememberGuide(storage = pageStorage()) {
   writeMap(storage, HINTS_KEY, { guide: true });
 }
 
+/** The progress row's own star, written out in the 20×20 box the icons use. */
+const STAR = "M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z";
+
+/**
+ * What the filter leads to, drawn as the app's own word for how well a card is
+ * known (V2-12.2) — the one shape that can say "every card, whatever its
+ * stars" without spending a sentence on it.
+ *
+ * Solid where it leads to every card, outlined where it leads back to what is
+ * due: a full star is a card the reader has finished with and would not
+ * otherwise see today, an empty one is a card that still wants work. Like the
+ * corner opposite, it draws what pressing it would do next, never what is on
+ * screen now.
+ */
+function starIcon(every) {
+  const svg = document.createElementNS(SVG, "svg");
+  const path = document.createElementNS(SVG, "path");
+
+  svg.setAttribute("viewBox", "0 0 20 20");
+  svg.setAttribute("aria-hidden", "true");
+  path.setAttribute("d", STAR);
+
+  /* A stroke straddles the line it follows, so an outline star drawn from this
+     path is a stroke-width larger all round than the solid one. Shrinking it
+     about its own centre puts the outer edge back where the fill's is — the
+     same correction, and the same 0.9, the stylesheet applies to the two stars
+     of the progress row. */
+  if (every) path.setAttribute("class", "fc-corner-full");
+  else path.setAttribute("transform", "translate(10 9.6) scale(.9) translate(-10 -9.6)");
+
+  svg.append(path);
+  return svg;
+}
+
+/**
+ * The reader's own filter: study what the schedule says is due today, or every
+ * card in the same pool regardless of its stars (V2-13.13).
+ *
+ * It filters whichever pool is on screen — this deck's own cards or the whole
+ * dictionary — rather than being a third thing to switch between, so the two
+ * corners are two independent questions: *which* cards, and *how many of
+ * them*. Turning it on outlives a switch between the two pools, because a
+ * reader who asked to see everything asked about the app, not about one side
+ * of a toggle.
+ *
+ * On the page only where it would do something: where the schedule is holding
+ * something back from the pool on screen — which includes a pool with nothing
+ * due at all, the one the reader most wants it for (V2-13.12) — or where it is
+ * already on, since a filter the reader cannot turn off is worse than one they
+ * were never offered. A deck whose cards are all due today does not carry it,
+ * the same rule V2-13.9 applies to the corner opposite: a control that leads
+ * nowhere new is not drawn.
+ */
+function starFilter(element, strings, { everything, holdsBack, apply }) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "fc-corner fc-corner-filter";
+
+  const draw = () => {
+    button.replaceChildren(starIcon(!everything()));
+
+    const label = everything() ? strings.filter.due : strings.filter.every;
+    button.title = label;
+    button.setAttribute("aria-label", label);
+  };
+
+  const refresh = () => {
+    if (!everything() && !holdsBack()) button.remove();
+    else if (!button.isConnected) element.append(button);
+
+    draw();
+  };
+
+  button.addEventListener("click", () => {
+    if (apply(!everything())) refresh();
+  });
+
+  refresh();
+  return { refresh, remove: () => button.remove() };
+}
+
 /**
  * The corner for a deck with cards of its own: not navigation at all, but an
  * in-page switch of which cards `mount()` is showing — the deck's own, or the
@@ -175,9 +256,9 @@ function rememberGuide(storage = pageStorage()) {
  * ever opened, the dictionary is these same cards and nothing else, so there
  * is nowhere for the switch to go.
  *
- * The dictionary side is computed once, on first use, and kept, for the same
- * reason `ownSession` is computed once by the caller: switching back a second
- * time is meant to return to the same card, not deal a fresh one.
+ * Neither side is dealt here: `dealer` holds both, and hands back the one
+ * already dealt for a side the reader has been on, so switching back a second
+ * time returns to the same card rather than a fresh session.
  *
  * The icon and label are redrawn to whichever side of the toggle the reader
  * is now on — two cards and "Everything you have seen" pointing at the
@@ -201,32 +282,23 @@ function rememberGuide(storage = pageStorage()) {
  * page's own furniture too rather than being relaxed where it happens to be
  * safe.
  */
-function cornerToggle(cards, storage, ownSession, deck, now, allLabel, dictionary) {
+function cornerToggle(cards, storage, dictionary, allLabel, { showingAll, apply }) {
   if (!holdsMoreThan(cards, storage, dictionary)) return null;
 
   const button = document.createElement("button");
   button.type = "button";
   button.className = "fc-corner";
 
-  let allSession = null;
-  let showingAll = false;
-
   const draw = () => {
-    button.replaceChildren(cornerIcon(!showingAll));
+    button.replaceChildren(cornerIcon(!showingAll()));
 
-    const label = showingAll ? document.title : allLabel;
+    const label = showingAll() ? document.title : allLabel;
     button.title = label;
     button.setAttribute("aria-label", label);
   };
 
   button.addEventListener("click", () => {
-    const next = !showingAll;
-    allSession ??= chooseSession(allCards(storage, dictionary), { now, storage, onlyDue: true });
-
-    if (!deck.switchTo(next ? allSession : ownSession)) return;
-
-    showingAll = next;
-    draw();
+    if (apply(!showingAll())) draw();
   });
 
   draw();
@@ -258,6 +330,60 @@ function cornerLink(storage) {
 }
 
 /**
+ * The sessions one page can deal, dealt once each and kept.
+ *
+ * Two independent questions make four: which pool — this deck's own cards, or
+ * the whole dictionary (V2-13.9) — and whether the schedule filters it
+ * (V2-13.13). Each answer is dealt the first time it is asked for and then
+ * kept, because switching away and back is meant to return to the same card
+ * rather than deal a fresh session (V2-3.3 as V2-3.8 extends it), and mount()
+ * keys its own orders by the very array it was handed.
+ *
+ * The dictionary's pool is read at that moment rather than up front: this
+ * deck's own cards are written to it by mount() (V2-6.1), so a pool read
+ * before mounting would be missing exactly the cards the reader is looking at.
+ *
+ * A pool with nothing due deals the one card that says so (V2-13.12). A pool
+ * with nothing *in* it deals nothing at all, which is what mount() refuses
+ * (V2-13.8) — "you are done for today" is false where there was never
+ * anything to be done.
+ */
+function dealer(source, storage, dictionary, now, done) {
+  const dealt = new Map();
+  const holds = new Map();
+
+  const pool = (all) => (all ? allCards(storage, dictionary) : source);
+
+  const session = (all, everything) => {
+    const id = `${all}:${everything}`;
+
+    if (!dealt.has(id)) {
+      const cards = pool(all);
+      const chosen = chooseSession(cards, { now, storage, onlyDue: !everything });
+
+      if (!everything) holds.set(all, chosen.length < cards.length);
+      dealt.set(id, chosen.length === 0 && cards.length > 0 ? [done] : chosen);
+    }
+
+    return dealt.get(id);
+  };
+
+  return {
+    session,
+
+    /* Whether this pool's schedule is keeping anything back from the reader —
+       what decides whether the filter is on the page at all (V2-13.13). Asked
+       of a side the reader is on, which is a side whose due session has either
+       been dealt already or is about to be, so dealing it to answer costs
+       nothing and keeps one session per side rather than two. */
+    holdsBack: (all) => {
+      session(all, false);
+      return holds.get(all);
+    },
+  };
+}
+
+/**
  * Open a deck that keeps a schedule. Returns the library's handle.
  *
  * `cards` is the deck's own; a page that brings none studies the whole
@@ -278,10 +404,10 @@ function cornerLink(storage) {
  *
  * `storage`, `random` and `now` exist so this can be tested without globals,
  * exactly as they do in the modules underneath. `lang` picks the app's own
- * words — the guide, the toggle's dictionary label, the "already rated"
- * refusal — from strings.js, English where it is unset or names a language
- * strings.js has none for. Card content is never touched by it: that stays
- * whatever a deck author wrote.
+ * words — the guide, the two corners' labels, the card that says there is
+ * nothing to repeat today — from strings.js, English where it is unset or
+ * names a language strings.js has none for. Card content is never touched by
+ * it: that stays whatever a deck author wrote.
  *
  * `wasKey` on a card names the key it used to be filed under, and the reader's
  * entry is moved to the card's current key — schedule and dictionary both —
@@ -339,17 +465,24 @@ export function openDeck(cards, options = {}) {
      gone, nor should there be. */
   let guideBox = 0;
 
+  /* The card a page shows when its own schedule has nothing for today
+     (V2-13.12). Copied out of strings.js so that it is this mount's card and
+     no other's: it is the one card two of the four sessions can hold at once,
+     and identity is how the wiring below tells it from a deck's own card and
+     from a guide card. */
+  const done = { ...strings.done };
+
   /* A deck and the dictionary both study what is due, out of their own pool —
      a deck's own cards, the dictionary everything (V2-13.4). Whether this page
-     brought cards of its own decides only which pool `chooseSession` draws
-     from, not whether it filters. Computed once and kept: it is also the
-     source the corner's toggle switches back to, below, and switching is
-     meant to return to the same card, not deal a fresh session (V2-3.3's
-     shuffle, stretched to cover a source revisited within one mount rather
-     than reshuffled on every visit to it). */
-  const ownSession = chooseSession(own ? source : allCards(storage, dictionary), { now, storage, onlyDue: true });
+     brought cards of its own decides only which pool it draws from, not
+     whether the schedule filters it; the reader's own star decides that
+     (V2-13.13), for whichever pool they are on. */
+  const deal = dealer(source, storage, dictionary, now, done);
 
-  const deck = mount(element, ownSession, {
+  let showingAll = !own;
+  let everything = false;
+
+  const deck = mount(element, deal.session(showingAll, everything), {
     storage,
     random,
     lead: guide,
@@ -364,6 +497,8 @@ export function openDeck(cards, options = {}) {
        swiped at and marked — that is the point of it — the grade itself goes
        nowhere, even while the row above reacts to it. */
     onGrade: (card, level) => {
+      if (card === done) return; /* not material, and not teaching the row either */
+
       if (!card.key) {
         guideBox = nextBox(level, guideBox);
         return;
@@ -384,7 +519,14 @@ export function openDeck(cards, options = {}) {
        that changing the ladder resizes the row (V2-11.15). */
     progress: {
       steps: BOX_COUNT - 1,
-      of: (card) => (card.key ? reviewState(card.key, storage, now).box : guideBox),
+      of: (card) => {
+        if (card.key) return reviewState(card.key, storage, now).box;
+
+        /* The done card is not a card the reader is learning, so it earns
+           nothing however it is swiped at; the guide's own box is the guide's
+           (V2-15.4a). */
+        return card === done ? 0 : guideBox;
+      },
     },
   });
 
@@ -392,9 +534,41 @@ export function openDeck(cards, options = {}) {
      only past this point is it true that the reader met it. */
   if (guide.length) rememberGuide(storage);
 
-  /* The way out, added after mounting rather than hidden in the markup, so it
-     is never in the document at a moment when it should not be seen. */
-  const link = own ? cornerToggle(source, storage, ownSession, deck, now, strings.allLabel, dictionary) : cornerLink(storage);
+  /* Which cards are on screen, in one place: the two corners each ask for a
+     change along their own axis and neither knows about the other's, so the
+     pair of answers lives here rather than half in each button. A refused
+     switch (V2-3.8) changes nothing, here or on either control. */
+  const show = (nextAll, nextEverything) => {
+    if (!deck.switchTo(deal.session(nextAll, nextEverything))) return false;
+
+    showingAll = nextAll;
+    everything = nextEverything;
+    return true;
+  };
+
+  /* Both controls are added after mounting rather than hidden in the markup,
+     so neither is in the document at a moment when it should not be seen. */
+  const star = starFilter(element, strings, {
+    everything: () => everything,
+    holdsBack: () => deal.holdsBack(showingAll),
+    apply: (next) => show(showingAll, next),
+  });
+
+  /* The way out. Switching pools can change whether the filter has anything to
+     offer — one side of a page may be holding cards back where the other is
+     not — so the star is asked to look again every time this lands. */
+  const link = own
+    ? cornerToggle(source, storage, dictionary, strings.allLabel, {
+        showingAll: () => showingAll,
+        apply: (next) => {
+          const switched = show(next, everything);
+          if (switched) star.refresh();
+
+          return switched;
+        },
+      })
+    : cornerLink(storage);
+
   if (link) element.append(link);
 
   /* The library's handle takes back everything this page added as well as
@@ -406,6 +580,7 @@ export function openDeck(cards, options = {}) {
     destroy() {
       deck.destroy();
       link?.remove();
+      star.remove();
     },
   };
 }

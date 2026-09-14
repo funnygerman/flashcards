@@ -166,6 +166,25 @@ html:has(> body > .fc) body {
   color: #111;
 }
 
+/* The reader's own filter (V2-13.13), in the opposite corner to the way out:
+   same quiet register, the other side of the page, so two controls that are
+   two different questions are never mistaken for one pair and never crowd the
+   same thumb. */
+.fc-corner-filter {
+  inset-inline-start: max(0.75rem, env(safe-area-inset-left));
+  inset-inline-end: auto;
+}
+
+/* The star that offers every card is solid, and carries no stroke of its own
+   so that the two states draw the same star at the same size: a stroke
+   straddles the line it follows, half of it outside, which is why the outlined
+   one is drawn shrunk instead (deck.js). The same correction the progress
+   row's own two stars make. */
+.fc-corner-full {
+  fill: currentColor;
+  stroke: none;
+}
+
 /* The card is capped at 75vw in portrait but at 88dvh × 4/3 in landscape, so a
    small landscape window makes it wide and tall enough to reach up here: at
    400 × 300 the touch area overlapped its top-right corner by 6 × 19 px, and a

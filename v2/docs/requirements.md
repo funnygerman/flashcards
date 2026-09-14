@@ -418,10 +418,12 @@ migrates nothing — the declaration lives in the deck that names the card.
 
 ## 7. Presentation
 
-**V2-7.1** The card is the only element on the page, apart from one control out of it (§13) — and that
-control is absent unless it leads somewhere new (V2-13.9). No header, no footer, no chrome, no other
-controls. Everything v2 has to say to a reader it says as cards or on the card: the guide is five cards
-(V2-15.3), the grade names itself on the mark it is making (V2-5.7a), and where the card has a sentence
+**V2-7.1** The card is the only element on the page, apart from the corner controls of §13 — the way out
+(V2-13.9) and the reader's own filter (V2-13.13) — and each is absent unless it would do something: one
+unless it leads somewhere new, the other unless the schedule is holding something back. No header, no
+footer, no chrome, no other controls. Everything v2 has to say to a reader it says as cards or on the
+card: the guide is five cards (V2-15.3), the card that says there is nothing to repeat today is one card
+(V2-13.12), the grade names itself on the mark it is making (V2-5.7a), and where the card has a sentence
 of its own it goes there too (V2-15.2). Neither
 adds an element to the page, which is why this requirement reads as it always did — an overlay for the
 guide was built first and it cost exactly this sentence.
@@ -684,6 +686,16 @@ the row follows. The library is not the place for this — it never learns what 
 importing review.js to find out would undo V2-11.1 — so the arithmetic lives in the deck, next to the
 rest of its own mapping.
 
+**V2-11.16** `easier` on a card already in the top box — a card wearing all five stars — is recorded and
+renews the month: the box does not move (V2-11.3's cap), and the card is due again thirty days later. It
+is not retired, and there is no box above the last one for it to reach.
+
+Nothing is ever learned to the point of never being asked again, which is the whole premise of spaced
+repetition: a card the reader is sure of is worth thirty seconds a month to stay sure of. What made a
+full-star card feel like it was being asked too often was never this rung — it was V2-13.5, which
+offered it again the same day whenever nothing was due. With that withdrawn, a full-star card is gone for
+a month, and the reader who wants it back before then asks for it (V2-13.13).
+
 ---
 
 ## 12. Progress indicator
@@ -777,7 +789,8 @@ with no deck open at all.
 **V2-13.4** A deck and the dictionary select the same way: both are *study what's due*, up to
 `SESSION_LIMIT` (50), out of their own pool of cards — a deck's own, the dictionary everything the reader
 has ever opened. "All of it" is not a session either way, so a card that is not due is held back while due
-ones wait. They differ only in which pool feeds that rule, not in the rule itself.
+ones wait. They differ only in which pool feeds that rule, not in the rule itself — and the reader's own
+filter (V2-13.13) turns the rule off for whichever pool they are on, in the same one place.
 
 Both take their cards in the same order — ascending `dueAt`, so the longest-overdue leads and, past the
 ones that are due, the soonest-due follows. A card never graded is due now (V2-11.7), so a large deck
@@ -785,16 +798,24 @@ leads with what the reader has not seen. Review state therefore selects; it does
 studied, because the deck is shuffled on mount exactly as any deck is (V2-3.3) and a fixed order studied
 every session would teach the order along with the cards.
 
-**V2-13.5** When nothing in the offered pool is due, `chooseSession` falls back to the cards closest to
-being due — for a deck now as much as the dictionary (V2-13.4). A session has no end (V2-3.5) and an empty
-deck is an error (V2-3.6), so there is no "nothing due today" screen for either kind of page: there is
-always something to study, and it is always the most useful thing available.
+**V2-13.5** *(withdrawn)* When nothing in the offered pool was due, `chooseSession` used to fall back to
+the cards closest to being due, on the grounds that a session has no end (V2-3.5) and an empty deck is an
+error (V2-3.6), so there could be no "nothing due today" state for either kind of page.
+
+Readers reported what that actually does: a card they had earned five stars on, and which the schedule had
+therefore put a month away, came back the same evening — because there was nothing else to show, which is
+not a reason the reader can see. A schedule whose own answer can be overruled by having nothing else to
+say is not a schedule, and the stars stop meaning anything. `onlyDue` now selects exactly what is due and
+nothing else, and a pool with nothing due selects nothing at all (V2-13.12 says what a page shows then).
+The reader may still ask for every card, which is the same request made deliberately rather than on their
+behalf (V2-13.13).
 
 **V2-13.10** Studying a deck no longer reaches cards ahead of their schedule by default (V2-13.4 revised
 this): the schedule governs what a deck offers, the same as it governs the dictionary. A reader working
 straight through a due session still grades on the box's terms, and a card moves at most one box a day
-however often it is met (V2-11.10). A mode for browsing or cramming a deck regardless of its schedule —
-which is what this section used to describe as the deck's default — is deferred; see the backlog.
+however often it is met (V2-11.10). Browsing or cramming a deck regardless of its schedule — which is what
+this section used to describe as the deck's default — is no longer deferred: it is what the filter does
+(V2-13.13), on the reader's own say-so rather than as a default.
 
 **V2-13.6** `chooseSession` is host-side, like review.js and for the same reason (V2-11.1): the library
 shuffles whatever deck it is handed and knows nothing about boxes or due dates. It lives in its own
@@ -825,7 +846,9 @@ asks the same author to also spell a dictionary's name the same way across their
 coordinate with anyone else's.
 
 **V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
-the agreed shape — there is no empty state (V2-13.5). V2-6.4 asks a deck to render whether or not
+the agreed shape: a pool with nothing due says so (V2-13.12), but a pool with nothing *in* it has nothing
+to say — "you are done for today" is false where there was never anything to be done, and a page nobody
+can have studied from is a page reached by typing its address. V2-6.4 asks a deck to render whether or not
 storage works, and this page cannot, because without storage it has no cards to render. On
 `empty-deck.html`, V2-13.9 keeps a reader from being led there while it would be empty, so what remains
 is a typed address rather than a followed link. From a deck's own toggle, the same fact — `holdsMoreThan`
@@ -861,6 +884,43 @@ same posture V2-11.8 takes. `empty-deck.html` does not record itself — it is n
 to. Nor does a deck's own toggle (V2-13.9): switching to the dictionary and back in place is not a page
 visited, so there is nothing here for it to remember.
 
+**V2-13.12** A pool with nothing due today shows one card saying so, rather than an empty screen, a
+banner, or a card the schedule had put away. It carries no `key`, so it is not written to the dictionary
+and keeps no schedule of its own (V2-15.5's rule, which until now only the guide needed); it can be
+flipped, paged and swiped at like any card, and none of that goes anywhere — it earns no star, and the
+guide's own in-memory box (V2-15.4a) is not its either.
+
+It is a card because that is the only register this app has for saying something to a reader (V2-7.1,
+V2-15.4), written in the guide's own voice: short lines, no full stops, and the one gesture worth naming
+named. Its back names the star (V2-13.13), which is always on the page when this card is — a reader who
+has finished today's cards and wants to keep going is shown where, rather than being left at what looks
+like a dead end. A session still has no end (V2-3.5): this card wraps to itself, exactly as any one-card
+session does.
+
+Both pools can be in this state at once, and each says so on its own side of the corner (V2-13.9).
+
+**V2-13.13** The second corner is the reader's own filter: study what is due today, or every card in the
+same pool regardless of how many stars it has. It is `chooseSession`'s `onlyDue`, turned off — no second
+selection rule, and no third pool.
+
+It filters whichever pool is on screen — this deck's own cards or the whole dictionary — rather than
+being a third thing to switch between. The two corners are two independent questions: *which* cards
+(V2-13.9), and *how many of them*. Turning it on outlives a switch between the pools, because a reader
+who asked to see everything asked about the app and not about one side of a toggle; it is not remembered
+past the page, because the schedule is the default and a reader who wants past it should have to say so
+again rather than discover weeks later that they have not been reviewing at all.
+
+It is on the page only where it would do something: where the schedule is holding something back from the
+pool on screen — which includes a pool with nothing due at all (V2-13.12) — or where it is already on,
+since a filter the reader cannot turn off is worse than one they were never offered. That is V2-13.9's
+own rule applied to the other control, and it is re-asked every time the pool changes, since one side of
+a page may be holding cards back where the other is not.
+
+It draws a star, the app's own word for how well a card is known (V2-12.2), and like the corner opposite
+it draws what pressing it would show next rather than what is on screen: a solid star where it leads to
+every card, an outlined one where it leads back to what is due. It sits in the opposite corner to the way
+out, so two controls that are two different questions never read as a pair.
+
 ---
 
 ## 14. Assembling a deck page
@@ -887,13 +947,14 @@ what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot
 **V2-14.4** `options` are `element`, `storage`, `random`, `now`, `lang`, and `dictionary`. `storage`,
 `random` and `now` exist so this can be tested without globals, exactly as they do in the modules
 underneath. There
-is no `corner` option: the way out is never something a deck page names (V2-13.9) — `openDeck` decides both
-what it is and, where it is a link, what it points to, from `cards` and `storage` alone. It returns the
-library's own handle, so `destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself
-added.
+is no `corner` option: neither corner is something a deck page names (V2-13.9, V2-13.13) — `openDeck`
+decides whether each is there at all, what it is, and, where it is a link, what it points to, from
+`cards`, `storage` and the schedule alone. It returns the library's own handle, so `destroy()` (V2-3.7)
+still reaches the deck, alongside whatever `openDeck` itself added.
 
-`lang` picks the app's own words — the guide (V2-15.3), the two grade labels (V2-5.7a) and the toggle's
-dictionary label (V2-13.9) — from `strings.js`, falling back to English where it is unset or names a
+`lang` picks the app's own words — the guide (V2-15.3), the two grade labels (V2-5.7a), the toggle's
+dictionary label (V2-13.9), the filter's own two labels and the card that says there is nothing to repeat
+today (V2-13.12, V2-13.13) — from `strings.js`, falling back to English where it is unset or names a
 language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
 `frontText`/`backText`/`details` stay exactly what a deck author wrote, in whatever language the deck
 teaches, the same as before this option existed. `strings.js` is a plain lookup table rather than a

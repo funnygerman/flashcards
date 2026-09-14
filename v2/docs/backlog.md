@@ -7,25 +7,6 @@ Ordered by priority, highest first. Re-order this file as priorities change; tha
 
 ---
 
-## Deck browse/cram mode (show everything, not just what's due)
-
-**What.** A deck now defaults to "only what I can learn today" — `V2-13.4` was revised so a deck selects
-the same way the dictionary always has, via `chooseSession`'s `onlyDue: true`, falling back to the nearest
-cards when nothing is due (`V2-13.5`). What's still open is a separate mode for a reader who wants to
-browse or cram a deck regardless of its schedule — `chooseSession`'s existing `onlyDue: false` default
-already does the selection; what's missing is a way to reach it and a design for the affordance (a second
-corner control? a query param? something else), consistent with the project's no-chrome stance (`V2-7.1`).
-
-**Why this priority.** Decision already made on the default (see `requirements.md` §13, `V2-13.4`,
-`V2-13.10`); this is the leftover implementation half. Any gamification work (`#5`) is built on top of
-whatever "today's session" means, and that's now settled — schedule-driven, for both a deck and the
-dictionary.
-
-**Size.** M — mostly a design pass on the affordance; the selection logic (`onlyDue: false`) already
-exists in `session.js`.
-
----
-
 ## Accessibility (`V2-10.5`)
 
 **What.** `V2-10.5` explicitly documents the current gap: no live region, no announcement on flip or
@@ -33,9 +14,11 @@ grade, including a refused grade. It was cut deliberately once (moving the refus
 cost the announcement) with a note that "a live region for it remains available if a reader ever needs
 one." That reader now exists as a backlog item.
 
-**Why this priority.** It's a named, scoped gap rather than open-ended feature work, affects real users,
-and doesn't require settling `#1` first. Above the two speculative feature items because it's overdue
-rather than new.
+**Why this priority.** It's a named, scoped gap rather than open-ended feature work, and it affects real
+users. Above the two speculative feature items because it's overdue rather than new. Note that it has
+two more things to announce than it did: the card that says there is nothing to repeat today
+(`V2-13.12`), which a reader who cannot see it would otherwise meet as a session that simply ends, and
+the star filter's own two states (`V2-13.13`).
 
 **Size.** M. Needs a pass over flip, grade, refusal (`V2-15.2`) and page-turn — decide what's
 announced, when, and how it interacts with `V2-8.6`'s "everything changes in one off-screen frame" rule
@@ -64,8 +47,8 @@ scoped items above.
 **What.** Read `frontText`/`backText` (and details) aloud, presumably via the Web Speech API given
 `V2-9.1`'s no-dependency rule.
 
-**Why this priority.** New capability, not a gap in something already built. No dependency on `#1`–`#3`,
-so it can slot in whenever, but it's additive scope on a library whose whole design center (`V2-7.1`,
+**Why this priority.** New capability, not a gap in something already built. No dependency on the items
+above, so it can slot in whenever, but it's additive scope on a library whose whole design center (`V2-7.1`,
 `V2-7.2`) is "no chrome" — needs its own small design pass: is there a control at all, or is it
 gesture-triggered with no visible affordance, which is a harder problem given `V2-15.1`'s "every action
 needs a visible/audible result" rule.
@@ -83,7 +66,9 @@ least 10 cards today. It could be placed near to single-deck-vs-dictionary-switc
 **Why last.** Broadest scope, most speculative, and most likely to collide with the project's own design
 philosophy: no chrome, no position indicators, no title screen (`V2-10.3`), a page that is "the card and
 nothing else" (`V2-7.1`). A streak needs somewhere to be shown; what counts as a day's session is now
-settled (`V2-13.4`) — due-driven, for both a deck and the dictionary. Worth a dedicated design conversation
+settled (`V2-13.4`) — due-driven, for both a deck and the dictionary, with an end to it now that nothing
+stands in when nothing is due (`V2-13.12`). Whether cards met through the filter (`V2-13.13`) count
+towards a streak is a question that design conversation now has to answer. Worth a dedicated design conversation
 before any code, not a checkbox item under "backlog."
 
 **Size.** L. Design conversation first; implementation depends heavily on what that conversation decides.

@@ -7,10 +7,11 @@
  *
  * A deck and the dictionary both study what is due, out of their own pool of
  * cards — a deck's own, the dictionary every card the reader has ever opened
- * (V2-13.4). `onlyDue` stays a parameter rather than an assumption: a future
- * "study everything in this deck regardless of schedule" mode wants the same
- * selection with it turned off, not a second function. Both take at most a
- * sitting's worth, and both take it in the order of what wants studying most.
+ * (V2-13.4). `onlyDue` is what the reader's own filter turns off (V2-13.12):
+ * with it on, a session is exactly what wants repeating today and nothing
+ * else; with it off, the same pool regardless of schedule, which is what
+ * browsing or cramming a deck asks for. Both take at most a sitting's worth,
+ * and both take it in the order of what wants studying most.
  *
  * Review state selects rather than orders. Sorting the cards into due order and
  * handing that to mount() would not survive anyway — the deck is shuffled on
@@ -42,11 +43,14 @@ export const SESSION_LIMIT = 50;
  *
  * `onlyDue` narrows the pool to cards that are due, out of everything passed
  * in (V2-13.4). `openDeck` sets it for both a deck and the dictionary, because
- * "all of it" is not a session either way; cards that are not due are held
- * back unless nothing at all is due, in which case the nearest are better
- * than an empty deck (V2-13.5). Left off — the default — nothing is held
- * back, which is what a mode for browsing or cramming a deck regardless of
- * its schedule would want.
+ * "all of it" is not a session either way — and it narrows without a floor: a
+ * pool with nothing due selects nothing at all, rather than standing the
+ * nearest-due cards in (V2-13.5 withdrawn). Being shown a card the schedule
+ * had put a fortnight away, because there was nothing else to show, is what
+ * readers reported as the app not respecting its own stars. What a page does
+ * with an empty selection is the page's business, not this module's
+ * (V2-13.12). Left off — the default — nothing is held back, which is the
+ * reader's own "every card, regardless of stars" filter (V2-13.13).
  *
  * `storage` and `now` are injectable for the same reason they are in review.js.
  */
@@ -56,8 +60,7 @@ export function chooseSession(cards, { now = Date.now(), limit = SESSION_LIMIT, 
   const state = new Map(cards.map((card) => [card, reviewState(card.key, storage, now)]));
   const sorted = [...cards].sort((a, b) => state.get(a).dueAt - state.get(b).dueAt);
 
-  if (!onlyDue) return sorted.slice(0, limit);
+  const chosen = onlyDue ? sorted.filter((card) => isDue(state.get(card), now)) : sorted;
 
-  const due = sorted.filter((card) => isDue(state.get(card), now));
-  return (due.length > 0 ? due : sorted).slice(0, limit);
+  return chosen.slice(0, limit);
 }

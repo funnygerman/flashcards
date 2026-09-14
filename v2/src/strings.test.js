@@ -13,7 +13,7 @@ describe("stringsFor", () => {
     expect(stringsFor(undefined)).toBe(stringsFor(DEFAULT_LANG));
   });
 
-  it.each(LANGS)("gives %s the same shape as English: allLabel and five guide cards", (lang) => {
+  it.each(LANGS)("gives %s the same shape as English: labels, a done card and five guide cards", (lang) => {
     const strings = stringsFor(lang);
 
     expect(typeof strings.allLabel).toBe("string");
@@ -25,7 +25,12 @@ describe("stringsFor", () => {
       expect(strings.grades[level].length).toBeGreaterThan(0);
     }
 
-    for (const card of strings.guide) {
+    for (const side of ["every", "due"]) {
+      expect(typeof strings.filter[side]).toBe("string");
+      expect(strings.filter[side].length).toBeGreaterThan(0);
+    }
+
+    for (const card of [...strings.guide, strings.done]) {
       expect(Object.keys(card).sort()).toEqual(["backDetails", "backText", "category", "frontDetails", "frontText"]);
       for (const value of Object.values(card)) expect(value.length).toBeGreaterThan(0);
     }
@@ -40,7 +45,7 @@ describe("stringsFor", () => {
 
   it("keeps no card keyed, in every language, the same as the English guide (V2-6.3)", () => {
     for (const lang of LANGS) {
-      for (const card of stringsFor(lang).guide) expect(card.key).toBeUndefined();
+      for (const card of [...stringsFor(lang).guide, stringsFor(lang).done]) expect(card.key).toBeUndefined();
     }
   });
 });
