@@ -13,19 +13,29 @@ describe("stringsFor", () => {
     expect(stringsFor(undefined)).toBe(stringsFor(DEFAULT_LANG));
   });
 
-  it.each(LANGS)("gives %s the same shape as English: settled, allLabel, four guide cards", (lang) => {
+  it.each(LANGS)("gives %s the same shape as English: allLabel and five guide cards", (lang) => {
     const strings = stringsFor(lang);
 
-    expect(typeof strings.settled).toBe("string");
-    expect(strings.settled.length).toBeGreaterThan(0);
     expect(typeof strings.allLabel).toBe("string");
     expect(strings.allLabel.length).toBeGreaterThan(0);
-    expect(strings.guide).toHaveLength(4);
+    expect(strings.guide).toHaveLength(5);
+
+    for (const level of ["easier", "harder"]) {
+      expect(typeof strings.grades[level]).toBe("string");
+      expect(strings.grades[level].length).toBeGreaterThan(0);
+    }
 
     for (const card of strings.guide) {
       expect(Object.keys(card).sort()).toEqual(["backDetails", "backText", "category", "frontDetails", "frontText"]);
       for (const value of Object.values(card)) expect(value.length).toBeGreaterThan(0);
     }
+  });
+
+  /* The refusal message went when the refusal did: a grade takes the card away
+     and `previous` brings it back to be changed, so no gesture is dropped and
+     there is nothing for the card to say about one (V2-15.2). */
+  it.each(LANGS)("carries no refusal message for %s", (lang) => {
+    expect(stringsFor(lang).settled).toBeUndefined();
   });
 
   it("keeps no card keyed, in every language, the same as the English guide (V2-6.3)", () => {

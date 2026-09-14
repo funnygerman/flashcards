@@ -16,15 +16,14 @@ import { createView } from "./view.js";
 /**
  * @param element   where the deck is rendered
  * @param cards     the deck, shown in a random order
- * @param options   `storage` and `random` are injectable for tests; `onRefuse`
- *                  receives (card, "settled") when a grading gesture is
- *                  dropped because the card's grade is no longer the reader's
- *                  to change — the one case where the reader has done
- *                  something and the card can say nothing back; `onGrade`
+ * @param options   `storage` and `random` are injectable for tests; `onGrade`
  *                  receives (card, "harder" | "easier" | "neutral") — "neutral"
  *                  for a card the reader paged past without grading, so a
  *                  forgotten card is not silently skipped by whatever is
  *                  listening (e.g. review scheduling, see review.js).
+ *                  `labels` is `{ easier, harder }`, the words the grade band
+ *                  names each grade with (V2-5.7a) — the host's, like every
+ *                  other word on the page; omit them and no band is drawn.
  *                  `progress` draws a row of `steps` marks along the
  *                  card, `of(card)` filled — any host-supplied 0..steps
  *                  count, e.g. review.js's box; omit it for a bare card.
@@ -36,10 +35,11 @@ import { createView } from "./view.js";
  *                  `gradeOf(card)` is the host's answer to "what has this card
  *                  already been graded?" — a grade the reader gave it before
  *                  this deck was mounted, e.g. review.js's `gradedToday`. Such
- *                  a card arrives wearing its mark and settled: see `locked`.
+ *                  a card arrives wearing its mark, and the reader may disagree
+ *                  with it exactly as they may with one given a moment ago.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, onRefuse, progress, gradeOf, lead = [] } = options;
+  const { storage, random = Math.random, onGrade, progress, gradeOf, labels, lead = [] } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -68,7 +68,7 @@ export function mount(element, cards, options = {}) {
   };
 
   let deck = orderFor(cards, lead);
-  const view = createView(element, progress?.steps);
+  const view = createView(element, progress?.steps, labels);
 
   /* Progress is the host's data, not the library's — read fresh every time
      the reader could plausibly have changed it (a new card, or a grade on
@@ -80,32 +80,55 @@ export function mount(element, cards, options = {}) {
     view.setProgress(filled);
   };
 
+  /* An intent arriving mid-slide would page from a card that is already
+     leaving, so it is dropped rather than queued (V2-4.9). */
+  let sliding = null;
+
+  /* The moment one card becomes another, off screen and half-way through a
+     page turn (V2-8.6). The progress row is read for the card arriving, and
+     the deck stops being busy: from here the reader is looking at the new card,
+     so the next intent they make is about that card and is theirs to make.
+
+     Waiting for the whole animation instead cost a reader grading quickly —
+     three cards, three swipes up, faster than a card takes to leave — the
+     second and third of their swipes. Dropping an intent costs nothing when it
+     is a page turn the reader will simply make again; it costs a grade now that
+     a grade is what the dropped intent was. */
+  const swapped = () => {
+    showProgress();
+    sliding = null;
+  };
+
   /* Every card's grade, for as long as this deck stays mounted — keyed by
      card rather than by the one on screen, so paging away and back does not
      forget it. It used to live in a single variable that `page` reset
      unconditionally, which meant a revisited card looked ungraded again and
-     the same swipe could be replayed on it indefinitely — silently
-     reinflating a host's own data (e.g. review.js's box) with no new attempt
-     at recall in between. A card's grade, once given, now holds until it is
-     actually changed.
-     `locked` travels with it rather than in a set of its own: a card is
-     locked exactly when it has a grade and is no longer the reader's to
-     change — one they graded and then moved on from, and one that arrived
-     already graded (`gradeOf`, e.g. review.js's grade from earlier today).
-     While a card is in front of the reader they can say anything they like
-     about it and change their mind freely; leaving it is what settles the
-     answer. Without that, "the reader saw this card and judged it" would be
-     worth however many times they cared to page back to it or reload the
-     page — the same replay this map closes for a single visit, one level up. */
+     the reader had no way of telling what they had already said about it.
+     A card's grade, once given, holds until it is actually changed.
+
+     Nothing here is locked. A grade takes the card away now (V2-8.4), so the
+     gesture that gives one and the gesture that leaves the card are the same
+     gesture, and a rule that settled a grade on leaving would settle every
+     grade the instant it was given — making the reader's own last swipe the
+     one thing they could not take back. Paging back to a card therefore
+     re-opens it: the mark it is still wearing (V2-5.6) is the affordance, and
+     `previous` is the undo. What stops that being a way to inflate a host's
+     own data is the host's own rule, not a lock here — review.js counts one
+     grade per card per day against the box the day found it in (V2-11.10), so
+     a reader who changes their mind ends up exactly where saying it once would
+     have left them, however many times they say it. */
   const grades = new Map();
 
   /* A card's grade, asking the host once about a card neither this deck nor
-     the reader has seen graded yet. */
+     the reader has seen graded yet. A card the host answers for arrives
+     wearing its mark and is no more settled than any other: the reader may
+     disagree with a grade they gave before a reload exactly as they may
+     disagree with one they gave a moment ago. */
   const gradeFor = (card) => {
     if (!grades.has(card)) {
       const given = gradeOf?.(card) ?? null;
 
-      if (given) grades.set(card, { level: given, locked: true });
+      if (given) grades.set(card, { level: given });
     }
 
     return grades.get(card)?.level ?? null;
@@ -122,10 +145,7 @@ export function mount(element, cards, options = {}) {
      `switchTo`, below: a card left behind by a source change is left exactly
      as one paged past is, the reader having moved on from it either way. */
   const leave = (card) => {
-    const entry = grades.get(card);
-
-    if (entry) entry.locked = true; /* the answer it leaves with is the answer */
-    else onGrade?.(card, "neutral");
+    if (!grades.has(card)) onGrade?.(card, "neutral");
   };
 
   const page = (direction) => {
@@ -136,37 +156,37 @@ export function mount(element, cards, options = {}) {
     /* The dots and the mark belong to the card that is about to be on screen,
        so they change with it — in the same off-screen frame as its content,
        not once the slide that delivers it has finished. */
-    return view.slide(direction, arriving, gradeFor(arriving), showProgress);
+    return view.slide(direction, arriving, gradeFor(arriving), swapped);
   };
 
-  /* Repeating the grade a card already carries says nothing new and is
-     dropped, and a card the reader has already left is settled (its entry's
-     `locked`). Otherwise grading the other way is a change of mind, and
-     counts — including changing back to one it carried earlier this visit.
+  /* A grade answers the card and then takes it away: the mark finishes, the
+     row above it moves, the card leaves by the edge the gesture went towards
+     and the next one arrives (V2-8.4). Answering and moving on are one act
+     because the reader made one gesture, and a swipe that left the card sitting
+     there was the single thing first readers reported as broken.
 
-     The two silences are not the same silence, which is why only one of them
-     is reported. A repeat is answered by the mark already on the card: the
-     reader asked for exactly what they are looking at. A settled card answers
-     with nothing at all — the gesture worked, the card heard it, and the screen
-     is identical to one where nobody swiped, which is indistinguishable from
-     the gesture not existing at all. What to say about that is the host's
-     business (see deck.js); that it happened is this module's. */
+     Repeating the grade a card already carries still says nothing new, so the
+     host does not hear about it twice (V2-5.4) — but the card leaves all the
+     same. The alternative is a gesture with no result at all, which is the one
+     thing an interface with no chrome cannot afford (V2-15.1), and the reader
+     agreeing with a mark they can see is not an error to be corrected. */
   const grade = (level) => {
     const card = deck.current();
-    const entry = grades.get(card);
 
-    if (entry?.locked) {
-      onRefuse?.(card, "settled");
-      return null;
+    if (grades.get(card)?.level !== level) {
+      grades.set(card, { level });
+      view.mark(level);
+      onGrade?.(card, level);
+      showProgress(); /* onGrade already ran, so the host's own data is current */
     }
 
-    if (entry?.level === level) return null;
+    /* `leave` before the card goes, exactly as a page turn does it — the entry
+       above is already in place, so a card that has just been graded is never
+       also reported as one paged past ungraded (V2-5.11). */
+    leave(card);
 
-    grades.set(card, { level, locked: false });
-    view.mark(level);
-    onGrade?.(card, level);
-    showProgress(); /* onGrade already ran, so the host's own data is current */
-    return null;
+    const arriving = deck.next();
+    return view.gradeSlide(level === "easier", arriving, gradeFor(arriving), swapped);
   };
 
   const actions = {
@@ -177,19 +197,12 @@ export function mount(element, cards, options = {}) {
     easier: () => grade("easier"),
   };
 
-  /* An intent arriving mid-slide would page from a card that is already
-     leaving, so it is dropped rather than queued. */
-  let sliding = null;
-
   const unbind = bindInput(
     view.root,
     (intent) => {
       if (sliding) return;
 
       sliding = actions[intent]?.() ?? null;
-      sliding?.finally(() => {
-        sliding = null;
-      });
     },
 
     /* The card follows the gesture while it is being made. Dropped mid-slide
@@ -208,7 +221,7 @@ export function mount(element, cards, options = {}) {
      * Say something on the card, for a moment: the grade mark grows into a band
      * on the edge it already marks and holds the words. What is worth saying is
      * the host's business — the library has no sentence of its own, only the
-     * one place to put one. `onRefuse` is what usually prompts it.
+     * one place to put one.
      */
     say: (text) => view.announce(text),
 
