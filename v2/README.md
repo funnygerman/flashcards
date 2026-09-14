@@ -103,6 +103,7 @@ Returns `{ say(text), destroy() }` — `say` puts a sentence on the card for a m
 | | |
 |---|---|
 | `onGrade(card, level)` | `"harder"` or `"easier"` on an explicit grade; `"neutral"` when the reader pages past a card without grading it, so a forgotten card is still reported |
+| `labels` | `{ easier, harder }` — the words the grade band names each grade with; omit them and no band is drawn |
 | `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives wearing its mark, and the reader may still disagree with it (§ Interactions) |
 | `progress` | `{ steps, of(card) }` — draws a row of `steps` stars along the card's bottom edge, the first `of(card)` of them filled; omit it for a bare card |
 | `lead` | cards shown first, in the order given and unshuffled, ahead of the deck proper — a guide, or anything else whose sequence is the point |
@@ -134,9 +135,24 @@ That is the durable half of the discoverability problem the first-run guide also
 once and remembered or not; a card that visibly responds to a finger says *something is here* every time
 anybody touches it. Under `prefers-reduced-motion` the card stays put and only the mark fills.
 
-**Grading marks the card and takes it away.** A bar is drawn along the edge the gesture went towards —
-top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down) — the card holds
-still for a moment wearing it, and then leaves by that edge while the next card arrives from the right.
+**Grading marks the card, names it, and takes it away.** A bar is drawn along the edge the gesture went
+towards — top for *known well enough* (swipe up), bottom for *not known well enough* (swipe down) — and
+once the drag passes the threshold that bar grows into a band holding the word: **Knew it** or **Didn't
+know it**. The card holds still for a moment wearing both, then leaves by that edge while the next card
+arrives from the right.
+
+The word exists because two identical bars on opposite edges are one object drawn twice: which edge a bar
+is on is a convention to remember, not something to read. First readers asked for red and green; what
+they were missing was a difference between the two swipes. The words report an event rather than judging
+the material — *Easy*/*Hard* would ask a different question, and a reader who blanks on a word they think
+is easy should not have to reach for a label marked "Hard".
+
+The band is the one coloured thing in v2, blue for one grade and orange for the other. Not green and red:
+`harder` means "not known well enough", which is a report about recall rather than a failure, and a
+penalty colour invites a reader to avoid earning it. Blue and orange is also the axis both common forms
+of colour blindness preserve. Colour is never the signal on its own — the word says it, the edge says it,
+and the direction the card leaves says it — so the thin bar stays monochrome and only the band is
+coloured.
 The card's contents do not move under the mark. The mark used to be the card's own border thickening,
 which shifted the text and the category label down by a few pixels each time, so a grade looked like an
 animation still finishing rather than a state the card was in.

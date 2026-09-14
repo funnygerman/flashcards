@@ -354,6 +354,10 @@ export function openDeck(cards, options = {}) {
     random,
     lead: guide,
 
+    /* What the band calls each grade, in the reader's language (V2-14.4) —
+       the app's own words, like the guide's, never a card's. */
+    labels: strings.grades,
+
     /* A card with no key is not the reader's to be asked about again: the
        dictionary does not store it (V2-6.3) and the schedule does not either,
        which is the whole of what keeps the guide out of both. It can still be

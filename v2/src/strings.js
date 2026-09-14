@@ -1,12 +1,24 @@
 /**
- * The app's own words — the guide and the toggle's dictionary label —
- * translated. Card content (`frontText`, `backText`, ...) is never touched
+ * The app's own words — the guide, the two grade labels, and the toggle's
+ * dictionary label — translated. Card content (`frontText`, `backText`, ...) is never touched
  * here: that is whatever a deck author wrote, in whatever language the deck
  * teaches, and i18n has no opinion on it.
  *
  * A plain lookup table rather than a library dependency (V2-9.1's no-runtime-
  * dependency rule): three short languages is not enough surface to justify
  * one, and deck.js already has everywhere it would plug in.
+ *
+ * `grades` names the two grades on the band the mark grows into, once a
+ * gesture has passed the threshold (V2-5.7a). They report an event rather than
+ * judging the material: the reader is being asked whether they recalled the
+ * word just now, not whether the word is difficult (V2-5.1). "Easy"/"Hard" was
+ * the obvious pair and is the wrong one — a reader who blanks on a word they
+ * consider easy would have to reach for the label marked "Hard", and one who
+ * recalled a hard word perfectly might reach for it anyway, which is the same
+ * grade inflation a red mark invites, arriving by a different door.
+ *
+ * Short by necessity, like the refusal below was: the band across a phone-sized
+ * card holds about four words.
  *
  * There is no refusal message here any more. There was one — "Already rated
  * today", said on the card when a grading gesture was dropped — and it went
@@ -23,6 +35,7 @@
 
 const STRINGS = {
   en: {
+    grades: { easier: "Knew it", harder: "Didn't know it" },
     allLabel: "Everything you have seen",
     guide: [
       {
@@ -64,6 +77,7 @@ const STRINGS = {
   },
 
   de: {
+    grades: { easier: "Gewusst", harder: "Nicht gewusst" },
     allLabel: "Alles, was du gesehen hast",
     guide: [
       {
@@ -105,6 +119,7 @@ const STRINGS = {
   },
 
   ru: {
+    grades: { easier: "Знал", harder: "Не знал" },
     allLabel: "Всё, что ты видел",
     guide: [
       {

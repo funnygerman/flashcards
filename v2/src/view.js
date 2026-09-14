@@ -167,8 +167,14 @@ function createProgress(slider, steps) {
   };
 }
 
-/** `steps` is omitted where no host has asked for a progress column at all. */
-export function createView(container, steps) {
+/**
+ * `steps` is omitted where no host has asked for a progress column at all, and
+ * `labels` where no host has words for the two grades — a bare card takes
+ * neither. `labels` is `{ easier, harder }`, the host's own text (V2-5.7a):
+ * this view has no more idea what they say than it has what a `category` means,
+ * and `mount()` has no sentence of its own to fall back on (V2-1.2).
+ */
+export function createView(container, steps, labels) {
   const root = createElement("div", "fc", container);
   const slider = createElement("div", "fc-slide", root);
 
@@ -209,6 +215,38 @@ export function createView(container, steps) {
     level = given;
     card.classList.toggle("is-harder", level === "harder");
     card.classList.toggle("is-easier", level === "easier");
+  };
+
+  /**
+   * The grade band: the mark grown deep enough to hold a word, naming the grade
+   * the reader is about to give or has just given.
+   *
+   * `edge` is which side it is on — "top" for `easier`, "bottom" for `harder`,
+   * `null` for no band at all. The edge rather than the grade, because the
+   * moment this matters most is a drag past the threshold, when the card has
+   * not been graded yet and may still be wearing the opposite grade from an
+   * earlier visit: what the reader is pushing towards is the only thing that
+   * says which word belongs.
+   *
+   * Separate from `announce`'s `data-message` rather than sharing it: that one
+   * is a host's sentence, has a timer, and takes the progress row away while it
+   * is up. This one is a state, lasts exactly as long as the gesture it belongs
+   * to, and moves the row aside instead. A host that says something while a
+   * grade band is up wins the pseudo-element, which is the right way round —
+   * a sentence is deliberate and a label is not.
+   */
+  const band = (edge) => {
+    if (!labels) return;
+
+    const text = edge && (edge === "top" ? labels.easier : labels.harder);
+
+    if (text) card.setAttribute("data-grade-edge", edge);
+    else card.removeAttribute("data-grade-edge");
+
+    for (const face of [front, back]) {
+      if (text) face.node.setAttribute("data-grade", text);
+      else face.node.removeAttribute("data-grade");
+    }
   };
 
   let messageTimer = null;
@@ -265,6 +303,7 @@ export function createView(container, steps) {
 
     setFlipped(false);
     hush(); /* whatever was said was said to the card that just left */
+    band(null); /* and so was whatever it was graded — the arriving card is bare */
     show(data, level);
     onSwap?.();
 
@@ -322,6 +361,11 @@ export function createView(container, steps) {
 
     card.style.setProperty("--fc-mark-top", `${Math.max(dy < 0 ? filling : 0, level === "easier" ? 1 : 0)}`);
     card.style.setProperty("--fc-mark-bottom", `${Math.max(dy > 0 ? filling : 0, level === "harder" ? 1 : 0)}`);
+
+    /* Past the threshold the gesture is a grade, so the mark grows into the
+       band and names it. The reader can still drag back under and watch it go
+       again, which is what keeps V2-4.10's experiment an experiment. */
+    band(!horizontal && progress >= 1 ? (dy < 0 ? "top" : "bottom") : null);
   };
 
   /**
@@ -334,6 +378,7 @@ export function createView(container, steps) {
   const release = () => {
     slider.classList.remove("is-dragging");
     slider.style.transform = "";
+    band(null); /* the gesture is over; `gradeSlide` puts one back for the exit */
     card.style.removeProperty("--fc-mark-top");
     card.style.removeProperty("--fc-mark-bottom");
     dragged = { x: 0, y: 0 };
@@ -422,6 +467,17 @@ export function createView(container, steps) {
         swap(data, level, onSwap);
         return null;
       }
+
+      /* The word rides the card out. A swipe has already shown it — it went up
+         at the threshold and has not moved since — so this is continuity rather
+         than a second announcement, and it is what stops the label vanishing at
+         the exact moment the reader commits. For the keyboard it is the only
+         time the word appears at all, which is the point: `↑` and a swipe up
+         have to leave the same card behind (V2-9.3), and a key press has no
+         part-way for the drag half to happen in (V2-4.10). Nothing is shown
+         where there is no exit to ride — the instant path above has already
+         returned. */
+      band(up ? "top" : "bottom");
 
       return out.then(() => {
         swap(data, level, onSwap);

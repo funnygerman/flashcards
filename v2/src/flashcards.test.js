@@ -35,6 +35,11 @@ function drag(dx, dy, { release = true } = {}) {
 const slider = () => document.querySelector(".fc-slide");
 const edge = (side) => document.querySelector(".fc-card").style.getPropertyValue(`--fc-mark-${side}`);
 
+/** The grade band: which edge it is on, and the word it holds. */
+const bandEdge = () => document.querySelector(".fc-card").getAttribute("data-grade-edge");
+const bandWord = () => document.querySelector(".fc-front").getAttribute("data-grade");
+const LABELS = { easier: "Knew it", harder: "Didn't know it" };
+
 const front = (selector) => document.querySelector(`.fc-front ${selector}`);
 const back = (selector) => document.querySelector(`.fc-back ${selector}`);
 const isFlipped = () => document.querySelector(".fc-card").classList.contains("is-flipped");
@@ -618,6 +623,27 @@ describe("mount", () => {
       });
     });
 
+    /* The word goes with the card. A swipe has already shown it — it went up at
+       the threshold and has not moved since — so this is continuity rather than
+       a second announcement, and it is the only time a keyboard grade shows the
+       word at all, which is what keeps `↑` and a swipe up leaving the same card
+       behind (V2-9.3). */
+    it("carries the word out with the card, and delivers the next one bare", async () => {
+      await withAnimate(async () => {
+        open({ labels: LABELS });
+
+        press("ArrowUp"); /* no drag at all: the exit is the whole of it */
+        expect(bandEdge()).toBe("top");
+        expect(bandWord()).toBe("Knew it");
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(bandEdge()).toBe(null);
+        expect(bandWord()).toBe(null);
+        expect(front(".fc-text").textContent).toBe("zwei");
+      });
+    });
+
     /* A reader grading quickly makes the next swipe before the last card has
        finished leaving. Dropping an intent costs nothing when it is a page
        turn they will simply make again; it costs a grade now that a grade is
@@ -636,6 +662,67 @@ describe("mount", () => {
           ["b", "easier"],
         ]);
       });
+    });
+  });
+
+  /* Two identical bars on opposite edges are one object drawn twice: which
+     edge a bar is on is a convention to remember rather than something to
+     read. The word is what separates the two gestures (V2-5.7a). */
+  describe("the grade band", () => {
+    it("says nothing until the gesture is a grade, and names it once it is", () => {
+      open({ labels: LABELS });
+
+      drag(0, -20, { release: false }); /* half the threshold: still an experiment */
+      expect(bandEdge()).toBe(null);
+
+      drag(0, -60, { release: false }); /* past it: the card has broken free */
+      expect(bandEdge()).toBe("top");
+      expect(bandWord()).toBe("Knew it");
+    });
+
+    it("names the other grade on the other edge", () => {
+      open({ labels: LABELS });
+
+      drag(0, 60, { release: false });
+      expect(bandEdge()).toBe("bottom");
+      expect(bandWord()).toBe("Didn't know it");
+    });
+
+    /* Dragging back under the threshold takes it away again, which is what
+       keeps V2-4.10's experiment an experiment rather than a commitment. */
+    it("goes again if the reader drags back under the threshold", () => {
+      open({ labels: LABELS });
+
+      drag(0, -60, { release: false });
+      drag(0, -20, { release: false });
+
+      expect(bandEdge()).toBe(null);
+    });
+
+    it("stays away for a horizontal drag, which is a page turn and not a grade", () => {
+      open({ labels: LABELS });
+
+      drag(-80, 0, { release: false });
+      expect(bandEdge()).toBe(null);
+    });
+
+    /* The words are the host's, like every other word on the page: a bare card
+       mounted without them is drawn exactly as it was before they existed. */
+    it("is not drawn at all for a host with no words for the grades", () => {
+      open();
+
+      drag(0, -60, { release: false });
+      expect(bandEdge()).toBe(null);
+      expect(bandWord()).toBe(null);
+    });
+
+    it("keeps the edge the card already carries out of it, reading the gesture instead", () => {
+      open({ labels: LABELS, gradeOf: () => "harder" }); /* card a arrives marked harder */
+
+      drag(0, -60, { release: false }); /* dragged the other way */
+
+      expect(bandEdge()).toBe("top");
+      expect(bandWord()).toBe("Knew it");
     });
   });
 

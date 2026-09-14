@@ -20,6 +20,11 @@ describe("stringsFor", () => {
     expect(strings.allLabel.length).toBeGreaterThan(0);
     expect(strings.guide).toHaveLength(5);
 
+    for (const level of ["easier", "harder"]) {
+      expect(typeof strings.grades[level]).toBe("string");
+      expect(strings.grades[level].length).toBeGreaterThan(0);
+    }
+
     for (const card of strings.guide) {
       expect(Object.keys(card).sort()).toEqual(["backDetails", "backText", "category", "frontDetails", "frontText"]);
       for (const value of Object.values(card)) expect(value.length).toBeGreaterThan(0);

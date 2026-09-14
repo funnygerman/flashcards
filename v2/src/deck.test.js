@@ -69,6 +69,37 @@ describe("openDeck", () => {
 
   /* The wiring every deck page used to spell out, now asserted once: a grade
      reaches review.js, and the row of marks follows the box it moved to. */
+  /* The band's words are the app's own, so they follow `lang` exactly as the
+     guide and the toggle's label do (V2-14.4) — and never a card's content. */
+  describe("the grade band's words", () => {
+    const bandEdge = () => document.querySelector(".fc-card").getAttribute("data-grade-edge");
+    const bandWord = () => document.querySelector(".fc-front").getAttribute("data-grade");
+
+    /** A drag past the threshold, which is what raises the band. */
+    const swipe = (dy) => {
+      const card = document.querySelector(".fc");
+      for (const type of ["pointerdown", "pointermove"]) {
+        card.dispatchEvent(new MouseEvent(type, { clientX: 200, clientY: 200 + (type === "pointerdown" ? 0 : dy), bubbles: true }));
+      }
+    };
+
+    it("names the grade the reader is reaching for", () => {
+      open();
+      swipe(-60);
+
+      expect(bandEdge()).toBe("top");
+      expect(bandWord()).toBe("Knew it");
+    });
+
+    it("names it in the reader's language, given one", () => {
+      open(cards, { lang: "de" });
+      swipe(60);
+
+      expect(bandEdge()).toBe("bottom");
+      expect(bandWord()).toBe("Nicht gewusst");
+    });
+  });
+
   it("records a grade against the review schedule", () => {
     open();
 

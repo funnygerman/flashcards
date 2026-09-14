@@ -72,8 +72,8 @@ a move.
 **V2-3.1** `mount(element, cards, options?)` renders a deck into `element` and returns a handle with
 `destroy()` and `switchTo(cards)` (V2-3.8).
 
-**V2-3.2** `options` are `onGrade(card, level)`, `gradeOf(card)`, `progress`, `lead`, `storage`, and
-`random`. `storage` and `random` exist so the library can be tested and embedded
+**V2-3.2** `options` are `onGrade(card, level)`, `gradeOf(card)`, `progress`, `labels`, `lead`,
+`storage`, and `random`. `storage` and `random` exist so the library can be tested and embedded
 without reaching for globals.
 
 **V2-3.3** The deck is shuffled on mount. The caller's array is not reordered.
@@ -272,8 +272,55 @@ with 11 px of category at the 900 px cap. A settled grade that shifts the card r
 progress rather than as a state, which is exactly the wrong thing to say immediately after a gesture
 that was itself a movement. A bar is painted over the card rather than being part of its box.
 
-**V2-5.8** The mark uses no colour, so it carries in both themes and does not depend on colour vision to
-be seen.
+**V2-5.7a** Past the threshold, the mark grows into a band naming the grade — "Knew it" on the top edge,
+"Didn't know it" on the bottom. It is up while a drag is past the threshold (V2-4.10) and again as the
+card leaves (V2-8.4), and at no other time: not on a card paged back to, and not below the threshold.
+
+Two identical bars on opposite edges are one object drawn twice. Which edge a bar is on is a convention
+to remember, not something to read, and the card's exit direction is the same convention again — so the
+two gestures were distinguished by nothing a reader could read at a glance. First readers asked for
+colour; what they were missing was a difference between the two swipes, and a word is the channel that
+carries one with no convention attached. This is V2-12.9's move — the progress row went from squares to
+stars because a row of identical squares read as pagination — applied to the mark.
+
+The words report an event, not a judgement of the material. The reader is being asked whether they
+recalled the word just now (V2-5.1), and "Easy"/"Hard" — the obvious pair — asks something else: a
+reader who blanks on a word they consider easy would have to reach for the label marked "Hard", and one
+who recalled a hard word perfectly might reach for it anyway. That is the same grade inflation a red
+mark invites, arriving by a different door. The comparative sense of `easier`/`harder` is internal
+vocabulary — it means "move it along the ladder" — and does not belong on the card.
+
+The words are the host's (`labels`), like every other word on the page; a host with none gets no band,
+and `mount()` has no sentence of its own to fall back on (V2-1.2). A deck page takes them from
+`strings.js` in the reader's language (V2-14.4).
+
+Which edge the band is on follows the gesture, not the grade the card carries: the moment it matters most
+is a drag that has not been committed to, on a card that may still be wearing the opposite grade from an
+earlier visit.
+
+Dragging back under the threshold takes it away again, which is what keeps V2-4.10's experiment an
+experiment. And it is the only time a keyboard grade shows the word at all — a key press has no part-way
+for the drag half to happen in (V2-4.10), so riding the exit is what keeps `↑` and a swipe up leaving the
+same card behind (V2-9.3).
+
+**V2-5.8** The mark does not depend on colour: the word names the grade (V2-5.7a), the edge carries it,
+and the direction the card leaves carries it again. Colour agrees with all three and is the only one of
+them that could fail — so it is the one thing here that is never asked to work alone.
+
+The band is the one coloured element in v2: `--fc-easier` and `--fc-harder`, one hue each, with
+`--fc-easier-ink` and `--fc-harder-ink` for the word on them. The thin mark stays `--fc-line` and
+monochrome; only the band takes colour, which is also what keeps a sub-threshold drag and a paged-back
+card exactly as legible as they were before any of this.
+
+Blue and orange rather than green and red. `harder` means "not known well enough" (V2-5.1) — a report
+about recall, not an error — and a penalty colour invites a reader to avoid earning it, which is the one
+way a palette can corrupt the schedule it feeds. Blue and orange is also the axis both common forms of
+colour blindness preserve, where red and green is the axis they collapse.
+
+The four values are a deck author's decision rather than a derived one, and they are recorded in
+`flashcards.css` beside the measurement: white on the hues chosen is 2.31:1 and 2.25:1, under the 4.5:1
+small-text floor, and the same two hues at `#2d78a3` / `#a16a00` clear it at 4.85 and 4.59 — the lightest
+they go and still carry white. Changing the pair is changing those four values and nothing else.
 
 **V2-5.9** Grades reach the host page through `onGrade` only. The library itself stores no grade and
 computes no schedule — see §11 for the separate module a deck page can use for that.
@@ -374,7 +421,8 @@ migrates nothing — the declaration lives in the deck that names the card.
 **V2-7.1** The card is the only element on the page, apart from one control out of it (§13) — and that
 control is absent unless it leads somewhere new (V2-13.9). No header, no footer, no chrome, no other
 controls. Everything v2 has to say to a reader it says as cards or on the card: the guide is five cards
-(V2-15.3), and where the card has a sentence of its own it goes on the card's own mark (V2-15.2). Neither
+(V2-15.3), the grade names itself on the mark it is making (V2-5.7a), and where the card has a sentence
+of its own it goes there too (V2-15.2). Neither
 adds an element to the page, which is why this requirement reads as it always did — an overlay for the
 guide was built first and it cost exactly this sentence.
 
@@ -437,8 +485,8 @@ pull-to-refresh.
 
 **V2-8.3** Paging returns the card to its front face.
 
-**V2-8.4** A graded card finishes its mark, holds still for a moment wearing it, and then leaves by the
-edge the gesture went towards — up for `easier`, down for `harder`. The next card arrives from the right,
+**V2-8.4** A graded card finishes its mark and the band naming it (V2-5.7a), holds still for a moment
+wearing both, and then leaves by the edge the gesture went towards — up for `easier`, down for `harder`. The next card arrives from the right,
 exactly as it does for `next` (V2-8.2).
 
 The two legs are on different axes because they are saying two different things. Vertical is the reader's
@@ -844,8 +892,9 @@ what it is and, where it is a link, what it points to, from `cards` and `storage
 library's own handle, so `destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself
 added.
 
-`lang` picks the app's own words — the guide (V2-15.3) and the toggle's dictionary label (V2-13.9) — from
-`strings.js`, falling back to English where it is unset or names a language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
+`lang` picks the app's own words — the guide (V2-15.3), the two grade labels (V2-5.7a) and the toggle's
+dictionary label (V2-13.9) — from `strings.js`, falling back to English where it is unset or names a
+language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
 `frontText`/`backText`/`details` stay exactly what a deck author wrote, in whatever language the deck
 teaches, the same as before this option existed. `strings.js` is a plain lookup table rather than a
 runtime dependency (V2-9.1): the app's own text is a handful of short lines in a small, fixed set of
@@ -898,6 +947,12 @@ not what changed — what changed is that this particular thing no longer needs 
 
 **V2-15.9** Whatever the band would otherwise cut in half steps aside while it is up: the category label
 for a band on the top edge, the progress row for one on the bottom. They come back when it goes.
+
+The two bands step it aside differently. A host's sentence takes the row away outright — it is up for a
+couple of seconds and says something the row does not. A grade band (V2-5.7a) *moves* the row up past
+it instead, because `harder` is both the grade whose band sits on that edge and the grade that empties
+the row (V2-11.2): hiding it there would take the row away at the one moment it ever answers the
+reader's own verdict, which is what V2-8.10's hold exists for.
 
 **V2-15.3** A reader's first session is led by five cards that teach the deck by being one. They come
 first and in their own order (V2-3.3's `lead`), and they are gone from every session after.

@@ -21,6 +21,9 @@ import { createView } from "./view.js";
  *                  for a card the reader paged past without grading, so a
  *                  forgotten card is not silently skipped by whatever is
  *                  listening (e.g. review scheduling, see review.js).
+ *                  `labels` is `{ easier, harder }`, the words the grade band
+ *                  names each grade with (V2-5.7a) — the host's, like every
+ *                  other word on the page; omit them and no band is drawn.
  *                  `progress` draws a row of `steps` marks along the
  *                  card, `of(card)` filled — any host-supplied 0..steps
  *                  count, e.g. review.js's box; omit it for a bare card.
@@ -36,7 +39,7 @@ import { createView } from "./view.js";
  *                  with it exactly as they may with one given a moment ago.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, progress, gradeOf, lead = [] } = options;
+  const { storage, random = Math.random, onGrade, progress, gradeOf, labels, lead = [] } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -65,7 +68,7 @@ export function mount(element, cards, options = {}) {
   };
 
   let deck = orderFor(cards, lead);
-  const view = createView(element, progress?.steps);
+  const view = createView(element, progress?.steps, labels);
 
   /* Progress is the host's data, not the library's — read fresh every time
      the reader could plausibly have changed it (a new card, or a grade on

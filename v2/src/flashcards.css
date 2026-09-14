@@ -44,6 +44,37 @@ html:has(> body > .fc) body {
      themselves against it: the mark, a drag towards it, and the band. */
   --fc-mark: calc(var(--fc-card-w) * 0.014);
 
+  /* The band the mark grows into: deep enough to hold type at a size a phone
+     can read, which a mark at 1.4 % of the card width is not. rem is the floor
+     so it stays legible on the smallest card, and the card fraction takes over
+     above it so it stays in proportion on the largest. Named because three
+     things measure against it now: the band, the category label stepping aside
+     for one on the top edge, and the star row stepping aside on the bottom. */
+  --fc-band: max(1.5rem, calc(var(--fc-card-w) * 0.05));
+
+  /* The only colour in v2, and the only values here that do not invert with
+     the theme: one hue each for the two grades, on the band that holds the
+     word (V2-5.7a).
+
+     Blue and orange rather than green and red on purpose. `harder` means "not
+     known well enough" (V2-5.1) — a report about recall, not a failure — and a
+     penalty colour invites a reader to avoid earning it, which is the one way
+     a palette can corrupt the schedule it feeds. Blue and orange is also the
+     axis both common forms of colour blindness preserve, where red and green
+     is the axis they collapse.
+
+     Measured: white on these is 2.31:1 and 2.25:1, under the 4.5:1 small-text
+     floor. Taking the same two hues down to #2d78a3 / #a16a00 clears it (4.85
+     and 4.59) and is the lightest they can go and still carry white — these
+     four values are the whole of that decision, if it is ever revisited.
+     What keeps it from being load-bearing is V2-5.8: the word says which grade
+     it is, the edge says it, and the direction the card leaves says it. The
+     colour agrees with all three and carries none of it alone. */
+  --fc-easier: #56b4e9;
+  --fc-harder: #e69f00;
+  --fc-easier-ink: #fff;
+  --fc-harder-ink: #fff;
+
   box-sizing: border-box;
   display: grid;
   place-items: center;
@@ -237,16 +268,27 @@ body:has(> .fc-credit) .fc {
   display: flex;
   align-items: center;
   gap: calc(var(--fc-card-w) * 0.012);
-  transition: opacity 160ms ease;
+  transition: opacity 160ms ease, transform 160ms ease;
 }
 
-/* A band on the bottom edge reaches the row, so the row steps aside for the
-   couple of seconds it is up — the same courtesy the category label pays a band
-   on the top edge. `:has()` because the row is the card's sibling rather than
-   its child (it must not flip with the card), so there is no selector from one
-   to the other that reads downwards. */
+/* A band on the bottom edge reaches the row, so the row steps aside while it is
+   up — the same courtesy the category label pays a band on the top edge.
+   `:has()` because the row is the card's sibling rather than its child (it must
+   not flip with the card), so there is no selector from one to the other that
+   reads downwards.
+
+   A host's sentence (V2-15.2) takes the row away, because it is up for two
+   seconds and says something the row does not. A grade band moves it instead:
+   the row is the one thing in the hold before the card leaves that is worth
+   reading (V2-8.10), and `harder` — the grade whose band is on this edge — is
+   exactly the grade that empties it (V2-11.2). Hiding it there would take the
+   row away at the only moment it ever answers the reader's own verdict. */
 .fc-slide:has(.fc-card:not(.is-easier) .fc-face[data-message]) .fc-progress {
   opacity: 0;
+}
+
+.fc-slide:has(.fc-card[data-grade-edge="bottom"] .fc-face[data-grade]) .fc-progress {
+  transform: translate(-50%, calc(-1 * (var(--fc-band) + var(--fc-card-w) * 0.02)));
 }
 
 /* A star, drawn here rather than borrowed from a font (V2-12.9): the shape is a
@@ -447,7 +489,7 @@ body:has(> .fc-credit) .fc {
   content: attr(data-message);
   display: grid;
   place-items: center;
-  block-size: max(1.5rem, calc(var(--fc-card-w) * 0.05));
+  block-size: var(--fc-band);
   padding-inline: calc(var(--fc-card-w) * 0.03);
   overflow: hidden;
   color: var(--fc-bg);
@@ -457,11 +499,48 @@ body:has(> .fc-credit) .fc {
 }
 
 /* The band at the top edge is deeper than the gap above the category label, so
-   for the couple of seconds it is up the label steps aside rather than being
-   sliced in half by it. Only the top: a band on the bottom edge is nowhere near
-   it. */
-.fc-card.is-easier .fc-face[data-message] .fc-category {
+   while it is up the label steps aside rather than being sliced in half by it.
+   Only the top: a band on the bottom edge is nowhere near it. */
+.fc-card.is-easier .fc-face[data-message] .fc-category,
+.fc-card[data-grade-edge="top"] .fc-face[data-grade] .fc-category {
   opacity: 0;
+}
+
+/* The grade band: the same band, naming the grade rather than carrying a
+   host's sentence (V2-5.7a).
+ *
+ * It is keyed on `data-grade-edge` rather than on `.is-easier`/`.is-harder`,
+ * because the moment it matters most is a drag that has passed the threshold
+ * (V2-4.10) — the card has not been graded yet and may still carry the
+ * opposite grade from an earlier visit, so the edge being pushed towards is
+ * the only thing that says which word belongs where.
+ *
+ * Its block-size overrides the mark's own, which is how crossing the threshold
+ * grows a 1.4 %-of-card bar into something that holds type. Mid-drag that
+ * happens instantly, since `.is-dragging` suspends the transition — and it
+ * should: the jump *is* the threshold, announced at the exact moment the card
+ * also breaks free under the finger. */
+.fc-card[data-grade-edge="top"] .fc-face[data-grade]::before,
+.fc-card[data-grade-edge="bottom"] .fc-face[data-grade]::after {
+  content: attr(data-grade);
+  display: grid;
+  place-items: center;
+  block-size: var(--fc-band);
+  padding-inline: calc(var(--fc-card-w) * 0.03);
+  overflow: hidden;
+  font-size: max(0.7rem, calc(var(--fc-card-w) * 0.026));
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.fc-card[data-grade-edge="top"] .fc-face[data-grade]::before {
+  background: var(--fc-easier);
+  color: var(--fc-easier-ink);
+}
+
+.fc-card[data-grade-edge="bottom"] .fc-face[data-grade]::after {
+  background: var(--fc-harder);
+  color: var(--fc-harder-ink);
 }
 
 /* V2-7.7: type is a fraction of the card width, never of the viewport, so the
