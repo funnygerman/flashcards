@@ -72,13 +72,25 @@ describe("chooseSession, only what is due", () => {
     expect(chooseSession(cards, { now: NOW, storage, onlyDue: true })).toEqual(cards);
   });
 
-  /* Nothing due is not nothing to study: a session has no end (V2-3.5) and the
-     library refuses an empty deck (V2-3.6), so the nearest-due cards stand in. */
-  it("falls back to the cards closest to being due when none is due", () => {
+  /* Nothing due selects nothing at all: standing the nearest-due cards in was
+     what made a card the reader had earned a fortnight of quiet look like one
+     the schedule had ignored (V2-13.5 withdrawn). What a page shows instead is
+     the page's business (V2-13.12), not this module's. */
+  it("selects nothing when nothing is due, rather than the nearest", () => {
     const cards = [card("far"), card("near"), card("middle")];
     storage = scheduled({ far: NOW + 30 * DAY, near: NOW + DAY, middle: NOW + 7 * DAY });
 
-    expect(keys(chooseSession(cards, { now: NOW, storage, onlyDue: true }))).toEqual(["near", "middle", "far"]);
+    expect(chooseSession(cards, { now: NOW, storage, onlyDue: true })).toEqual([]);
+  });
+
+  /* A full-star card is the case the readers actually complained about: it is
+     a month away, and a month away means gone for a month. */
+  it("holds back a card in the top box until its month is up", () => {
+    const cards = [card("known")];
+    storage = memoryStorage(JSON.stringify({ known: { box: 5, dueAt: NOW + 30 * DAY } }));
+
+    expect(chooseSession(cards, { now: NOW, storage, onlyDue: true })).toEqual([]);
+    expect(chooseSession(cards, { now: NOW + 30 * DAY, storage, onlyDue: true })).toEqual(cards);
   });
 
   it("asks for no more than a session's worth", () => {
@@ -88,11 +100,11 @@ describe("chooseSession, only what is due", () => {
     expect(chooseSession(cards, { now: NOW, storage, onlyDue: true, limit: 3 })).toHaveLength(3);
   });
 
-  it("caps the fallback too, so a deck with nothing due is not the whole dictionary", () => {
+  it("keeps the ones that are due even where most of the pool is not", () => {
     const cards = Array.from({ length: 8 }, (_, i) => card(`card-${i}`));
-    storage = scheduled(Object.fromEntries(cards.map((c, i) => [c.key, NOW + (8 - i) * DAY])));
+    storage = scheduled({ ...Object.fromEntries(cards.map((c, i) => [c.key, NOW + (8 - i) * DAY])), "card-3": NOW - DAY });
 
-    expect(keys(chooseSession(cards, { now: NOW, storage, onlyDue: true, limit: 2 }))).toEqual(["card-7", "card-6"]);
+    expect(keys(chooseSession(cards, { now: NOW, storage, onlyDue: true }))).toEqual(["card-3"]);
   });
 
   it("does not reorder the caller's array", () => {
@@ -115,8 +127,9 @@ describe("chooseSession, only what is due", () => {
   });
 });
 
-/* A deck's half: all of its own cards, because the reader chose that deck. */
-describe("chooseSession, a deck's own cards", () => {
+/* The filter's half (V2-13.13): the same pool, schedule and all, for a reader
+   who asked to see every card regardless of its stars. */
+describe("chooseSession, every card in the pool", () => {
   let storage;
 
   beforeEach(() => {

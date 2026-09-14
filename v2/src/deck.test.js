@@ -21,12 +21,22 @@ const press = (key) => document.dispatchEvent(new KeyboardEvent("keydown", { key
 const front = () => document.querySelector(".fc-front .fc-text").textContent;
 const marks = () => document.querySelector(".fc-card").className.replace("fc-card", "").trim();
 const filled = () => document.querySelectorAll(".fc-dot.is-filled").length;
-const corner = () => document.querySelector(".fc-corner");
+const corner = () => document.querySelector(".fc-corner:not(.fc-corner-filter)");
+const star = () => document.querySelector(".fc-corner-filter");
 const schedule = (key) => JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}")[key];
 
 const mounted = [];
 const open = (deck = cards, options = {}) =>
   mounted[mounted.push(openDeck(deck, { storage: localStorage, random: unshuffled, ...options })) - 1];
+
+const DAY = 24 * 60 * 60 * 1000;
+
+/** Every card of the deck filed in a high box, due `days` from now. */
+const scheduleAll = (days, box = 3) =>
+  localStorage.setItem(
+    REVIEW_KEY,
+    JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, { box, dueAt: Date.now() + days * DAY }]))),
+  );
 
 /** A reader who has met the guide, which every test but its own assumes. */
 const seasoned = () => localStorage.setItem(HINTS_KEY, JSON.stringify({ guide: true }));
@@ -152,15 +162,44 @@ describe("openDeck", () => {
   });
 
   /* A deck and the dictionary both study what is due, out of their own pool
-     (V2-13.4). Nothing in this deck is due, so it falls back to the cards
-     closest to being due (V2-13.5) rather than sitting empty. */
-  it("falls back to a deck's own cards when none of them is due", () => {
-    const later = Date.now() + 30 * 24 * 60 * 60 * 1000;
-    localStorage.setItem(REVIEW_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, { box: 3, dueAt: later }]))));
+     (V2-13.4). Nothing in this deck is due, so the deck says so rather than
+     reaching for a card the schedule has put a month away (V2-13.12). */
+  it("says there is nothing to repeat when none of a deck's cards is due", () => {
+    scheduleAll(30);
 
     open();
-    expect(document.querySelector(".fc-card")).not.toBe(null);
-    expect(front()).toBe("eins");
+    expect(front()).toBe("Nothing to repeat today");
+    expect(document.querySelector(".fc-back .fc-text").textContent).toBe("Come back tomorrow");
+  });
+
+  it("says it in the reader's own language", () => {
+    scheduleAll(30);
+
+    open(cards, { lang: "de" });
+    expect(front()).toBe("Heute nichts zu wiederholen");
+  });
+
+  /* It is the app talking, not a word to learn: no key, so nothing about it
+     reaches the dictionary or the schedule (V2-15.5's rule, applied to the one
+     other card deck.js writes itself). */
+  it("leaves the done card out of the dictionary and the schedule", () => {
+    localStorage.setItem(CARDS_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, c]))));
+    scheduleAll(30);
+
+    open();
+    press("ArrowUp");
+
+    expect(Object.keys(JSON.parse(localStorage.getItem(CARDS_KEY)))).toEqual(["a", "b", "c"]);
+    expect(Object.keys(JSON.parse(localStorage.getItem(REVIEW_KEY)))).toEqual(["a", "b", "c"]);
+    expect(filled()).toBe(0); /* and it earns no star for being swiped at */
+  });
+
+  it("says it for the dictionary too, where a page brings no cards of its own", () => {
+    localStorage.setItem(CARDS_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, c]))));
+    scheduleAll(30);
+
+    open([]);
+    expect(front()).toBe("Nothing to repeat today");
   });
 
   it("holds back a not-due card in a deck, same as the dictionary", () => {
@@ -695,6 +734,170 @@ describe("openDeck", () => {
         expect(corner().getAttribute("aria-label")).toBe("Everyday German");
         expect(corner().querySelectorAll("rect")).toHaveLength(1);
       });
+    });
+  });
+
+  /* The reader's own filter: study what is due, or every card in the same pool
+     regardless of its stars (V2-13.13). */
+  describe("the star", () => {
+    const solid = () => star().querySelector("path").getAttribute("class") === "fc-corner-full";
+
+    /* Every card in a deck nobody has graded is due, so there is nothing for a
+       filter to let through and no filter (V2-13.9's rule, same as the corner). */
+    it("is absent where the schedule is holding nothing back", () => {
+      open();
+
+      expect(star()).toBe(null);
+      expect(document.body.children).toHaveLength(1);
+    });
+
+    it("appears once the schedule is holding a card back", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+      open();
+
+      expect(star()).not.toBe(null);
+      expect(star().getAttribute("aria-label")).toBe("Show every card");
+      expect(solid()).toBe(true); // it leads to every card
+    });
+
+    it("shows every card in the deck, stars and all", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 5, dueAt: Date.now() + 30 * DAY } }));
+      open();
+
+      expect(front()).toBe("zwei"); // only b and c are due
+      press("ArrowRight");
+      press("ArrowRight");
+      expect(front()).toBe("zwei"); // two cards, wrapping: a is nowhere in this session
+
+      star().click();
+      expect(star().getAttribute("aria-label")).toBe("Show only what is due today");
+      expect(solid()).toBe(false); // and now it leads back
+
+      /* Every card, in due order still, so the one furthest from due comes
+         last rather than first — a filter, not a reordering. */
+      press("ArrowRight");
+      press("ArrowRight");
+      expect(front()).toBe("eins");
+      expect(filled()).toBe(5); // wearing every star it earned
+    });
+
+    it("names its two sides in the reader's language", () => {
+      scheduleAll(30);
+      open(cards, { lang: "de" });
+
+      expect(star().getAttribute("aria-label")).toBe("Alle Karten zeigen");
+      star().click();
+      expect(star().getAttribute("aria-label")).toBe("Nur zeigen, was heute dran ist");
+    });
+
+    /* The one place a reader most wants it, which is why the done card's own
+       back names it. */
+    it("is there on the done card, and studies the deck anyway", () => {
+      scheduleAll(30);
+      open();
+      expect(front()).toBe("Nothing to repeat today");
+
+      star().click();
+      expect(front()).toBe("eins");
+
+      star().click();
+      expect(front()).toBe("Nothing to repeat today"); // and back to being done
+    });
+
+    it("returns to the card the filtered session was left on", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+      open();
+
+      star().click(); // every card: a, b, c
+      press("ArrowRight");
+      const left = front();
+
+      star().click(); // back to what is due
+      star().click(); // and out again
+
+      expect(front()).toBe(left);
+    });
+
+    /* Glossary mode is the same rule over the other pool (V2-13.13): the two
+       corners are two questions, and neither answers the other's. */
+    it("filters the dictionary as well as a deck", () => {
+      localStorage.setItem(
+        CARDS_KEY,
+        JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, y: { key: "y", frontText: "fünf", backText: "five" } }),
+      );
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+
+      open([]);
+      expect(front()).toBe("fünf"); // only y is due
+      press("ArrowRight");
+      expect(front()).toBe("fünf"); // and it wraps to itself
+
+      star().click();
+      press("ArrowRight");
+      expect(front()).toBe("vier"); // the card the dictionary's own schedule was holding back
+    });
+
+    it("stays on once the reader switches pools", () => {
+      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+      open();
+
+      star().click();
+      corner().click(); // into the dictionary, still showing everything
+
+      expect(star().getAttribute("aria-label")).toBe("Show only what is due today");
+      expect(document.querySelectorAll(".fc-slide").length).toBe(1);
+    });
+
+    /* A filter the reader cannot turn off is worse than one they were never
+       offered, so it stays while it is on even where this pool holds nothing
+       back — and goes again once it is off. */
+    it("stays reachable on a pool that is holding nothing back", () => {
+      localStorage.setItem(
+        CARDS_KEY,
+        JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, ...Object.fromEntries(cards.map((c) => [c.key, c])) }),
+      );
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+
+      open();
+      expect(star()).toBe(null); // this deck is all due; nothing to let through
+
+      corner().click(); // the dictionary, which is holding z back
+      expect(star()).not.toBe(null);
+      star().click(); // every card
+
+      corner().click(); // back to the deck, where the filter changes nothing
+      expect(star()).not.toBe(null); // still there to be turned off
+
+      star().click();
+      expect(star()).toBe(null);
+    });
+
+    it("does not change sides when a tap mid-slide is refused", () => {
+      Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
+
+      try {
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+        open();
+
+        press("ArrowRight"); // still sliding
+        star().click(); // refused: the switch never landed
+
+        expect(star().getAttribute("aria-label")).toBe("Show every card");
+        expect(solid()).toBe(true);
+      } finally {
+        delete Element.prototype.animate;
+      }
+    });
+
+    it("sits outside the mounted deck, and goes when the deck does", () => {
+      scheduleAll(30);
+      const deck = open();
+
+      expect(document.querySelector(".fc").contains(star())).toBe(false);
+
+      deck.destroy();
+      expect(star()).toBe(null);
     });
   });
 });

@@ -31,12 +31,33 @@
  * `allLabel` is what the toggle calls the dictionary side of itself — the
  * title `empty-deck.html` used to carry when it was still the page a deck's
  * corner linked to (V2-13.1).
+ *
+ * `filter` names the two sides of the star (V2-13.13), the same way `allLabel`
+ * names the far side of the corner: each is what pressing it would show next,
+ * never what is on screen now.
+ *
+ * `done` is the one card a page has when its own schedule says there is
+ * nothing to repeat today (V2-13.12). It is written as a card, in the guide's
+ * own register — short lines, no full stops, the gesture named where there is
+ * one to name — because that is the only register this app has for saying
+ * something to a reader, and an empty screen or a banner would be a second
+ * one. Its back names the star, which is always on the page when this card is
+ * (V2-13.13): the reader who wants to study anyway is told where to, rather
+ * than being left at a dead end.
  */
 
 const STRINGS = {
   en: {
     grades: { easier: "Knew it", harder: "Didn't know it" },
     allLabel: "Everything you have seen",
+    filter: { every: "Show every card", due: "Show only what is due today" },
+    done: {
+      category: "done",
+      frontText: "Nothing to repeat today",
+      frontDetails: "Tap this card",
+      backText: "Come back tomorrow",
+      backDetails: "or tap the star to study anyway",
+    },
     guide: [
       {
         category: "guide",
@@ -79,6 +100,14 @@ const STRINGS = {
   de: {
     grades: { easier: "Gewusst", harder: "Nicht gewusst" },
     allLabel: "Alles, was du gesehen hast",
+    filter: { every: "Alle Karten zeigen", due: "Nur zeigen, was heute dran ist" },
+    done: {
+      category: "geschafft",
+      frontText: "Heute nichts zu wiederholen",
+      frontDetails: "Tippe auf diese Karte",
+      backText: "Komm morgen wieder",
+      backDetails: "oder tippe auf den Stern, um trotzdem zu lernen",
+    },
     guide: [
       {
         category: "Anleitung",
@@ -121,6 +150,14 @@ const STRINGS = {
   ru: {
     grades: { easier: "Знал", harder: "Не знал" },
     allLabel: "Всё, что ты видел",
+    filter: { every: "Показать все карточки", due: "Показать только то, что на сегодня" },
+    done: {
+      category: "готово",
+      frontText: "Сегодня повторять нечего",
+      frontDetails: "Нажми на эту карточку",
+      backText: "Возвращайся завтра",
+      backDetails: "или нажми на звезду, чтобы учить дальше",
+    },
     guide: [
       {
         category: "инструкция",
