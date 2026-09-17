@@ -32,7 +32,6 @@ const opened = () => {
   if (menu().getAttribute("aria-expanded") !== "true") menu().click();
   return [...document.querySelectorAll(".fc-menu-item")];
 };
-const rows = () => opened().map((item) => item.textContent);
 const groups = () => {
   opened();
   return [...document.querySelectorAll(".fc-menu-group")].map((g) => [...g.children].map((i) => i.textContent));
@@ -788,10 +787,39 @@ describe("openDeck", () => {
     /* Which cards (V2-13.9), now a row rather than a corner: the deck's own,
        or the whole dictionary, switched in place. */
     describe("which cards", () => {
-      it("offers no choice to the only deck a reader has ever opened", () => {
+      /* Offered from the first visit, even to the only deck a reader has ever
+         opened, where "everything you have seen" is this deck and the two
+         sides pick the same cards. The row says which pool they are on, and
+         that is worth saying whether or not the other one differs today
+         (V2-16.3). */
+      it("offers the choice even where both sides hold the same cards", () => {
+        document.title = "Everyday German";
         open();
 
-        expect(groups()).toHaveLength(1); // the sides, and nothing else
+        expect(groups()[1]).toEqual(["Everyday German", "Everything you have seen"]);
+        expect(chose()).toContain("Everyday German");
+
+        choose("Everything you have seen");
+        expect(chose()).toContain("Everything you have seen");
+        expect(["eins", "zwei", "drei"]).toContain(front()); // this deck's own cards, out of the dictionary
+      });
+
+      /* The one thing that does take it away, and it is not about the
+         schedule: `switchTo` refuses an empty source (V2-13.8), so a
+         dictionary with nothing in it is a row that could not act even in
+         principle. Unusable storage is the only way to get one on a deck that
+         brought cards. */
+      it("is not offered where the dictionary cannot be read at all", () => {
+        const blocked = {
+          getItem: () => null,
+          setItem: () => {
+            throw new Error("nope");
+          },
+          removeItem: () => {},
+        };
+
+        open(cards, { storage: blocked });
+        expect(groups()).toHaveLength(2); // the sides and the schedule; no pool
       });
 
       it("offers the dictionary once it holds a card this deck does not", () => {
@@ -882,18 +910,20 @@ describe("openDeck", () => {
           expect(stored.a.dictionary).toBe("french");
         });
 
-        it("offers nothing when the only card beyond this deck is in a different dictionary", () => {
-          extra(); // dictionary-less
+        it("reaches this deck's own dictionary, not a card in another one", () => {
+          extra(); // dictionary-less, so not this deck's dictionary at all
           open(cards, { dictionary: "french" });
 
-          expect(groups()).toHaveLength(1);
-        });
+          choose("Everything you have seen");
+          menu().click();
 
-        it("offers it once another card in the same dictionary exists", () => {
-          localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four", dictionary: "french" } }));
-          open(cards, { dictionary: "french" });
+          const seen = new Set([front()]);
+          for (let i = 0; i < 5; i++) {
+            press("ArrowRight");
+            seen.add(front());
+          }
 
-          expect(groups()).toHaveLength(2);
+          expect(seen).toEqual(new Set(["eins", "zwei", "drei"])); // never "vier"
         });
 
         it("leads only to cards in the same dictionary, not the whole dictionary", () => {
@@ -934,12 +964,19 @@ describe("openDeck", () => {
     /* How many of them (V2-13.13): what the schedule says is due, or every
        card in the same pool regardless of its stars. */
     describe("how many of them", () => {
-      /* Every card in a deck nobody has graded is due, so there is nothing for
-         a filter to let through and no row offering one (V2-13.9's rule). */
-      it("offers no choice where the schedule is holding nothing back", () => {
+      /* Every card in a deck nobody has graded is due, so "Every card" selects
+         exactly what "Due today" does — and the row is there all the same
+         (V2-16.3). It is the row the reader wants the morning after, and a
+         menu that grows one overnight is a menu they have to re-read. */
+      it("is offered before anything has been graded, when both sides agree", () => {
         open();
 
-        expect(rows()).not.toContain("Every card");
+        expect(groups().at(-1)).toEqual(["Due today", "Every card"]);
+        expect(chose()).toContain("Due today");
+
+        choose("Every card");
+        expect(chose()).toContain("Every card");
+        expect(["eins", "zwei", "drei"]).toContain(front()); // the same three cards, still there
       });
 
       it("appears once the schedule is holding a card back", () => {
@@ -1040,10 +1077,9 @@ describe("openDeck", () => {
         expect(document.querySelectorAll(".fc-slide")).toHaveLength(1);
       });
 
-      /* A way past the schedule the reader cannot put back is worse than one
-         they were never offered, so the row stays while it is on even where
-         this pool holds nothing back — and goes again once it is off. */
-      it("stays reachable on a pool that is holding nothing back", () => {
+      /* The rows do not come and go as the reader moves between pools, however
+         differently the schedule treats the two. */
+      it("stays put across a pool the schedule is holding nothing back from", () => {
         document.title = "Everyday German";
         localStorage.setItem(
           CARDS_KEY,
@@ -1052,17 +1088,15 @@ describe("openDeck", () => {
         localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
 
         open();
-        expect(rows()).not.toContain("Every card"); // this deck is all due; nothing to let through
+        expect(groups()).toHaveLength(3); // this deck is all due, and the rows are still here
 
         choose("Everything you have seen"); // the dictionary, which is holding z back
-        expect(rows()).toContain("Every card");
+        expect(groups()).toHaveLength(3);
 
         choose("Every card");
         choose("Everyday German"); // back to the deck, where it changes nothing
-        expect(rows()).toContain("Due today"); // still there to be put back
-
-        choose("Due today");
-        expect(rows()).not.toContain("Due today");
+        expect(groups()).toHaveLength(3);
+        expect(chose()).toContain("Every card"); // and it is still on
       });
 
       it("does not move its mark when a tap mid-slide is refused", () => {

@@ -16,7 +16,7 @@
  */
 
 import { BOX_COUNT, STORAGE_KEY as REVIEW_KEY, gradedToday, nextBox, recordGrade, reviewState } from "./review.js";
-import { allCards, holdsMoreThan } from "./store.js";
+import { allCards } from "./store.js";
 import { chooseSession } from "./session.js";
 import { migrateKeys } from "./migrate.js";
 import { mount } from "./flashcards.js";
@@ -428,39 +428,28 @@ function cornerLink(storage) {
  * with nothing *in* it deals nothing at all, which is what mount() refuses
  * (V2-13.8) — "you are done for today" is false where there was never
  * anything to be done.
+ *
+ * Dealing is all this does. It used to also report whether a pool's schedule
+ * was holding anything back, which is what decided whether the menu drew the
+ * schedule group at all; the menu's shape is fixed now (V2-16.3), so there is
+ * nobody left to ask.
  */
 function dealer(source, storage, dictionary, now, done) {
   const dealt = new Map();
-  const holds = new Map();
 
   const pool = (all) => (all ? allCards(storage, dictionary) : source);
 
-  const session = (all, everything) => {
+  return (all, everything) => {
     const id = `${all}:${everything}`;
 
     if (!dealt.has(id)) {
       const cards = pool(all);
       const chosen = chooseSession(cards, { now, storage, onlyDue: !everything });
 
-      if (!everything) holds.set(all, chosen.length < cards.length);
       dealt.set(id, chosen.length === 0 && cards.length > 0 ? [done] : chosen);
     }
 
     return dealt.get(id);
-  };
-
-  return {
-    session,
-
-    /* Whether this pool's schedule is keeping anything back from the reader —
-       what decides whether the filter is on the page at all (V2-13.13). Asked
-       of a side the reader is on, which is a side whose due session has either
-       been dealt already or is about to be, so dealing it to answer costs
-       nothing and keeps one session per side rather than two. */
-    holdsBack: (all) => {
-      session(all, false);
-      return holds.get(all);
-    },
   };
 }
 
@@ -569,7 +558,7 @@ export function openDeck(cards, options = {}) {
      that pins the shuffle pins which way up a card lands as well. */
   const roll = random ?? Math.random;
 
-  const deck = mount(element, deal.session(showingAll, everything), {
+  const deck = mount(element, deal(showingAll, everything), {
     storage,
     random,
     lead: guide,
@@ -633,7 +622,7 @@ export function openDeck(cards, options = {}) {
      the other's, so the pair of answers lives here rather than half in each
      row. A refused switch (V2-3.8) changes nothing, here or in the sheet. */
   const show = (nextAll, nextEverything) => {
-    if (!deck.switchTo(deal.session(nextAll, nextEverything))) return false;
+    if (!deck.switchTo(deal(nextAll, nextEverything))) return false;
 
     showingAll = nextAll;
     everything = nextEverything;
@@ -655,17 +644,32 @@ export function openDeck(cards, options = {}) {
   };
 
   /**
-   * What the menu is offering right now (V2-16.3), asked afresh each time the
-   * sheet is drawn.
+   * What the menu offers: the same three questions every time it is opened
+   * (V2-16.3).
    *
-   * The side is always there: every deck has two sides and every reader can
-   * have a preference about them. The other two are there only where they
-   * would do something, which is V2-13.9 and V2-13.13's own rule, unchanged by
-   * having moved indoors — the pool where the dictionary holds a card this
-   * deck does not, the schedule where it is holding something back or where
-   * the reader has already asked it not to. A page with no cards of its own is
-   * never offered the pool: it is the dictionary, and there is nothing to
-   * switch to.
+   * They do not come and go with the reader's schedule. The two corner marks
+   * this replaced each appeared only where it would change something, and that
+   * rule was right for a mark: a lone icon that leads nowhere is clutter with
+   * no way to say so. It is wrong for a row. A row says which state the reader
+   * is in, and that is worth saying whether or not the other state differs
+   * today — where the corner's rule lands instead is a reader opening the menu
+   * on a deck they have never graded, finding two groups, and having no way to
+   * tell whether the third is missing because it does not apply or because the
+   * app is broken. A menu whose shape changes underneath a reader is a menu
+   * they have to re-read every time.
+   *
+   * So the questions are fixed and only the answers move. On a deck nobody has
+   * graded yet, every card is due and "Every card" selects exactly what "Due
+   * today" already does: a row that changes nothing this morning, and the one
+   * the reader wants the moment the schedule starts holding cards back —
+   * which, for them, will be tomorrow.
+   *
+   * Two things still decide a group out, and neither is about the schedule.
+   * A page with no cards of its own is not offered the pool: it *is* the
+   * dictionary, and "this deck" would name nothing. And a dictionary with no
+   * cards in it is not offered either, because `switchTo` refuses an empty
+   * source (V2-13.8) — that is a row that could not act even in principle, not
+   * one whose two sides happen to agree today.
    */
   const groups = () => {
     const offered = [
@@ -676,7 +680,7 @@ export function openDeck(cards, options = {}) {
       })),
     ];
 
-    if (own && holdsMoreThan(source, storage, dictionary)) {
+    if (own && allCards(storage, dictionary).length > 0) {
       offered.push([
         /* The deck's own name where the page has one: "Everyday German" says
            what this side is in a way "This deck" cannot, and the reader has
@@ -686,12 +690,10 @@ export function openDeck(cards, options = {}) {
       ]);
     }
 
-    if (everything || deal.holdsBack(showingAll)) {
-      offered.push([
-        { label: strings.menu.scope.due, chosen: !everything, choose: () => show(showingAll, false) },
-        { label: strings.menu.scope.every, chosen: everything, choose: () => show(showingAll, true) },
-      ]);
-    }
+    offered.push([
+      { label: strings.menu.scope.due, chosen: !everything, choose: () => show(showingAll, false) },
+      { label: strings.menu.scope.every, chosen: everything, choose: () => show(showingAll, true) },
+    ]);
 
     return offered;
   };

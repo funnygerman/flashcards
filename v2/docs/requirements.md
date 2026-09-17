@@ -837,7 +837,7 @@ deck author writes it nowhere else (§14). Left unset, a card carries none, whic
 every card written before this existed reads exactly as it always did, not as suddenly scattered across
 many empty ones.
 
-`allCards` and `holdsMoreThan` (store.js) both take `dictionary` and match only cards carrying that same
+`allCards` (store.js) takes `dictionary` and matches only cards carrying that same
 value — `undefined` included, so an old, undivided storage bucket is one dictionary among the others rather
 than a special case. `syncCards` settles a `dictionary` disagreement over the same `key` the same way it
 settles any other disagreement about a card's content: the first deck to write that key keeps it, and a
@@ -858,30 +858,32 @@ to say — "you are done for today" is false where there was never anything to b
 can have studied from is a page reached by typing its address. V2-6.4 asks a deck to render whether or not
 storage works, and this page cannot, because without storage it has no cards to render. On
 `empty-deck.html`, V2-13.9 keeps a reader from being led there while it would be empty, so what remains
-is a typed address rather than a followed link. From a deck's own menu, the same fact — `holdsMoreThan`
-— keeps `switchTo` (V2-3.8) from ever being asked to open one.
+is a typed address rather than a followed link. From a deck's own menu, the pool rows are withheld
+where `allCards` comes back empty, which keeps `switchTo` (V2-3.8) from ever being asked to open one.
 
-**V2-13.9** The choice between a deck's own cards and the dictionary is offered only where the
-dictionary holds a card the current deck does not (`holdsMoreThan`). "How many decks are there" is not a
-question storage can answer — it records cards, not decks (V2-13.7) — but it is also not the question
-worth asking. What matters is whether it would show the reader anything they cannot already see, and it
-does not for the only deck they have ever opened, nor where storage is unusable. Nothing offering it is
-put in the document at a moment when it should not be seen.
+**V2-13.9** A deck with cards of its own offers the choice between them and the dictionary as a menu
+group (V2-16.3): choosing the other row switches `mount()` in place (V2-3.8) to the dictionary's own
+selection — `chooseSession` over `allCards(storage)`, the same `onlyDue` rule the deck's own side is
+under (V2-13.4) — and back, never leaving the page. There is no second HTML file involved, and no
+navigation for a phone's back gesture to catch. On a page with no cards of its own — `empty-deck.html` —
+there is no deck to switch back to and no pool group; what it gets instead is a real link (V2-13.11),
+because crossing between two files needs one.
 
-What it does depends on the page (V2-7.1), the same fact deciding everything else about it. On a deck
-with cards of its own it is a menu group (V2-16.3): choosing the other row switches `mount()` in place
-(V2-3.8) to the dictionary's own selection — `chooseSession` over `allCards(storage)`, the same
-`onlyDue: true` rule the deck's own side already uses (V2-13.4) — and back, never leaving the page;
-there is no second HTML file involved, and no navigation for a phone's back gesture to catch. On a page
-with none — `empty-deck.html` — there is no deck of its own to switch back to in place, so what it gets
-is not this group at all but a real link (V2-13.11), because crossing between two files needs one.
+It is offered from the reader's first visit, including on the only deck they have ever opened, where the
+dictionary is that deck and the two rows pick the same cards. It used to be withheld there, by a
+`holdsMoreThan` test asking whether the dictionary held anything this deck did not. That function is
+gone from store.js with its last caller — it was the right test for
+the corner mark this replaced, and the wrong one for a row (V2-16.3): a row says which pool the reader is
+on, which is worth saying whether or not the other one differs today. "How many decks are there" was
+never the question storage could answer anyway — it records cards, not decks (V2-13.7).
 
-It used to be a corner mark rather than a menu row, drawing what it led to — two overlapping cards for
-the dictionary, one for a deck — and flipping with every press. A mark that draws the far side of itself
-is the only thing a single button can do, and it is not enough: the reader had to work out which side
-they were on from the picture of the side they were not. A row names the side it *is*, and the mark
-beside it says whether they are standing there (V2-16.3). The two-card shape survives in the one place
-that still has no room for a sentence, the link back (V2-13.11).
+One thing does withhold it, and it is not about what the two sides hold: `switchTo` refuses an empty
+source (V2-13.8), so where `allCards` comes back empty the row could not act even in principle. On a
+deck that brought cards that means storage is unusable, since its own cards are written there on mount
+(V2-6.1).
+
+The two-card icon the corner drew — many decks at once, against one card for a deck — survives only on
+the link back (V2-13.11), the one place left with no room for a sentence.
 
 **V2-13.11** A page with no cards of its own leads back to the deck the reader last opened, recorded by
 `openDeck` as `{ href, label }` under `flashcards.deck` whenever a deck *with* cards is opened. Once there
@@ -915,22 +917,22 @@ what is due today, or every card in the same pool regardless of how many stars i
 It filters whichever pool is on screen — this deck's own cards or the whole dictionary — rather than
 being a third pool to switch between. The two are two independent questions: *which* cards (V2-13.9),
 and *how many of them*. Turning it on outlives a switch between the pools, because a reader who asked to
-see everything asked about the app and not about one pool; it is not remembered past the
-page, because the schedule is the default and a reader who wants past it should have to say so again
-rather than discover weeks later that they have not been reviewing at all. That is exactly the
-distinction V2-16.8 draws against the side, which *is* remembered: one of these can cost a reader their
-schedule and the other cannot.
+see everything asked about the app and not about one pool; it is not remembered past the page, because
+the schedule is the default and a reader who wants past it should have to say so again rather than
+discover weeks later that they have not been reviewing at all. That is exactly the distinction V2-16.8
+draws against the side, which *is* remembered: one of these can cost a reader their schedule and the
+other cannot.
 
-It is offered only where it would do something: where the schedule is holding something back from the
-pool on screen — which includes a pool with nothing due at all (V2-13.12) — or where it is already on,
-since a way past the schedule the reader cannot put back is worse than one they were never offered. That
-is V2-13.9's own rule applied to the other question, and it is re-asked every time the menu is opened,
-since one side of a page may be holding cards back where the other is not.
+It is offered always, on every page, whether or not the schedule is currently holding anything back —
+including on a deck nobody has graded yet, where every card is due and "Every card" selects exactly what
+"Due today" already does. It was withheld there at first, on the rule V2-13.9 used to share: a control
+that leads nowhere new is not drawn. That rule was made for a corner mark and does not survive being a
+row (V2-16.3). A deck with nothing held back today is a deck holding something back tomorrow, and a menu
+that grows a group overnight is one the reader has to read again each time they open it.
 
 Like the pool above it, it was a corner mark first — a star, the app's own word for how well a card is
-known (V2-12.2), solid where it led to every card and outlined where it led back. It is two rows now for
-the same reason (V2-16.3), and the card that says there is nothing to repeat today names the menu rather
-than the star on its back.
+known (V2-12.2), solid where it led to every card and outlined where it led back. It is two rows now,
+and the card that says there is nothing to repeat today names the menu rather than the star on its back.
 
 ---
 
@@ -1155,12 +1157,29 @@ Three questions, and no fourth without an amendment to this statement:
 2. Which cards — this deck's own, or the whole dictionary (V2-13.9).
 3. How many of them — what is due today, or every card in the pool (V2-13.13).
 
-The first is on every page, because every deck has two sides and every reader may have a preference
-about them. The other two are offered only where they would change something, which is V2-13.9 and
-V2-13.13's own rule and not a new one: their being rows rather than corner marks does not soften it.
-Presence is decided afresh every time the sheet is drawn, because answering one question can take
-another away — a reader switching to a pool whose schedule holds nothing back loses the row that
-offered a way past it, and must not be left looking at a row that would do nothing.
+**The shape is fixed.** All three are there every time the menu is opened, whether or not the two sides
+of a question differ today. Both of the questions about the session were withheld at first, on the rule
+the corner marks were drawn under — a control that leads nowhere new is not drawn — and that rule does
+not survive the move from a mark to a row.
+
+A lone icon that leads nowhere is clutter with nothing on it to say so, which is why the rule was right
+for a corner. A row is different in two ways. It *says* which state the reader is in, and that is worth
+saying whether or not the other state happens to be equivalent this morning. And it sits in a list, so
+withholding it does not remove a control — it changes the shape of the list, leaving a reader who opens
+the menu on an ungraded deck to find two groups where they were told there are three, with no way to
+tell whether the third does not apply or the app is broken. A menu whose shape moves underneath a reader
+is one they have to re-read every time they open it, which is the opposite of what a fixed list of
+choices is for.
+
+What this costs is honest and small: on a deck nobody has graded, "Every card" selects exactly what "Due
+today" does, and on the only deck a reader has ever opened, "Everything you have seen" is that deck.
+Both are rows that change nothing this morning and are exactly what the reader wants the moment the
+schedule starts holding cards back — tomorrow, in both cases.
+
+Two things still decide a group out, and neither is about the schedule or about the two sides agreeing.
+A page with no cards of its own is not offered the pool: it *is* the dictionary, and "this deck" would
+name nothing. And a pool `switchTo` would refuse — an empty dictionary (V2-13.8) — is not offered
+either, because that is a row that could not act even in principle.
 
 Choosing the row already marked is not a change, and nothing happens: no session dealt again, no card
 reported as paged past (V2-5.11), no fresh roll of a random side.

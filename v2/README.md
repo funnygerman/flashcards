@@ -497,11 +497,11 @@ side on rather than to a fresh shuffle. `decks/empty-deck.html` has no deck of i
 so it carries no such pair; what it has instead is a real link in the corner, back to whichever deck you
 last had open.
 
-`openDeck()` offers the pair only when the dictionary holds a card the deck does not —
-`holdsMoreThan(cards)`. "How many decks are there" isn't a question storage can answer — it records
-cards, not decks — but it isn't the useful question either. What matters is whether the other side would
-show you anything you can't already see, and for the only deck you've ever opened it wouldn't. Where
-storage is blocked there's nothing to switch to or link back from either, so neither appears there.
+The pair is there from your first visit, including on the only deck you've ever opened, where
+"everything you have seen" *is* that deck and both rows pick the same cards. It used to be withheld
+there — see *The menu* below for why a row plays by different rules than the corner mark did. The one
+thing that does withhold it is an empty dictionary, which `switchTo` would refuse anyway; on a deck that
+brought cards that means storage is blocked, since its own cards are written there on mount.
 
 A real link needs somewhere to point, and that's **the deck you came from**, which `openDeck()` records
 as it opens one *with cards* — switching in place is not a visit, so it leaves no record of its own.
@@ -581,12 +581,28 @@ between the pools; it is **not** remembered past the page, because the schedule 
 past it is something you should have to say rather than drift into. That's the whole difference between
 this row and the side above: one of them can cost you weeks of review without saying so.
 
-Both of these pairs are only there when they would do something — this deck's cards against the
-dictionary's when the dictionary holds more, the schedule when it's holding something back from the pool
-you're on (which includes a pool with nothing due at all, where you'll be looking at the "Nothing to
-repeat today" card, whose back says to open the menu) or when it's already on, since a way past the
-schedule you can't put back is worse than one you were never offered. Presence is worked out afresh every
-time the sheet is drawn, because answering one question can take the other away.
+### The shape is fixed
+
+All three groups are there every time you open the menu, whether or not the two sides of a question
+differ today. On a deck you've never graded, every card is due, so **Every card** picks exactly what
+**Due today** picks; on your first deck, **Everything you have seen** is that deck. Both rows change
+nothing this morning and are exactly what you want the moment the schedule starts holding cards back.
+
+Both questions about the session were withheld in those cases at first, under the rule the corner marks
+were drawn by: *a control that leads nowhere new is not drawn*. That's right for a mark — a lone icon
+that leads nowhere is clutter with nothing on it to explain itself — and wrong for a row, in two ways. A
+row *says* which state you're in, which is worth saying whether or not the other state is equivalent
+today. And it lives in a list, so withholding it doesn't remove a control, it changes the shape of the
+list: you open the menu on a fresh deck, find two groups where you were told there are three, and have
+no way to tell whether the third doesn't apply or the app is broken. A menu whose shape moves underneath
+you is one you have to re-read every time.
+
+Two things still take a group out, and neither is about the schedule. `empty-deck.html` gets no pool
+group — it *is* the dictionary, so "this deck" would name nothing — and neither does a pool `switchTo`
+would refuse, which is an empty dictionary. Those are rows that couldn't act even in principle.
+
+A pool with nothing due is still worth knowing about: you'll be looking at the "Nothing to repeat today"
+card, whose back says to open the menu.
 
 The done card is a card, not a screen: no `key`, so it's never written to the dictionary and keeps no
 schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session. A

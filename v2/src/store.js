@@ -47,24 +47,6 @@ export function allCards(storage = pageStorage(), dictionary = undefined) {
 }
 
 /**
- * Whether the same `dictionary` holds a card that `cards` does not.
- *
- * What a deck page really wants to know before offering a link to it (§13):
- * not "how many decks are there" — storage records cards, not decks
- * (V2-13.7) — but "would that link show the reader anything they cannot see
- * here?". False for the only deck a reader has ever opened, and false again
- * where storage is unusable, since a dictionary that cannot be read has
- * nothing to offer either. Scoped to `dictionary` for the same reason
- * `allCards` is: a card belonging to a different one is not "more" to offer,
- * it is a different dictionary.
- */
-export function holdsMoreThan(cards, storage = pageStorage(), dictionary = undefined) {
-  const own = new Set(cards.map((card) => card.key));
-
-  return allCards(storage, dictionary).some((card) => !own.has(card.key));
-}
-
-/**
  * Whether `a` and `b` describe the same card — every field, not just the ones
  * one side happens to carry, so a field dropped from a deck's word list is a
  * change too.
