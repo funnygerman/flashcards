@@ -759,13 +759,24 @@ describe("mount", () => {
 
     /* A finger that never lets go must not be able to drag the card past the
        edge of the screen and strand it there — the exit animation is what
-       actually sends a graded card off screen, not the drag itself. */
+       actually sends a graded card off screen, not the drag itself. jsdom does
+       no layout, so the room around the card is stubbed here the way a real
+       browser would report it. */
     it("stops a vertical drag at the edge of the screen instead of following it off", () => {
       open();
 
-      drag(0, -2000, { release: false });
-      const [, y] = slider().style.transform.match(/translate\(0, (-?[\d.]+)px\)/);
-      expect(Number(y)).toBeCloseTo(-316);
+      Object.defineProperty(document.querySelector(".fc"), "clientHeight", { value: 800, configurable: true });
+      Object.defineProperty(document.querySelector(".fc-card"), "offsetHeight", { value: 500, configurable: true });
+
+      drag(0, -2000, { release: false }); /* half the 300px of headroom is 150px each way */
+      expect(slider().style.transform).toBe("translate(0, -150px)");
+    });
+
+    it("leaves a vertical drag uncapped when the card's own layout can't be measured", () => {
+      open();
+
+      drag(0, -100, { release: false }); /* 40px resisted, then 60px free (unclamped: no layout data) */
+      expect(slider().style.transform).toBe("translate(0, -68.8px)");
     });
 
     it("puts the card back when the drag comes to nothing", () => {

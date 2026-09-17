@@ -124,33 +124,43 @@ const departure = (percent, from = 0) => [
 ];
 
 /**
- * How far past the threshold a drag can still carry the card, as a fraction
- * of the viewport. A released card is sent off screen by the exit animation
- * regardless of where the drag left it, so this is not about how far a grade
- * is allowed to travel — it is about a finger that never lets go: without a
- * ceiling here, that finger can drag the card past the edge of the screen and
- * leave it there, held, with nothing visible to release.
- */
-const VERTICAL_FREE_MAX = 0.4;
-
-/**
  * How far the card actually moves under a vertical drag of `dy`.
  *
  * Short of the threshold it gives rather than travels: a gesture that stops
  * there is not a grade, and the card springing back is what says so (V2-4.11).
  * Past it the card breaks free and takes every further pixel one for one,
- * because past it the gesture *is* a grade and the card really is leaving —
- * up to `VERTICAL_FREE_MAX`, past which it holds at the edge instead of
- * following the finger off it.
+ * because past it the gesture *is* a grade and the card really is leaving.
  * The change of régime at the threshold is the point — it is the one moment
  * a finger can feel the difference between a drag and a swipe, on the axis
  * where nothing else distinguishes them.
+ *
+ * Uncapped here: a finger that never lets go would otherwise be able to drag
+ * the card straight past the edge of the screen and strand it there, so the
+ * caller clamps this to how much room the card actually has (`verticalLimit`)
+ * before using it.
  */
 function verticalTravel(dy) {
   const held = Math.min(Math.abs(dy), SWIPE_THRESHOLD) * VERTICAL_GIVE;
-  const free = Math.min(Math.max(0, Math.abs(dy) - SWIPE_THRESHOLD), window.innerHeight * VERTICAL_FREE_MAX);
+  const free = Math.max(0, Math.abs(dy) - SWIPE_THRESHOLD);
 
   return Math.sign(dy) * (held + free);
+}
+
+/**
+ * Half the room left over once the card's own height is taken out of the
+ * viewport's — the card sits centred, so that is exactly how far it can move
+ * either way before an edge reaches the edge of the visible area. Measured
+ * fresh on every drag rather than cached, since a phone can rotate or its
+ * address bar can show or hide mid-gesture.
+ *
+ * Zero or negative — not yet laid out (as in a test run without real layout,
+ * V2's own jsdom suite included), or a viewport too small to hold the card at
+ * all — has nothing sensible to measure, so the drag is left uncapped rather
+ * than frozen in place.
+ */
+function verticalLimit(root, card) {
+  const available = (root.clientHeight - card.offsetHeight) / 2;
+  return available > 0 ? available : Infinity;
 }
 
 /**
@@ -383,7 +393,9 @@ export function createView(container, steps, labels, facing = () => "front") {
   const drag = ({ dx, dy, horizontal, progress }) => {
     slider.classList.add("is-dragging");
 
-    const travel = horizontal ? dx : verticalTravel(dy);
+    const raw = horizontal ? dx : verticalTravel(dy);
+    const limit = verticalLimit(root, card);
+    const travel = horizontal ? raw : Math.sign(raw) * Math.min(Math.abs(raw), limit);
     dragged = horizontal ? { x: travel, y: 0 } : { x: 0, y: travel };
 
     const still = prefersReducedMotion();
