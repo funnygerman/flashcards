@@ -17,6 +17,18 @@ const KEY_INTENTS = {
 /** Under this many pixels a pointer gesture is a tap, not a swipe. */
 export const SWIPE_THRESHOLD = 40;
 
+/**
+ * The layer a host's own controls sit in, drawn over the card but not part of
+ * it (view.js). A gesture that *starts* there belongs to whatever it started
+ * on, not to the deck: a tap on a menu button is not a tap on the card, and a
+ * drag begun on one is not a page turn.
+ *
+ * Named here rather than in view.js because this is the module that has to
+ * recognise it, and view.js already imports from this one — the other
+ * direction would be a cycle.
+ */
+export const CHROME_CLASS = "fc-chrome";
+
 export function keyIntent(key) {
   return KEY_INTENTS[key];
 }
@@ -117,6 +129,13 @@ export function bindInput(element, onIntent, onTrack) {
       /* A right- or middle-click travels no distance, which would read as a
          tap and flip the card open under the context menu. */
       if (event.button > 0) return;
+
+      /* A gesture that starts on the page's own furniture is the furniture's.
+         Without this, opening the menu would also flip the card underneath it,
+         and dragging from a menu item would page the deck. The card keeps
+         everything else: the chrome layer itself is transparent to pointers
+         (flashcards.css), so only its actual controls are ever the target. */
+      if (event.target?.closest?.(`.${CHROME_CLASS}`)) return;
 
       start = { x: event.clientX, y: event.clientY, id: event.pointerId };
 

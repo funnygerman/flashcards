@@ -6,7 +6,7 @@
  * card be paged away while it is still showing its back.
  */
 
-import { SWIPE_THRESHOLD } from "./input.js";
+import { CHROME_CLASS, SWIPE_THRESHOLD } from "./input.js";
 
 const SLIDE_MS = 220;
 
@@ -173,8 +173,16 @@ function createProgress(slider, steps) {
  * neither. `labels` is `{ easier, harder }`, the host's own text (V2-5.7a):
  * this view has no more idea what they say than it has what a `category` means,
  * and `mount()` has no sentence of its own to fall back on (V2-1.2).
+ *
+ * `facing(card)` is the host's answer to "which way up does this card arrive?"
+ * — "front" or "back" (V2-16.4), asked afresh every time a card is put on
+ * screen and never remembered here. It is the same shape as `progress.of` and
+ * `gradeOf` one layer up: a question this view asks rather than a setting it
+ * keeps, which is what lets "a random side each time" be a host's answer
+ * rather than a third mode in here. Omitted, every card arrives front first,
+ * which is what every card did before this existed.
  */
-export function createView(container, steps, labels) {
+export function createView(container, steps, labels, facing = () => "front") {
   const root = createElement("div", "fc", container);
   const slider = createElement("div", "fc-slide", root);
 
@@ -183,6 +191,14 @@ export function createView(container, steps, labels) {
   const card = createElement("div", "fc-card", slider);
   const front = createFace(card, "front");
   const back = createFace(card, "back");
+
+  /* Where a host puts its own controls (V2-16.1): over the card, in the card's
+     own coordinate space, and outside everything the card is. The layer is
+     transparent to pointers — only what a host puts in it is not — so it costs
+     the card no gesture it would otherwise have had, and input.js hands
+     whatever does start in here to the control rather than to the deck. The
+     library draws nothing in it and never looks inside. */
+  const chrome = createElement("div", CHROME_CLASS, root);
 
   let flipped = false;
 
@@ -278,9 +294,18 @@ export function createView(container, steps, labels) {
     messageTimer = setTimeout(hush, MESSAGE_MS);
   };
 
+  /**
+   * Which way up a card goes on screen, asked of the host every time rather
+   * than carried from the last card: a host whose answer is "a random side"
+   * (V2-16.5) must be re-rolled per card, and one whose answer is fixed is
+   * unaffected by being asked again.
+   */
+  const face = (data) => setFlipped(facing(data) === "back");
+
   const show = (data, level = null) => {
     renderFace(front, data.category, data.frontText, data.frontDetails);
     renderFace(back, data.category, data.backText, data.backDetails);
+    face(data);
     mark(level);
   };
 
@@ -288,7 +313,8 @@ export function createView(container, steps, labels) {
    * Everything a page turn changes about the card, applied in one frame.
    *
    * `fc-instant` suspends every transition under the slider for the duration:
-   * the flip rotating back, and the border mark thickening or thinning. Each
+   * the flip turning to the side the arriving card faces, and the border mark
+   * thickening or thinning. Each
    * is worth animating when it happens on the card in front of the reader, and
    * wrong here — a card arriving with a different grade from the one that left
    * would otherwise land and *then* morph, reading as the page turn having
@@ -301,7 +327,6 @@ export function createView(container, steps, labels) {
   const swap = (data, level, onSwap) => {
     slider.classList.add("fc-instant");
 
-    setFlipped(false);
     hush(); /* whatever was said was said to the card that just left */
     band(null); /* and so was whatever it was graded — the arriving card is bare */
     show(data, level);
@@ -386,15 +411,28 @@ export function createView(container, steps, labels) {
 
   return {
     root,
+
+    /** Where a host's own controls go (V2-16.1). The library puts none there. */
+    chrome,
+
     show,
     mark,
     setProgress: (filled) => progress?.set(filled),
     flip: () => setFlipped(!flipped),
 
     /**
-     * Replace the card outright, with no slide: unflipped, hushed, and
-     * carrying `level`'s mark, all in the one frame `swap` already gives a
-     * page turn (V2-8.6). For a host that changes which cards are being
+     * Turn the card on screen to the side `facing` names *now* — for a host
+     * whose answer has changed while a card is sitting there (V2-16.6). It
+     * flips rather than swapping, because the reader is watching: the card
+     * turning over is the result their choice has (V2-15.1), and there is no
+     * new card arriving for `swap`'s instant frame to be right for.
+     */
+    reface: face,
+
+    /**
+     * Replace the card outright, with no slide: hushed, carrying `level`'s
+     * mark, and facing whichever way `facing` says it arrives, all in the one
+     * frame `swap` already gives a page turn (V2-8.6). For a host that changes which cards are being
      * studied without the reader having turned a page — there is no
      * direction to slide in, only a different card to be looking at.
      */

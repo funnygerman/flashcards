@@ -13,11 +13,19 @@ describe("stringsFor", () => {
     expect(stringsFor(undefined)).toBe(stringsFor(DEFAULT_LANG));
   });
 
+  /* Every word the menu is made of, group by group (§16), so a language that
+     gains a row keeps the others rather than quietly losing one. */
+  const MENU = {
+    side: ["front", "back", "random"],
+    pool: ["deck", "all"],
+    scope: ["due", "every"],
+  };
+
   it.each(LANGS)("gives %s the same shape as English: labels, a done card and five guide cards", (lang) => {
     const strings = stringsFor(lang);
 
-    expect(typeof strings.allLabel).toBe("string");
-    expect(strings.allLabel.length).toBeGreaterThan(0);
+    expect(typeof strings.menu.open).toBe("string");
+    expect(strings.menu.open.length).toBeGreaterThan(0);
     expect(strings.guide).toHaveLength(5);
 
     for (const level of ["easier", "harder"]) {
@@ -25,9 +33,10 @@ describe("stringsFor", () => {
       expect(strings.grades[level].length).toBeGreaterThan(0);
     }
 
-    for (const side of ["every", "due"]) {
-      expect(typeof strings.filter[side]).toBe("string");
-      expect(strings.filter[side].length).toBeGreaterThan(0);
+    for (const [group, rows] of Object.entries(MENU)) {
+      expect(Object.keys(strings.menu[group]).sort()).toEqual([...rows].sort());
+
+      for (const row of rows) expect(strings.menu[group][row].length).toBeGreaterThan(0);
     }
 
     for (const card of [...strings.guide, strings.done]) {
