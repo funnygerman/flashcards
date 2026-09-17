@@ -818,6 +818,115 @@ describe("mount", () => {
     });
   });
 
+  /* Which side a card arrives on is the host's answer, asked per card and
+     never remembered here (V2-16.4). The library knows "front" or "back" and
+     has never heard the word random. */
+  describe("facing", () => {
+    it("shows the front when nobody has said otherwise", () => {
+      open();
+      expect(isFlipped()).toBe(false);
+    });
+
+    it("shows the back when the host says the card arrives that way", () => {
+      open({ facing: () => "back" });
+
+      expect(isFlipped()).toBe(true);
+      expect(back(".fc-text").textContent).toBe("one"); // the answer, up first
+      expect(front(".fc-text").textContent).toBe("eins"); // and it is still card a
+    });
+
+    it("asks again for every card that arrives, rather than once", () => {
+      const asked = [];
+      open({
+        facing: (card) => {
+          asked.push(card.key);
+          return card.key === "b" ? "back" : "front";
+        },
+      });
+
+      expect(isFlipped()).toBe(false);
+      press("ArrowRight");
+      expect(isFlipped()).toBe(true); // card b, face down
+      press("ArrowRight");
+      expect(isFlipped()).toBe(false);
+
+      expect(asked).toEqual(["a", "b", "c"]);
+    });
+
+    it("leaves the flip meaning what it always meant", () => {
+      open({ facing: () => "back" });
+
+      press(" ");
+      expect(isFlipped()).toBe(false);
+    });
+
+    it("faces a card reached by switchTo the same way as one paged to", () => {
+      const deck = open({ facing: () => "back" });
+
+      deck.switchTo([{ key: "z", frontText: "vier", backText: "four" }]);
+      expect(isFlipped()).toBe(true);
+    });
+
+    it("turns the card on screen over when the host's answer changes under it", () => {
+      let side = "front";
+      const deck = open({ facing: () => side });
+
+      side = "back";
+      deck.reface();
+
+      expect(isFlipped()).toBe(true);
+      expect(front(".fc-text").textContent).toBe("eins"); // the same card, the other way up
+    });
+  });
+
+  /* Somewhere for a host's own controls that is over the card and in the
+     card's own coordinate space, without being part of the card (V2-16.1). */
+  describe("chrome", () => {
+    it("is an empty layer inside the mounted deck, and the library draws nothing in it", () => {
+      const deck = open();
+
+      expect(deck.chrome.className).toBe("fc-chrome");
+      expect(document.querySelector(".fc").contains(deck.chrome)).toBe(true);
+      expect(deck.chrome.children).toHaveLength(0);
+    });
+
+    it("does not let a tap on what a host puts there flip the card", () => {
+      const deck = open();
+      const button = document.createElement("button");
+      deck.chrome.append(button);
+
+      button.dispatchEvent(new MouseEvent("pointerdown", { clientX: 0, clientY: 0, bubbles: true }));
+      button.dispatchEvent(new MouseEvent("pointerup", { clientX: 0, clientY: 0, bubbles: true }));
+
+      expect(isFlipped()).toBe(false);
+    });
+
+    it("does not let a drag begun there page the deck", () => {
+      const deck = open();
+      const button = document.createElement("button");
+      deck.chrome.append(button);
+
+      button.dispatchEvent(new MouseEvent("pointerdown", { clientX: 200, clientY: 200, bubbles: true }));
+      button.dispatchEvent(new MouseEvent("pointerup", { clientX: 40, clientY: 200, bubbles: true }));
+
+      expect(front(".fc-text").textContent).toBe("eins");
+    });
+
+    it("leaves the card every gesture that starts anywhere else", () => {
+      open();
+
+      drag(-80, 0);
+      expect(front(".fc-text").textContent).toBe("zwei");
+    });
+
+    it("goes when the deck does", () => {
+      const deck = open();
+      deck.destroy();
+
+      expect(document.querySelector(".fc-chrome")).toBe(null);
+    });
+  });
+
   it("grades without an onGrade callback", () => {
     open();
 

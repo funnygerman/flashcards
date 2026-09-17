@@ -1,7 +1,9 @@
 # Flashcards
 
-Flashcards in the browser. One card on the screen and nothing else on it, a swipe to say whether you
-knew it, and a Leitner schedule deciding when you see it again.
+Flashcards in the browser. One card on the screen, a swipe to say whether you knew it, and a Leitner
+schedule deciding when you see it again. The only other thing on the page is a small menu beside the
+card: which side comes up first — front, back, or a random one — this deck or everything you have seen,
+and what is due today or every card of it.
 
 No accounts, no server, no build step to develop it, no runtime dependencies: `npm run serve` loads the
 sources in this repository exactly as they are, and everything you have studied lives in your own

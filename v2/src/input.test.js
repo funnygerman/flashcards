@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from "vitest";
 
-import { SWIPE_THRESHOLD, bindInput, keyIntent, swipeIntent, track } from "./input.js";
+import { CHROME_CLASS, SWIPE_THRESHOLD, bindInput, keyIntent, swipeIntent, track } from "./input.js";
 
 /** jsdom has no PointerEvent; the handlers only read clientX/clientY/pointerId. */
 function pointer(element, type, x, y) {
@@ -281,6 +281,54 @@ describe("bindInput", () => {
     pointer(element, "pointerup", 40, 100);
 
     expect(order).toEqual(["drag", "intent:next", "released"]);
+  });
+
+  /* A gesture that starts on the page's own furniture is the furniture's
+     (V2-16.2): a tap that opens a menu must not also flip the card under it,
+     and a drag begun on a menu row must not page the deck. */
+  describe("a gesture that starts on the page's own controls", () => {
+    const chromeIn = (element) => {
+      const layer = document.createElement("div");
+      layer.className = CHROME_CLASS;
+      element.append(layer);
+
+      const control = document.createElement("button");
+      layer.append(control);
+
+      return control;
+    };
+
+    it("is not a tap on the card", () => {
+      const { element, intents } = listen();
+      const control = chromeIn(element);
+
+      pointer(control, "pointerdown", 50, 50);
+      pointer(control, "pointerup", 52, 51);
+
+      expect(intents).toEqual([]);
+    });
+
+    it("is not a page turn either, however far it travels", () => {
+      const { element, intents, tracked } = listen();
+      const control = chromeIn(element);
+
+      pointer(control, "pointerdown", 200, 100);
+      pointer(control, "pointermove", 40, 100);
+      pointer(control, "pointerup", 40, 100);
+
+      expect(intents).toEqual([]);
+      expect(tracked).toEqual([]);
+    });
+
+    it("leaves every gesture that starts anywhere else to the deck", () => {
+      const { element, intents } = listen();
+      chromeIn(element);
+
+      pointer(element, "pointerdown", 200, 100);
+      pointer(element, "pointerup", 40, 100);
+
+      expect(intents).toEqual(["next"]);
+    });
   });
 
   it("ignores a right-click, which would otherwise read as a tap", () => {

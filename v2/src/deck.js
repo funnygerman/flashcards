@@ -31,6 +31,44 @@ export const DECK_KEY = "flashcards.deck";
 /** Whether the reader has been shown the guide. One flag, nothing else. */
 export const HINTS_KEY = "flashcards.hints";
 
+/** Which side a card arrives on, as the reader last asked for it (V2-16.8). */
+export const SIDE_KEY = "flashcards.side";
+
+/**
+ * The three answers to "which side comes up first?" (V2-16.4, V2-16.5), in the
+ * order the menu offers them: the card as its author wrote it, the card turned
+ * over, and a coin tossed per card.
+ *
+ * `back` is what readers asked for and `random` is what they asked for next,
+ * and the two are not the same request: one is a reader who studies English →
+ * German and wants the deck the other way round for good, the other is a
+ * reader who noticed they were recalling the *position* of an answer rather
+ * than the answer. Both are about the deck rather than about one card, which
+ * is why this is a preference and not a gesture.
+ */
+export const SIDES = ["front", "back", "random"];
+
+/**
+ * The side the reader last chose, or the front.
+ *
+ * Remembered past the page, unlike the schedule filter beside it in the menu
+ * (V2-13.13): a reader who wants the deck the other way round wants it every
+ * morning, and asking again each time would be asking them to re-answer a
+ * question about themselves. Nothing about it can cost them progress, which
+ * is the whole of why the filter is not remembered and this is — the worst an
+ * unreadable or nonsense value can do is show the front, which is where every
+ * reader starts anyway (V2-6.4).
+ */
+function readSide(storage = pageStorage()) {
+  const { side } = readMap(storage, SIDE_KEY);
+
+  return SIDES.includes(side) ? side : "front";
+}
+
+function writeSide(side, storage = pageStorage()) {
+  writeMap(storage, SIDE_KEY, { side });
+}
+
 /**
  * The guide: five cards that teach the deck by being one.
  *
@@ -132,9 +170,16 @@ function card(x, y, className) {
 }
 
 /**
- * What the corner leads to, drawn in the 4:3 of the real card: two cards
- * overlapping for the dictionary, which is many decks at once, one card for a
- * single deck. `stacked` is true for the two-card form.
+ * Where the way back leads, drawn in the 4:3 of the real card: one card for a
+ * single deck, two overlapping for a dictionary, which is many decks at once.
+ * `stacked` is true for the two-card form.
+ *
+ * Only the one-card form is drawn today — the deck ↔ dictionary switch that
+ * drew the other is a menu row now, and a row says which side it leads to in
+ * words (V2-16.3). The two-card form stays because the shape is the app's
+ * word for "everything you have seen" wherever it has to be said without
+ * room for a sentence, which is what a link back from the dictionary would
+ * need if one is ever drawn from the other direction.
  */
 function cornerIcon(stacked) {
   const svg = document.createElementNS(SVG, "svg");
@@ -166,143 +211,179 @@ function rememberGuide(storage = pageStorage()) {
   writeMap(storage, HINTS_KEY, { guide: true });
 }
 
-/** The progress row's own star, written out in the 20×20 box the icons use. */
-const STAR = "M10 1.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z";
-
 /**
- * What the filter leads to, drawn as the app's own word for how well a card is
- * known (V2-12.2) — the one shape that can say "every card, whatever its
- * stars" without spending a sentence on it.
+ * Three lines, in the 20×20 box the other marks use.
  *
- * Solid where it leads to every card, outlined where it leads back to what is
- * due: a full star is a card the reader has finished with and would not
- * otherwise see today, an empty one is a card that still wants work. Like the
- * corner opposite, it draws what pressing it would do next, never what is on
- * screen now.
+ * The plainest mark there is for "here are the choices", and deliberately not
+ * a drawing of any one of them: the menu holds three unrelated questions
+ * (V2-16.3) and an icon that answered one of them would be a lie about the
+ * other two. The two it replaced could each draw their own subject because
+ * each *was* one question; this one cannot, and pretending otherwise is how a
+ * button ends up meaning nothing at all.
  */
-function starIcon(every) {
+function menuIcon() {
   const svg = document.createElementNS(SVG, "svg");
-  const path = document.createElementNS(SVG, "path");
-
   svg.setAttribute("viewBox", "0 0 20 20");
   svg.setAttribute("aria-hidden", "true");
-  path.setAttribute("d", STAR);
 
-  /* A stroke straddles the line it follows, so an outline star drawn from this
-     path is a stroke-width larger all round than the solid one. Shrinking it
-     about its own centre puts the outer edge back where the fill's is — the
-     same correction, and the same 0.9, the stylesheet applies to the two stars
-     of the progress row. */
-  if (every) path.setAttribute("class", "fc-corner-full");
-  else path.setAttribute("transform", "translate(10 9.6) scale(.9) translate(-10 -9.6)");
+  for (const y of ["6", "10", "14"]) {
+    const line = document.createElementNS(SVG, "line");
 
-  svg.append(path);
+    line.setAttribute("x1", "3.5");
+    line.setAttribute("x2", "16.5");
+    line.setAttribute("y1", y);
+    line.setAttribute("y2", y);
+    svg.append(line);
+  }
+
   return svg;
 }
 
 /**
- * The reader's own filter: study what the schedule says is due today, or every
- * card in the same pool regardless of its stars (V2-13.13).
+ * The menu: one button beside the card, and the reader's choices behind it.
  *
- * It filters whichever pool is on screen — this deck's own cards or the whole
- * dictionary — rather than being a third thing to switch between, so the two
- * corners are two independent questions: *which* cards, and *how many of
- * them*. Turning it on outlives a switch between the two pools, because a
- * reader who asked to see everything asked about the app, not about one side
- * of a toggle.
+ * `groups()` is asked for the choices afresh every time the sheet is drawn,
+ * which is what keeps a row out of it where it would do nothing (V2-16.3) and
+ * what lets the answer to one question change which questions there are — a
+ * reader switching pools may switch to one whose schedule is holding nothing
+ * back, and the row that offered a way past it has to go with it. Nothing here
+ * is refreshed by anybody: a sheet that is not on screen has no state worth
+ * keeping in step, and the one that is has just been built.
  *
- * On the page only where it would do something: where the schedule is holding
- * something back from the pool on screen — which includes a pool with nothing
- * due at all, the one the reader most wants it for (V2-13.12) — or where it is
- * already on, since a filter the reader cannot turn off is worse than one they
- * were never offered. A deck whose cards are all due today does not carry it,
- * the same rule V2-13.9 applies to the corner opposite: a control that leads
- * nowhere new is not drawn.
+ * Each group is a list of `{ label, chosen, choose }` — the states the reader
+ * can be in, with a mark beside the one they are in. Not "press this to get
+ * to the other side", which is what a single corner button has to say and
+ * what made two of them unreadable as a pair: the reader had to work out from
+ * a solid star that they were currently seeing the unsolid one's cards.
+ *
+ * `choose()` reports whether it applied, exactly as `switchTo` does and for
+ * the same reason (V2-3.8): a choice refused mid-slide must not move the mark.
  */
-function starFilter(element, strings, { everything, holdsBack, apply }) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = "fc-corner fc-corner-filter";
+function deckMenu(chrome, strings, groups) {
+  /* Everything the open sheet covers, so that the tap which dismisses it is
+     spent on dismissing it. Inside the chrome layer, so input.js hands that
+     tap to the furniture rather than reading it as a tap on the card
+     (V2-16.2) — without it, closing the menu would also flip the card. */
+  const scrim = document.createElement("div");
+  scrim.className = "fc-menu-scrim";
+  scrim.hidden = true;
 
-  const draw = () => {
-    button.replaceChildren(starIcon(!everything()));
-
-    const label = everything() ? strings.filter.due : strings.filter.every;
-    button.title = label;
-    button.setAttribute("aria-label", label);
-  };
-
-  const refresh = () => {
-    if (!everything() && !holdsBack()) button.remove();
-    else if (!button.isConnected) element.append(button);
-
-    draw();
-  };
-
-  button.addEventListener("click", () => {
-    if (apply(!everything())) refresh();
-  });
-
-  refresh();
-  return { refresh, remove: () => button.remove() };
-}
-
-/**
- * The corner for a deck with cards of its own: not navigation at all, but an
- * in-page switch of which cards `mount()` is showing — the deck's own, or the
- * dictionary's (V2-13.9, `switchTo`'s two sources). There is nowhere to *go*,
- * so this is a button rather than a link, and no `href` is ever true of it.
- * Offered only where it leads somewhere new — for the only deck a reader has
- * ever opened, the dictionary is these same cards and nothing else, so there
- * is nowhere for the switch to go.
- *
- * Neither side is dealt here: `dealer` holds both, and hands back the one
- * already dealt for a side the reader has been on, so switching back a second
- * time returns to the same card rather than a fresh session.
- *
- * The icon and label are redrawn to whichever side of the toggle the reader
- * is now on — two cards and "Everything you have seen" pointing at the
- * dictionary, one card and this page's own title pointing back — so the
- * button always draws what pressing it would do next, never what it just
- * did. `switchTo` reports whether it actually applied — refused mid-slide
- * (V2-4.9), same as any other intent then — so that redraw happens only once
- * the mount's own state really has moved; left unconditional, a rapid second
- * tap while a page turn is still animating would show a dictionary icon over
- * the deck's own cards, or the reverse: true of the button, false of the
- * screen.
- *
- * `dictionary` is `openDeck`'s own option, passed through unchanged: this
- * toggle's "everything" means the same dictionary this deck's own cards
- * belong to, not every dictionary a reader has ever studied (V2-13.7) — a
- * French deck's toggle leads to the rest of the reader's French, not their
- * English too.
- *
- * Built element by element rather than from markup: card content is written
- * as text and never parsed as HTML (V2-2.6), and the rule holds for the
- * page's own furniture too rather than being relaxed where it happens to be
- * safe.
- */
-function cornerToggle(cards, storage, dictionary, allLabel, { showingAll, apply }) {
-  if (!holdsMoreThan(cards, storage, dictionary)) return null;
+  const root = document.createElement("div");
+  root.className = "fc-menu";
 
   const button = document.createElement("button");
   button.type = "button";
-  button.className = "fc-corner";
+  button.className = "fc-menu-open";
+  button.title = strings.menu.open;
+  button.setAttribute("aria-label", strings.menu.open);
+  button.setAttribute("aria-haspopup", "true");
+  button.setAttribute("aria-expanded", "false");
+  button.append(menuIcon());
 
-  const draw = () => {
-    button.replaceChildren(cornerIcon(!showingAll()));
+  const sheet = document.createElement("div");
+  sheet.className = "fc-menu-sheet";
+  sheet.setAttribute("role", "menu");
+  sheet.hidden = true;
 
-    const label = showingAll() ? document.title : allLabel;
-    button.title = label;
-    button.setAttribute("aria-label", label);
+  root.append(button, sheet);
+  chrome.append(scrim, root);
+
+  let items = [];
+  let shown = false;
+
+  /* Built element by element, like every other mark this file draws: card
+     content is written as text and never parsed as HTML (V2-2.6), and the
+     rule holds for the page's own furniture too. */
+  const draw = (focus) => {
+    items = [];
+
+    sheet.replaceChildren(
+      ...groups().map((options) => {
+        const group = document.createElement("div");
+        group.className = "fc-menu-group";
+        group.setAttribute("role", "group");
+
+        for (const option of options) {
+          const item = document.createElement("button");
+          const at = items.length;
+
+          item.type = "button";
+          item.className = "fc-menu-item";
+          item.setAttribute("role", "menuitemradio");
+          item.setAttribute("aria-checked", String(option.chosen));
+          item.textContent = option.label;
+
+          /* Choosing what is already chosen is not a change and must not be
+             treated as one: no session dealt again, no card reported as paged
+             past, no fresh roll of a random side. The mark is already where
+             the reader is putting it. */
+          item.addEventListener("click", () => {
+            if (!option.chosen && option.choose()) draw(at);
+          });
+
+          items.push(item);
+          group.append(item);
+        }
+
+        return group;
+      }),
+    );
+
+    /* Where the reader was, if that row still exists — answering a question
+       can take a later group away with it. Nowhere to land means the button,
+       never the document body, which would strand a keyboard mid-menu. */
+    (items[focus] ?? button).focus();
   };
 
-  button.addEventListener("click", () => {
-    if (apply(!showingAll())) draw();
-  });
+  const setShown = (value) => {
+    shown = value;
+    button.setAttribute("aria-expanded", String(shown));
+    sheet.hidden = !shown;
+    scrim.hidden = !shown;
 
-  draw();
-  return button;
+    if (shown) draw(0);
+    else button.focus();
+  };
+
+  /**
+   * The keys an open menu takes off the deck.
+   *
+   * On the capture phase, so they are taken before input.js — bound to the
+   * same document — reads them as the deck's (V2-16.7). The four arrows are
+   * the deck's while the card is the page, and an open menu is the one moment
+   * it is not: grading a card the reader has a sheet over is not what `↑`
+   * means here, so up and down walk the rows instead, which is what a list of
+   * choices does with them. Everything else is left alone, `Enter` and `Space`
+   * included: input.js already declines to take those from a focused control,
+   * so a row presses itself.
+   */
+  const keys = (event) => {
+    if (!shown) return;
+
+    const walk = { ArrowUp: -1, ArrowDown: 1 }[event.key];
+    if (!walk && !["Escape", "ArrowLeft", "ArrowRight"].includes(event.key)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.key === "Escape") setShown(false);
+    else if (walk) {
+      const at = items.indexOf(document.activeElement);
+      items[(Math.max(at, 0) + walk + items.length) % items.length]?.focus();
+    }
+  };
+
+  button.addEventListener("click", () => setShown(!shown));
+  scrim.addEventListener("click", () => setShown(false));
+  document.addEventListener("keydown", keys, true);
+
+  return {
+    remove() {
+      document.removeEventListener("keydown", keys, true);
+      scrim.remove();
+      root.remove();
+    },
+  };
 }
 
 /**
@@ -475,17 +556,30 @@ export function openDeck(cards, options = {}) {
   /* A deck and the dictionary both study what is due, out of their own pool —
      a deck's own cards, the dictionary everything (V2-13.4). Whether this page
      brought cards of its own decides only which pool it draws from, not
-     whether the schedule filters it; the reader's own star decides that
+     whether the schedule filters it; the reader's own menu decides that
      (V2-13.13), for whichever pool they are on. */
   const deal = dealer(source, storage, dictionary, now, done);
 
   let showingAll = !own;
   let everything = false;
+  let side = readSide(storage);
+
+  /* The coin the random side is tossed with. `random` is the deck's own
+     injectable source everywhere else here, and it is this one too, so a test
+     that pins the shuffle pins which way up a card lands as well. */
+  const roll = random ?? Math.random;
 
   const deck = mount(element, deal.session(showingAll, everything), {
     storage,
     random,
     lead: guide,
+
+    /* Which way up a card arrives (V2-16.4). Asked per card, so "random"
+       really is per card rather than per session — the point of it is that
+       the reader cannot learn which side a given card will show. The library
+       is told "front" or "back" and never hears the word random: what it
+       needs is which side this card lands on, and that is all this answers. */
+    facing: () => (side === "random" ? (roll() < 0.5 ? "back" : "front") : side),
 
     /* What the band calls each grade, in the reader's language (V2-14.4) —
        the app's own words, like the guide's, never a card's. */
@@ -534,10 +628,10 @@ export function openDeck(cards, options = {}) {
      only past this point is it true that the reader met it. */
   if (guide.length) rememberGuide(storage);
 
-  /* Which cards are on screen, in one place: the two corners each ask for a
-     change along their own axis and neither knows about the other's, so the
-     pair of answers lives here rather than half in each button. A refused
-     switch (V2-3.8) changes nothing, here or on either control. */
+  /* Which cards are on screen, in one place: the menu's two pool-and-schedule
+     groups each ask for a change along their own axis and neither knows about
+     the other's, so the pair of answers lives here rather than half in each
+     row. A refused switch (V2-3.8) changes nothing, here or in the sheet. */
   const show = (nextAll, nextEverything) => {
     if (!deck.switchTo(deal.session(nextAll, nextEverything))) return false;
 
@@ -546,41 +640,89 @@ export function openDeck(cards, options = {}) {
     return true;
   };
 
-  /* Both controls are added after mounting rather than hidden in the markup,
-     so neither is in the document at a moment when it should not be seen. */
-  const star = starFilter(element, strings, {
-    everything: () => everything,
-    holdsBack: () => deal.holdsBack(showingAll),
-    apply: (next) => show(showingAll, next),
-  });
+  /* A side the reader has just chosen applies to the card in front of them,
+     not merely to the next one (V2-16.6): a choice whose only result is a
+     mark moving in a sheet they are about to close is a choice they have no
+     reason to believe landed. It cannot be refused — nothing about which way
+     up a card is drawn depends on a slide being over — so this always reports
+     that it applied. */
+  const setSide = (next) => {
+    side = next;
+    writeSide(next, storage);
+    deck.reface();
 
-  /* The way out. Switching pools can change whether the filter has anything to
-     offer — one side of a page may be holding cards back where the other is
-     not — so the star is asked to look again every time this lands. */
-  const link = own
-    ? cornerToggle(source, storage, dictionary, strings.allLabel, {
-        showingAll: () => showingAll,
-        apply: (next) => {
-          const switched = show(next, everything);
-          if (switched) star.refresh();
+    return true;
+  };
 
-          return switched;
-        },
-      })
-    : cornerLink(storage);
+  /**
+   * What the menu is offering right now (V2-16.3), asked afresh each time the
+   * sheet is drawn.
+   *
+   * The side is always there: every deck has two sides and every reader can
+   * have a preference about them. The other two are there only where they
+   * would do something, which is V2-13.9 and V2-13.13's own rule, unchanged by
+   * having moved indoors — the pool where the dictionary holds a card this
+   * deck does not, the schedule where it is holding something back or where
+   * the reader has already asked it not to. A page with no cards of its own is
+   * never offered the pool: it is the dictionary, and there is nothing to
+   * switch to.
+   */
+  const groups = () => {
+    const offered = [
+      SIDES.map((value) => ({
+        label: strings.menu.side[value],
+        chosen: side === value,
+        choose: () => setSide(value),
+      })),
+    ];
 
-  if (link) element.append(link);
+    if (own && holdsMoreThan(source, storage, dictionary)) {
+      offered.push([
+        /* The deck's own name where the page has one: "Everyday German" says
+           what this side is in a way "This deck" cannot, and the reader has
+           the other side's name in full right beside it. */
+        { label: document.title || strings.menu.pool.deck, chosen: !showingAll, choose: () => show(false, everything) },
+        { label: strings.menu.pool.all, chosen: showingAll, choose: () => show(true, everything) },
+      ]);
+    }
+
+    if (everything || deal.holdsBack(showingAll)) {
+      offered.push([
+        { label: strings.menu.scope.due, chosen: !everything, choose: () => show(showingAll, false) },
+        { label: strings.menu.scope.every, chosen: everything, choose: () => show(showingAll, true) },
+      ]);
+    }
+
+    return offered;
+  };
+
+  /* Added after mounting rather than written into the markup, so nothing is
+     in the document at a moment when it should not be seen — and into the
+     library's own chrome layer (V2-16.1) rather than beside the deck, which
+     is what puts it within reach of the card instead of out in a corner of
+     the viewport the reader's thumb never goes (V2-16.2). */
+  const menu = deckMenu(deck.chrome, strings, groups);
+
+  /* The way out, and only from a page with no cards of its own: a deck
+     switches to the dictionary in place, from the menu, and has nowhere to
+     go. A real link is what crossing between two files needs (V2-13.11), so
+     it stays a link rather than becoming a row in a list of study options —
+     it is the one control here that is not one. */
+  const link = own ? null : cornerLink(storage);
+  if (link) deck.chrome.append(link);
 
   /* The library's handle takes back everything this page added as well as
      everything mount() did (V2-3.7): the furniture assembled here is no more
-     the caller's to remember than the deck's own listeners are. */
+     the caller's to remember than the deck's own listeners are. The chrome
+     layer goes with the view, which takes the elements — the menu is asked
+     anyway, because the document still holds the key listener it bound
+     (V2-16.7) and nothing else would take that back. */
   return {
     ...deck,
 
     destroy() {
       deck.destroy();
-      link?.remove();
-      star.remove();
+      menu.remove();
     },
   };
 }

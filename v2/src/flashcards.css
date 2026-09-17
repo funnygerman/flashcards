@@ -76,6 +76,7 @@ html:has(> body > .fc) body {
   --fc-harder-ink: #fff;
 
   box-sizing: border-box;
+  position: relative; /* the chrome layer below hangs off the card's own box */
   display: grid;
   place-items: center;
   block-size: 100dvh;
@@ -108,23 +109,71 @@ html:has(> body > .fc) body {
   }
 }
 
-/* The one thing on the page that is not the card: the way out of this deck
-   (§13). A sibling of .fc rather than a child of it, because input.js binds
-   gestures to .fc: anything inside would be read as a tap on the card and
-   flip it.
+/* The chrome layer: where the page's own controls live (V2-16.1).
+ *
+ * Inside .fc rather than beside it, which is what lets everything here
+ * measure itself against the card — --fc-card-w and the colour tokens are
+ * declared on .fc and inherit down, and a control that knows where the card's
+ * edge is can sit beside it instead of out in a corner of the viewport
+ * (V2-16.2). Readers reported exactly that about the corner this replaces:
+ * the mark was in the right place for a stylesheet and the wrong one for a
+ * thumb.
+ *
+ * Transparent to pointers, so the layer itself costs the card no gesture it
+ * would otherwise have had: only what is actually in it is a target, and
+ * input.js hands a gesture starting on one of those to the control rather
+ * than reading it as a tap on the card. */
+.fc-chrome {
+  /* A control's own box, and where the card's top-right corner is. The insets
+     are the card's edges: half the viewport, out to half the card's width and
+     up past half its height (3/8 of the width, the 4:3 again), plus a gap so
+     nothing sits flush against the card.
 
-   Two elements share this class and neither looks like the control it is: a
-   `<button>` on a deck with cards of its own, switching in place to the
-   dictionary and back; an `<a>` on a page with none, a real link back to the
-   deck the reader came from. Reset alike, since which one a given page gets
-   is not this stylesheet's business.
+     The min() is for a short landscape window, where the card is sized from
+     the height and grows tall enough to leave no room above it: past that
+     point the control stops climbing and stays inside the viewport. It sits
+     nearer the card's corner there than it does elsewhere, which is the right
+     way to run out of room — the card is what it belongs to. */
+  --fc-chrome-size: 2.75rem; /* a comfortable touch target, larger than the mark */
+  --fc-chrome-inline: calc(50% - var(--fc-card-w) / 2);
+  --fc-chrome-block: min(
+    calc(50% + var(--fc-card-w) * 3 / 8 + 0.4rem),
+    calc(100% - var(--fc-chrome-size) - max(0.4rem, env(safe-area-inset-top)))
+  );
 
-   Deliberately quiet — muted, no fill, no colour of its own. It is the one
-   piece of chrome V2-7.1 admits, because a reader on a phone has no other way
-   to leave the deck.
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+}
 
-   Its colours are written out rather than taken from --fc-muted and --fc-line:
-   those are declared on .fc, and a sibling is not inside it to inherit them. */
+.fc-chrome > * {
+  pointer-events: auto;
+}
+
+/* The card is capped at 75vw in portrait but at 88dvh × 4/3 in landscape, so a
+   small landscape window makes it wide and tall enough that a full-sized touch
+   target has nowhere to go above it. It shrinks there instead, and --fc-chrome
+   -block's own min() above keeps it on screen. Below the 44 px a finger wants,
+   but this is a small desktop window rather than a phone — a phone in landscape
+   (844 × 390) is nowhere near the boundary. */
+@media (min-aspect-ratio: 1 / 1) and (max-width: 32rem) {
+  .fc-chrome {
+    --fc-chrome-size: 2rem;
+  }
+}
+
+/* Both controls the page can carry, reset alike: the menu's button (V2-16.3)
+   and, on a page with no cards of its own, a real link back to the deck the
+   reader came from (V2-13.11). Neither looks like the control it is —
+   deliberately quiet, muted, no fill and no colour of its own, so that the
+   card is still the only thing on the page with anything to say.
+
+   The link hangs one control's width further in, so that the two never
+   overlap on the one page that has both, and so the menu is in the same place
+   on every page — a control that moves depending on what else is beside it is
+   a control the reader has to find again. */
+.fc-menu-open,
 .fc-corner {
   appearance: none;
   border: none;
@@ -133,17 +182,36 @@ html:has(> body > .fc) body {
   font: inherit;
   cursor: pointer;
 
-  position: fixed;
-  z-index: 2;
-  inset-block-start: max(0.75rem, env(safe-area-inset-top));
-  inset-inline-end: max(0.75rem, env(safe-area-inset-right));
+  position: absolute;
+  inset-inline-end: var(--fc-chrome-inline);
+  inset-block-end: var(--fc-chrome-block);
   display: grid;
   place-items: center;
-  inline-size: 2.75rem; /* a comfortable touch target, larger than the mark */
-  block-size: 2.75rem;
-  color: #666;
+  inline-size: var(--fc-chrome-size);
+  block-size: var(--fc-chrome-size);
+  color: var(--fc-muted);
 }
 
+.fc-corner {
+  inset-inline-end: calc(var(--fc-chrome-inline) + var(--fc-chrome-size));
+}
+
+/* The menu's button is inside its own wrapper, which is what the sheet hangs
+   off; the wrapper takes the position and the button fills it. */
+.fc-menu {
+  position: absolute;
+  inset-inline-end: var(--fc-chrome-inline);
+  inset-block-end: var(--fc-chrome-block);
+  inline-size: var(--fc-chrome-size);
+  block-size: var(--fc-chrome-size);
+}
+
+.fc-menu .fc-menu-open {
+  inset-inline-end: 0;
+  inset-block-end: 0;
+}
+
+.fc-menu-open svg,
 .fc-corner svg {
   inline-size: 1.15rem;
   block-size: 1.15rem;
@@ -154,63 +222,103 @@ html:has(> body > .fc) body {
 
 /* The nearer of the two cards is filled with the page's own background so that
    it covers the one behind it, which is what makes them read as a stack rather
-   than as crossed rectangles. Written out rather than taken from --fc-bg for
-   the reason given above: that token is declared on .fc, and this is outside
-   it. */
+   than as crossed rectangles. */
 .fc-corner-near {
-  fill: #fff;
+  fill: var(--fc-bg);
 }
 
+.fc-menu-open:hover,
+.fc-menu-open:focus-visible,
 .fc-corner:hover,
 .fc-corner:focus-visible {
-  color: #111;
+  color: var(--fc-fg);
 }
 
-/* The reader's own filter (V2-13.13), in the opposite corner to the way out:
-   same quiet register, the other side of the page, so two controls that are
-   two different questions are never mistaken for one pair and never crowd the
-   same thumb. */
-.fc-corner-filter {
-  inset-inline-start: max(0.75rem, env(safe-area-inset-left));
-  inset-inline-end: auto;
+/* Everything an open sheet covers, so the tap that dismisses it is spent on
+   dismissing it rather than also flipping the card underneath. Invisible on
+   purpose: the sheet is opaque and bordered, and a page that dims itself to
+   show a list of seven words is a page making more of the moment than it is
+   (V2-7.2). */
+.fc-menu-scrim {
+  position: absolute;
+  inset: 0;
 }
 
-/* The star that offers every card is solid, and carries no stroke of its own
-   so that the two states draw the same star at the same size: a stroke
-   straddles the line it follows, half of it outside, which is why the outlined
-   one is drawn shrunk instead (deck.js). The same correction the progress
-   row's own two stars make. */
-.fc-corner-full {
-  fill: currentColor;
-  stroke: none;
+/* `hidden` is a UA display:none, which any author `display` here would beat —
+   neither of these sets one, and this says so out loud rather than leaving it
+   to be rediscovered by whoever adds one. */
+.fc-menu-sheet[hidden],
+.fc-menu-scrim[hidden] {
+  display: none;
 }
 
-/* The card is capped at 75vw in portrait but at 88dvh × 4/3 in landscape, so a
-   small landscape window makes it wide and tall enough to reach up here: at
-   400 × 300 the touch area overlapped its top-right corner by 6 × 19 px, and a
-   tap there navigated instead of flipping. The mark shrinks to clear it. Below
-   the 44 px a finger wants, but this is a small desktop window rather than a
-   phone — a phone in landscape (844 × 390) is nowhere near the boundary. */
-@media (min-aspect-ratio: 1 / 1) and (max-width: 32rem) {
-  .fc-corner {
-    inline-size: 2rem;
-    block-size: 2rem;
-  }
+/* The sheet: a list of the states the reader can be in, hanging under the
+   button and over the card. No shadow and no radius (V2-7.2) — one hairline
+   is all it takes to be a surface, at this size. */
+.fc-menu-sheet {
+  position: absolute;
+  inset-block-start: calc(100% + 0.3rem);
+  inset-inline-end: 0;
+  min-inline-size: 11rem;
+  max-inline-size: min(18rem, 78vw);
+  background: var(--fc-bg);
+  border: 1px solid var(--fc-muted);
+  color: var(--fc-fg);
+  font: 0.85rem/1.35 system-ui, sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  .fc-corner {
-    color: #999;
-  }
+/* One hairline between two questions, and none above the first or below the
+   last: the groups are what keep seven rows from reading as one list of seven
+   unrelated things. */
+.fc-menu-group + .fc-menu-group {
+  border-block-start: 1px solid var(--fc-muted);
+}
 
-  .fc-corner:hover,
-  .fc-corner:focus-visible {
-    color: #f2f2f2;
-  }
+.fc-menu-item {
+  appearance: none;
+  border: none;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+  color: var(--fc-muted);
 
-  .fc-corner-near {
-    fill: #111;
-  }
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  inline-size: 100%;
+  padding: 0.55rem 0.7rem;
+  text-align: start;
+}
+
+/* The mark beside the chosen row, drawn as the card's own rectangle rather
+   than as a tick or a radio: a small square is what this project already used
+   for a filled mark before the stars were stars (V2-12.9), and a row is being
+   marked here, not approved. */
+.fc-menu-item::before {
+  content: "";
+  flex: none;
+  inline-size: 0.5rem;
+  block-size: 0.5rem;
+  border: 1px solid currentColor;
+}
+
+.fc-menu-item[aria-checked="true"] {
+  color: var(--fc-fg);
+}
+
+.fc-menu-item[aria-checked="true"]::before {
+  background: currentColor;
+}
+
+.fc-menu-item:hover,
+.fc-menu-item:focus-visible {
+  color: var(--fc-fg);
+  background: color-mix(in srgb, var(--fc-fg) 8%, transparent);
+}
+
+.fc-menu-item:focus-visible {
+  outline: 1px solid var(--fc-fg);
+  outline-offset: -1px;
 }
 
 /* An optional credit line, for a deck author who wants one — plain markup a
@@ -221,9 +329,10 @@ html:has(> body > .fc) body {
    from adding a favicon. Optional per file, on purpose: no deck carries it
    unless its own HTML says so.
 
-   Quiet, in the corner button's own register: present without competing
-   with the card, which is why it borrows that button's muted greys rather
-   than reaching for its own palette. */
+   Quiet, in the same register as the page's own controls: present without
+   competing with the card. Its greys are written out rather than taken from
+   --fc-muted, because that token is declared on .fc and this is a sibling,
+   outside it. */
 .fc-credit {
   position: fixed;
   z-index: 2;

@@ -114,7 +114,7 @@ document-level ones (§4).
 
 **V2-3.8** `switchTo(cards)` changes which cards are being studied without a second `mount()` — same
 element, same view, same input bindings, only the order underneath. The two cards ↔ dictionary sources a
-deck's own corner switches between (V2-13.9) are the reason this exists; the library knows only that
+deck's own menu switches between (V2-13.9) are the reason this exists; the library knows only that
 `cards` is another list, nothing about what the two mean or when a host offers a way between them.
 
 Each source seen by `mount()` or `switchTo` keeps its own shuffle and its own cursor, the first time it is
@@ -130,8 +130,8 @@ in the one frame V2-8.6 already asks a page turn's own arrival to land in.
 A source with no cards is refused rather than switched to, for the same reason `mount()` itself refuses
 one (V2-3.6): showing a card that belongs to neither the old source nor the new one is worse than doing
 nothing. `switchTo` returns whether it actually applied, so a host drawing its own state around the call
-— deck.js's toggle icon and label — moves that state only once the mount's own has, rather than assuming
-every call lands.
+— the mark beside deck.js's menu rows (V2-16.3) — moves that state only once the mount's own has, rather
+than assuming every call lands.
 
 ---
 
@@ -177,8 +177,9 @@ focus, so it is not a control and the deck keeps the key.
 
 The two cases differ in how much they take. A field takes every key, arrows included — it uses them to
 move the caret. A focused control takes only the keys that would press it, `Enter` and `Space`: the deck
-calls `preventDefault()` on what it takes, so without that much `Enter` on the link of V2-7.1 would flip
-the card instead of following it — but the arrows mean nothing to a link and everything to the deck.
+calls `preventDefault()` on what it takes, so without that much `Enter` on the menu button or the link of
+V2-7.1 would flip the card instead of pressing it — but the arrows mean nothing to a link and everything
+to the deck, except while the menu is open (V2-16.7).
 Taking every key for a control would leave the reader unable to page or grade after tapping the link and
 pressing Back, since browsers restore focus to the anchor, with the swipes still working and nothing on
 screen to explain the silence.
@@ -418,36 +419,35 @@ migrates nothing — the declaration lives in the deck that names the card.
 
 ## 7. Presentation
 
-**V2-7.1** The card is the only element on the page, apart from the corner controls of §13 — the way out
-(V2-13.9) and the reader's own filter (V2-13.13) — and each is absent unless it would do something: one
-unless it leads somewhere new, the other unless the schedule is holding something back. No header, no
-footer, no chrome, no other controls. Everything v2 has to say to a reader it says as cards or on the
-card: the guide is five cards (V2-15.3), the card that says there is nothing to repeat today is one card
-(V2-13.12), the grade names itself on the mark it is making (V2-5.7a), and where the card has a sentence
-of its own it goes there too (V2-15.2). Neither
-adds an element to the page, which is why this requirement reads as it always did — an overlay for the
-guide was built first and it cost exactly this sentence.
+**V2-7.1** The card is the only element on the page, apart from the menu of §16 and, on a page with no
+cards of its own, the link back to the deck the reader came from (V2-13.11). No header, no footer, no
+other controls. Everything v2 has to say to a reader it still says as cards or on the card: the guide is
+five cards (V2-15.3), the card that says there is nothing to repeat today is one card (V2-13.12), the
+grade names itself on the mark it is making (V2-5.7a), and where the card has a sentence of its own it
+goes there too (V2-15.2).
 
-This is also the answer to the one question first readers' feedback raised that was not about the
-gesture itself: a preference, so that grading could be made to move the deck or not. There is nowhere
-for a menu to live that does not cost this requirement and V2-10.3 together, it asks a first-time reader
-to decide something they have no basis to decide, and it forks the guide (V2-15.4) across every language
-in `strings.js`. The behaviour was changed instead (V2-5.2). A deck author who ever needs the other one
-gets an `openDeck` option, which is a fact about a deck rather than chrome on a page (V2-14.4) — there is
-no such option today and nothing has asked for one. The corner is the one exception, and what it is depends on what kind of
-page it sits on: on a deck with cards of its own it switches, in place, to the dictionary and back
-(V2-13.9) — not navigation, no second page involved, no element added beyond the corner itself; on a page
-with none it is a real link to the deck the reader came from (V2-13.11), because crossing between two
-files needs one — nobody navigates a phone webapp by typing an address. Either way it is a quiet mark in a
-corner the card never reaches, it carries no state that outlives the page, and it is the host page's
-element rather than the library's (V2-1.2) — `mount()` neither draws it nor knows it is there.
+This sentence used to read "no chrome", and the menu is the amendment. It was not a drift: the rule was
+argued for at length here, and the argument it made — that a preference has nowhere to live that does
+not cost this requirement and V2-10.3 together, asks a first-time reader to decide something they have
+no basis to decide, and forks the guide across every language in `strings.js` — was answered by readers
+rather than by a better argument. They asked for the back of the card first, and for a side chosen at
+random, and neither is a thing a deck author can decide on their behalf: the same deck wants to be
+studied in both directions by two different people, and in both by the same person on two different
+days (V2-16.4, V2-16.5). It is also not a decision a first-time reader has to make, because it has a
+default that is exactly what v2 did before it existed.
+
+What the amendment costs is bounded on purpose, and §16 is where the bound is written: one control, one
+sheet, no screen, nothing to dismiss before studying, and no row in it that would not do something
+(V2-16.3). The two corner marks this replaced are gone rather than joined — the page has fewer controls
+on it than it had, not more, and the one that remains is beside the card rather than out at the edge of
+the viewport where readers reported it was out of a thumb's reach (V2-16.2).
 
 This is a rule about what `mount()`, `openDeck()` and the library draw unasked — it says nothing about a
 deck's own HTML file. A deck author who wants a small credit line (`.fc-credit` in `flashcards.css`) adds it
 themselves, as plain markup in their own file, the same way nothing stops one from adding a favicon;
 `openDeck()` has no option for it and never will, so no deck carries one unless its own file says so. Kept
-quiet — the corner button's own muted greys, fixed at the safe-area bottom edge — so it reads as the same
-register as everything else here rather than as an ad.
+quiet — the same muted greys as the menu's own button, fixed at the safe-area bottom edge — so it reads as
+the same register as everything else here rather than as an ad.
 
 **V2-7.2** No shadows, no rounded corners, no gradients.
 
@@ -583,6 +583,13 @@ make this one built: there is still no way to look at the collection rather than
 ratios or the type scale. §15's guide is none of those: there is no screen and no panel, nothing to
 dismiss before studying, and no control anywhere that opens it. It is five cards at the front of one
 session, and the reader works through them exactly as they work through any card.
+
+§16's menu is none of them either, and the line between it and the info panel this rules out is the one
+worth naming: every row in it changes what the reader is looking at the moment it is pressed, and a row
+that would change nothing is not drawn (V2-16.3). There is nothing in it to read, nothing to confirm,
+no second level, and nothing about the sizing ratios or the type scale — those stay exactly as
+unconfigurable as this says. A menu that grew a row for its own sake would be the panel, and that is
+the test to apply to the next one proposed.
 
 **V2-10.4** Text that shrinks to fit its card. Card size is independent of text length (V2-7.8), so a
 card with far more text than the design assumes fills its card and may run under the category label.
@@ -851,28 +858,30 @@ to say — "you are done for today" is false where there was never anything to b
 can have studied from is a page reached by typing its address. V2-6.4 asks a deck to render whether or not
 storage works, and this page cannot, because without storage it has no cards to render. On
 `empty-deck.html`, V2-13.9 keeps a reader from being led there while it would be empty, so what remains
-is a typed address rather than a followed link. From a deck's own toggle, the same fact — `holdsMoreThan`
+is a typed address rather than a followed link. From a deck's own menu, the same fact — `holdsMoreThan`
 — keeps `switchTo` (V2-3.8) from ever being asked to open one.
 
-**V2-13.9** The corner is offered only where the dictionary holds a card the current deck does not
-(`holdsMoreThan`). "How many decks are there" is not a question storage can answer — it records cards,
-not decks (V2-13.7) — but it is also not the question worth asking. What matters is whether it would show
-the reader anything they cannot already see, and it does not for the only deck they have ever opened, nor
-where storage is unusable. It is added to the page once that is known, rather than written into the
-markup and hidden, so it is never in the document at a moment when it should not be seen.
+**V2-13.9** The choice between a deck's own cards and the dictionary is offered only where the
+dictionary holds a card the current deck does not (`holdsMoreThan`). "How many decks are there" is not a
+question storage can answer — it records cards, not decks (V2-13.7) — but it is also not the question
+worth asking. What matters is whether it would show the reader anything they cannot already see, and it
+does not for the only deck they have ever opened, nor where storage is unusable. Nothing offering it is
+put in the document at a moment when it should not be seen.
 
-What pressing it does depends on the page (V2-7.1), the same fact deciding everything else about it. On a
-deck with cards of its own it is a button: pressing it switches `mount()` in place (V2-3.8) to the
-dictionary's own selection — `chooseSession` over `allCards(storage)`, the same `onlyDue: true` rule the
-deck's own side already uses (V2-13.4) — and back, never leaving the page — there is no second HTML file
-involved, and no navigation for a phone's back gesture to catch. On a page with none — `empty-deck.html` —
-there is no deck of its own to switch back to in place, so the corner there is a real link instead, to the
-one page it can name (V2-13.11).
+What it does depends on the page (V2-7.1), the same fact deciding everything else about it. On a deck
+with cards of its own it is a menu group (V2-16.3): choosing the other row switches `mount()` in place
+(V2-3.8) to the dictionary's own selection — `chooseSession` over `allCards(storage)`, the same
+`onlyDue: true` rule the deck's own side already uses (V2-13.4) — and back, never leaving the page;
+there is no second HTML file involved, and no navigation for a phone's back gesture to catch. On a page
+with none — `empty-deck.html` — there is no deck of its own to switch back to in place, so what it gets
+is not this group at all but a real link (V2-13.11), because crossing between two files needs one.
 
-It draws what it leads to, in the 4:3 of the real card: two cards overlapping for the dictionary, which
-is many decks at once, and one card for a deck. On the toggle this flips with every press, since the one
-page is both sides of it in turn; on the link it is fixed, since `empty-deck.html` is always the
-many-at-once side and the deck it names is always the one.
+It used to be a corner mark rather than a menu row, drawing what it led to — two overlapping cards for
+the dictionary, one for a deck — and flipping with every press. A mark that draws the far side of itself
+is the only thing a single button can do, and it is not enough: the reader had to work out which side
+they were on from the picture of the side they were not. A row names the side it *is*, and the mark
+beside it says whether they are standing there (V2-16.3). The two-card shape survives in the one place
+that still has no room for a sentence, the link back (V2-13.11).
 
 **V2-13.11** A page with no cards of its own leads back to the deck the reader last opened, recorded by
 `openDeck` as `{ href, label }` under `flashcards.deck` whenever a deck *with* cards is opened. Once there
@@ -881,7 +890,7 @@ came from is the only answer that stays true as decks are added. It is always th
 dictionary with nothing in it cannot render at all (V2-13.8), so if there is something to come back from,
 some deck was opened to put it there. An unusable record offers no way back rather than a broken one, the
 same posture V2-11.8 takes. `empty-deck.html` does not record itself — it is not somewhere to come back
-to. Nor does a deck's own toggle (V2-13.9): switching to the dictionary and back in place is not a page
+to. Nor does a deck's own menu (V2-13.9): switching to the dictionary and back in place is not a page
 visited, so there is nothing here for it to remember.
 
 **V2-13.12** A pool with nothing due today shows one card saying so, rather than an empty screen, a
@@ -892,34 +901,36 @@ guide's own in-memory box (V2-15.4a) is not its either.
 
 It is a card because that is the only register this app has for saying something to a reader (V2-7.1,
 V2-15.4), written in the guide's own voice: short lines, no full stops, and the one gesture worth naming
-named. Its back names the star (V2-13.13), which is always on the page when this card is — a reader who
-has finished today's cards and wants to keep going is shown where, rather than being left at what looks
-like a dead end. A session still has no end (V2-3.5): this card wraps to itself, exactly as any one-card
+named. Its back names the menu, which always carries the way past the schedule when this card is on
+screen (V2-13.13) — a reader who has finished today's cards and wants to keep going is shown where,
+rather than being left at what looks like a dead end. A session still has no end (V2-3.5): this card wraps to itself, exactly as any one-card
 session does.
 
-Both pools can be in this state at once, and each says so on its own side of the corner (V2-13.9).
+Both pools can be in this state at once, and each says so on its own side of the switch (V2-13.9).
 
-**V2-13.13** The second corner is the reader's own filter: study what is due today, or every card in the
-same pool regardless of how many stars it has. It is `chooseSession`'s `onlyDue`, turned off — no second
-selection rule, and no third pool.
+**V2-13.13** The reader's own filter is the second of the menu's two questions about the session: study
+what is due today, or every card in the same pool regardless of how many stars it has. It is
+`chooseSession`'s `onlyDue`, turned off — no second selection rule, and no third pool.
 
 It filters whichever pool is on screen — this deck's own cards or the whole dictionary — rather than
-being a third thing to switch between. The two corners are two independent questions: *which* cards
-(V2-13.9), and *how many of them*. Turning it on outlives a switch between the pools, because a reader
-who asked to see everything asked about the app and not about one side of a toggle; it is not remembered
-past the page, because the schedule is the default and a reader who wants past it should have to say so
-again rather than discover weeks later that they have not been reviewing at all.
+being a third pool to switch between. The two are two independent questions: *which* cards (V2-13.9),
+and *how many of them*. Turning it on outlives a switch between the pools, because a reader who asked to
+see everything asked about the app and not about one pool; it is not remembered past the
+page, because the schedule is the default and a reader who wants past it should have to say so again
+rather than discover weeks later that they have not been reviewing at all. That is exactly the
+distinction V2-16.8 draws against the side, which *is* remembered: one of these can cost a reader their
+schedule and the other cannot.
 
-It is on the page only where it would do something: where the schedule is holding something back from the
+It is offered only where it would do something: where the schedule is holding something back from the
 pool on screen — which includes a pool with nothing due at all (V2-13.12) — or where it is already on,
-since a filter the reader cannot turn off is worse than one they were never offered. That is V2-13.9's
-own rule applied to the other control, and it is re-asked every time the pool changes, since one side of
-a page may be holding cards back where the other is not.
+since a way past the schedule the reader cannot put back is worse than one they were never offered. That
+is V2-13.9's own rule applied to the other question, and it is re-asked every time the menu is opened,
+since one side of a page may be holding cards back where the other is not.
 
-It draws a star, the app's own word for how well a card is known (V2-12.2), and like the corner opposite
-it draws what pressing it would show next rather than what is on screen: a solid star where it leads to
-every card, an outlined one where it leads back to what is due. It sits in the opposite corner to the way
-out, so two controls that are two different questions never read as a pair.
+Like the pool above it, it was a corner mark first — a star, the app's own word for how well a card is
+known (V2-12.2), solid where it led to every card and outlined where it led back. It is two rows now for
+the same reason (V2-16.3), and the card that says there is nothing to repeat today names the menu rather
+than the star on its back.
 
 ---
 
@@ -946,14 +957,15 @@ what put `BOX_COUNT` (V2-11.15) in review.js in the first place. One call cannot
 
 **V2-14.4** `options` are `element`, `storage`, `random`, `now`, `lang`, and `dictionary`. `storage`,
 `random` and `now` exist so this can be tested without globals, exactly as they do in the modules
-underneath. There
-is no `corner` option: neither corner is something a deck page names (V2-13.9, V2-13.13) — `openDeck`
-decides whether each is there at all, what it is, and, where it is a link, what it points to, from
-`cards`, `storage` and the schedule alone. It returns the library's own handle, so `destroy()` (V2-3.7)
-still reaches the deck, alongside whatever `openDeck` itself added.
+underneath. `random` is the deck's one source of chance and answers for the random side too (V2-16.5),
+not only the shuffle, so a test that pins one pins both. There
+is no `menu` option and no option naming any row in it: what the menu holds is not something a deck page
+decides (V2-13.9, V2-13.13, V2-16.3) — `openDeck` works out every row's presence from `cards`, `storage`
+and the schedule alone, and the reader decides the rest. It returns the library's own handle, so
+`destroy()` (V2-3.7) still reaches the deck, alongside whatever `openDeck` itself added.
 
-`lang` picks the app's own words — the guide (V2-15.3), the two grade labels (V2-5.7a), the toggle's
-dictionary label (V2-13.9), the filter's own two labels and the card that says there is nothing to repeat
+`lang` picks the app's own words — the guide (V2-15.3), the two grade labels (V2-5.7a), every row of the
+menu (V2-16.3) and the card that says there is nothing to repeat
 today (V2-13.12, V2-13.13) — from `strings.js`, falling back to English where it is unset or names a
 language `strings.js` has none for. It reaches only the app's own chrome, never `cards`: a card's
 `frontText`/`backText`/`details` stay exactly what a deck author wrote, in whatever language the deck
@@ -962,7 +974,7 @@ runtime dependency (V2-9.1): the app's own text is a handful of short lines in a
 languages, not enough surface to justify one.
 
 `dictionary` splits storage into several (V2-13.7), unlike `lang`: it does reach `cards`, stamped onto each
-one before anything is stored, since it is what decides which cards the toggle's other side draws from. Two
+one before anything is stored, since it is what decides which cards the menu's dictionary row draws from. Two
 unrelated options that happen to both default to "unset" — a deck can pick a UI language without picking a
 dictionary, or the reverse.
 
@@ -973,11 +985,13 @@ container (V2-7.11) — and it defaults to `body` rather than to a required wrap
 stylesheet claims the page box through `html:has(> body > .fc)`: a wrapper would break that selector,
 and with it the reason a phone's address bar stays put under a vertical swipe (V2-7.10).
 
-**V2-14.7** The way out lives here, not in the library (V2-1.2): which of a toggle or a link the corner
-is (V2-13.9), the toggle's two sources and the switch between them (V2-3.8), and — where it is a link —
-its `href` and the record of which deck to come back to (V2-13.11). `mount()` still neither draws
-anything nor knows the corner exists; `switchTo` does not know why it is being called or what the two
-sources it is handed mean.
+**V2-14.7** The menu and the way back live here, not in the library (V2-1.2): every row the menu offers
+and the rule deciding whether it is offered at all (V2-13.9, V2-13.13, V2-16.3), the two sources the
+pool rows switch between (V2-3.8), the side the reader has chosen and where it is kept (V2-16.8), and —
+on a page with no cards of its own — the link's `href` and the record of which deck to come back to
+(V2-13.11). `mount()` draws none of it: it lends an empty layer to put it in (V2-16.1) and asks which
+side a card arrives on (V2-16.4) without being told what decides either, and `switchTo` does not know
+why it is being called or what the two sources it is handed mean.
 
 **V2-14.5** The mark is built element by element rather than from markup. Card content is written as
 text and never parsed as HTML (V2-2.6); the rule holds for the page's own furniture too, rather than
@@ -990,7 +1004,7 @@ being relaxed wherever it happens to be safe.
 **V2-15.1** The card shows its own result for every interaction that has one: it flips, it pages, it
 takes a mark, the row of stars changes. Where a reader's action has no visible result at all, the page
 says so in words instead. This is the whole of what §15 covers, and the reason V2-7.1 admits it: an
-interface with no chrome depends absolutely on every action being answered, and the two places v2 was
+interface this bare depends absolutely on every action being answered, and the two places v2 was
 silent were the two places a reader concluded that nothing was there: a gesture with no result, and a
 gesture nobody had mentioned.
 
@@ -1099,9 +1113,107 @@ is listed under open questions.
 page's, and `lead` is a general facility that knows nothing about guides — the same division as
 `progress`, which draws a count without knowing it is a box. A bare `mount()` is still a bare card.
 
-**V2-15.8** The handle `openDeck()` returns takes down the corner link as well as everything `mount()`'s
-own `destroy()` removes (V2-3.7). Page furniture is no more the caller's to remember than the deck's own
-listeners are.
+**V2-15.8** The handle `openDeck()` returns takes down everything the page added as well as everything
+`mount()`'s own `destroy()` removes (V2-3.7) — the menu's document-level key listener (V2-16.7)
+included, which nothing else would take back. Page furniture is no more the caller's to remember than
+the deck's own listeners are.
+
+---
+
+## 16. The menu
+
+**V2-16.1** The library lends the page a layer to put its own controls in, and draws nothing in it. It
+is an element inside the mounted deck, over the card and outside everything the card is, handed back as
+`chrome` on `mount()`'s own handle and removed with the rest of the deck on `destroy()` (V2-3.7). What
+goes in it is the host's business and always was (V2-1.2, V2-14.7); what changed is that the host now
+has somewhere to put it that is not "somewhere else on the page".
+
+Inside rather than beside, because a control that has to sit near the card has to be able to measure
+itself against the card, and the card's size is a custom property on the mounted element (V2-7.4). A
+sibling cannot read it, and a sibling that wrote the formula out a second time would be the same
+duplication `BOX_COUNT` exists to prevent (V2-14.3).
+
+**V2-16.2** The layer is transparent to pointers and its contents are not, and a gesture that *starts*
+on its contents belongs to them rather than to the deck. Without that rule the tap opening the menu
+would also flip the card under it, and a drag begun on a menu row would page the deck out from beneath
+the reader's finger. Everything else is still the card's: the layer costs the deck no gesture it would
+otherwise have had.
+
+That is what lets the menu sit where it does — hanging off the card's own top-right corner rather than
+pinned to the viewport's. Readers reported the mark this replaced as being too far from the card, and
+they were describing a phone: a card 4:3 and 75 % of the viewport wide leaves a third of a tall screen
+empty above it, and a control at the very top of that gap is a stretch of the thumb away from the thing
+it acts on. A control belongs next to its subject.
+
+**V2-16.3** The menu is one button and one sheet. The sheet is groups of rows; each group is one
+question, each row is one of its answers, and a mark beside a row says whether that is the answer the
+reader is currently on. A row names the state it puts the reader in, never the move to it.
+
+Three questions, and no fourth without an amendment to this statement:
+
+1. Which side of a card comes up first (V2-16.4, V2-16.5).
+2. Which cards — this deck's own, or the whole dictionary (V2-13.9).
+3. How many of them — what is due today, or every card in the pool (V2-13.13).
+
+The first is on every page, because every deck has two sides and every reader may have a preference
+about them. The other two are offered only where they would change something, which is V2-13.9 and
+V2-13.13's own rule and not a new one: their being rows rather than corner marks does not soften it.
+Presence is decided afresh every time the sheet is drawn, because answering one question can take
+another away — a reader switching to a pool whose schedule holds nothing back loses the row that
+offered a way past it, and must not be left looking at a row that would do nothing.
+
+Choosing the row already marked is not a change, and nothing happens: no session dealt again, no card
+reported as paged past (V2-5.11), no fresh roll of a random side.
+
+**V2-16.4** A card arrives showing its front, its back, or a side chosen at random — the reader's
+choice, for every card in every deck. The library is told only "front" or "back", asked once per card as
+it arrives (`facing`), and has never heard the word random: which side a given card lands on is the
+whole of what it needs, and keeping it that way is what stops a third mode existing inside `mount()`.
+
+`frontText` and `backText` do not change meaning. The front is still the front — the card is turned
+over, not rewritten — so a flip still shows the other side, `frontDetails` still belongs to the front,
+and a deck author writes exactly what they wrote before.
+
+**V2-16.5** The random side is a coin per card, not per session: the reader cannot learn which side a
+given card will show, which is the whole of what they asked for. It is tossed with the deck's own
+injectable source of chance (V2-14.4), the same one the shuffle uses.
+
+A card revisited by paging back may land the other way up. That is the honest reading of "random", and
+the alternative — a side fixed per card for the life of the mount — would make paging back and forth a
+way to be sure of a card's side, which is the thing this exists to prevent.
+
+**V2-16.6** A side the reader has just chosen applies to the card in front of them, not merely to the
+next one: the card turns over where it stands. A choice whose only effect is a mark moving in a sheet
+the reader is about to close is a choice they have no reason to believe landed (V2-15.1), and the
+reader who picks "back first" while looking at a front has asked to see that back.
+
+It turns rather than being replaced, because the reader is watching: this is the flip they already know
+(V2-8.1), not a page turn, and there is no new card for V2-8.6's instant off-screen frame to be right
+for.
+
+**V2-16.7** While the sheet is open the four arrows belong to the menu, not to the deck: up and down
+walk the rows, left and right do nothing, and `Escape` closes it. The card is the page and the arrows
+are the deck's (V2-4.1) every other moment there is; an open sheet is the one moment it is not, and
+grading a card the reader has a sheet over is not what `↑` can be taken to mean. `Enter` and `Space`
+press the focused row, which needs no rule of its own — the deck already declines to take those from a
+focused control (§4).
+
+**V2-16.8** The side is remembered past the page; the schedule filter is not (V2-13.13). The two look
+alike in the menu and are not alike at all: a reader who wants the deck the other way round wants it
+every morning, and the worst an unreadable or nonsense record can do is show the front, which is where
+every reader starts anyway (V2-6.4). A remembered way past the schedule can cost a reader weeks of
+review without ever saying so.
+
+It is one record for the reader rather than one per deck, under its own key, and it is the app's own
+setting rather than anything a deck author writes (V2-14.4).
+
+**V2-16.9** Where a page has a title, the row naming this deck's own cards uses it. "Everyday German"
+says which pool it is in a way "this deck" cannot, particularly beside a row that names the other pool
+in full. `strings.js` carries a translated fallback for a page with no title (V2-14.4).
+
+**V2-16.10** An open sheet is dismissed by a tap anywhere outside it, and that tap does nothing else —
+in particular it does not flip the card it lands on (V2-16.2). Nothing else is modal about it: the deck
+underneath keeps its state, its session and its place.
 
 ---
 

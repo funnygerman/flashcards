@@ -37,9 +37,13 @@ import { createView } from "./view.js";
  *                  this deck was mounted, e.g. review.js's `gradedToday`. Such
  *                  a card arrives wearing its mark, and the reader may disagree
  *                  with it exactly as they may with one given a moment ago.
+ *                  `facing(card)` is the host's answer to "which side does this
+ *                  card arrive on?" — "front" or "back" (V2-16.4). Asked once
+ *                  per arrival, so a host answering "a random one" (V2-16.5)
+ *                  rolls per card; omit it and every card arrives front first.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, progress, gradeOf, labels, lead = [] } = options;
+  const { storage, random = Math.random, onGrade, progress, gradeOf, labels, lead = [], facing } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -68,7 +72,7 @@ export function mount(element, cards, options = {}) {
   };
 
   let deck = orderFor(cards, lead);
-  const view = createView(element, progress?.steps, labels);
+  const view = createView(element, progress?.steps, labels, facing);
 
   /* Progress is the host's data, not the library's — read fresh every time
      the reader could plausibly have changed it (a new card, or a grade on
@@ -217,6 +221,22 @@ export function mount(element, cards, options = {}) {
   );
 
   return {
+    /**
+     * Where a host puts its own controls: an element over the card, sharing
+     * the card's own coordinate space, that gestures pass through (V2-16.1).
+     * The library draws nothing in it and never reads it — it only guarantees
+     * that a tap landing on what a host puts there is not also a tap on the
+     * card.
+     */
+    chrome: view.chrome,
+
+    /**
+     * Turn the card on screen to the side `facing` now names, for a host whose
+     * answer has just changed under the reader's hand (V2-16.6). A host
+     * without a `facing` has nothing to ask for here and never calls it.
+     */
+    reface: () => view.reface(deck.current()),
+
     /**
      * Say something on the card, for a moment: the grade mark grows into a band
      * on the edge it already marks and holds the words. What is worth saying is

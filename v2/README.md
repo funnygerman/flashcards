@@ -23,10 +23,9 @@ A deck file holds its cards and one call:
 ```
 
 `openDeck()` assembles the whole thing: it picks the session, records grades against the schedule,
-brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the two
-corner marks — the way out to the dictionary, which switches the deck to it in place and back, and the
-star, which shows every card in whichever of the two is on screen rather than only what's due today.
-There is no element to name — one HTML file is one deck, so the deck is the page; pass `element` if you
+brings a card's mark back after a reload, sizes the progress row from the box ladder, and adds the menu
+beside the card — which side comes up first, this deck or everything you've seen, and what's due today
+or every card of it (§ The menu). There is no element to name — one HTML file is one deck, so the deck is the page; pass `element` if you
 want it somewhere smaller.
 
 It is composition, not library — `mount()` below still knows nothing about any of it, so a page that
@@ -44,8 +43,8 @@ Everything after this section describes those pieces. You need none of it to wri
 `npm run serve` from the repository root and open
 <http://localhost:8000/v2/decks/everyday-german.html> — ES modules do not load over `file://`.
 
-There are two decks rather than one because one deck's dictionary is that deck: the corner mark only
-appears on each of them once the other has been opened, and switching it in place only becomes worth
+There are two decks rather than one because one deck's dictionary is that deck: the menu's pool rows
+only appear on each of them once the other has been opened, and switching in place only becomes worth
 having when the dictionary holds more than that single deck.
 
 Once this is on `main` it is published at
@@ -98,8 +97,9 @@ the card, so the reader has to open that deck once.
 
 ### `mount(element, cards, options?)`
 
-Returns `{ say(text), destroy() }` — `say` puts a sentence on the card for a moment, on the grade mark
-(§ Saying what the card cannot show). Options:
+Returns `{ say(text), switchTo(cards), reface(), chrome, destroy() }` — `say` puts a sentence on the
+card for a moment, on the grade mark (§ Saying what the card cannot show); `chrome` is an empty element
+over the card for a host's own controls, which the library draws nothing in (§ The menu). Options:
 
 | | |
 |---|---|
@@ -108,6 +108,7 @@ Returns `{ say(text), destroy() }` — `say` puts a sentence on the card for a m
 | `gradeOf(card)` | the grade this card already carries — `"harder"`, `"easier"`, or `null` — from before the deck was mounted; such a card arrives wearing its mark, and the reader may still disagree with it (§ Interactions) |
 | `progress` | `{ steps, of(card) }` — draws a row of `steps` stars along the card's bottom edge, the first `of(card)` of them filled; omit it for a bare card |
 | `lead` | cards shown first, in the order given and unshuffled, ahead of the deck proper — a guide, or anything else whose sequence is the point |
+| `facing(card)` | `"front"` or `"back"` — which side this card arrives on, asked once per arrival; omit it and every card arrives front first |
 | `storage` | where cards are remembered; defaults to `localStorage` |
 | `random` | the shuffle's source of randomness; defaults to `Math.random` |
 
@@ -184,9 +185,10 @@ they are aimed at something else: a field being typed into (input, textarea, sel
 or a focused control (a link with an `href`, a button). The two take different amounts: a field takes
 every key, arrows included, because it uses them to move the caret; a control takes only `Enter` and
 `Space`, the keys that would press it. The deck calls `preventDefault()` on what it takes, so without
-that much, `Enter` on the corner would flip the card instead of pressing it — but the arrows mean nothing
-to a control and everything to the deck, so tabbing to the corner and pressing an arrow still pages.
-Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
+that much, `Enter` on the menu button would flip the card instead of pressing it — but the arrows mean
+nothing to a control and everything to the deck, so tabbing to the button and pressing an arrow still
+pages. The one exception is an open menu, which takes the four arrows and `Escape` for itself
+(§ The menu). Call `destroy()` if you unmount a deck, or it goes on answering the keyboard.
 
 ## Card size
 
@@ -445,8 +447,8 @@ example.
 
 ## The dictionary
 
-Everything the reader has ever opened, studied as one deck — reached from any deck by pressing its
-corner mark, or directly at <http://localhost:8000/v2/decks/empty-deck.html> for a reader with no deck
+Everything the reader has ever opened, studied as one deck — reached from any deck through its menu
+(§ next), or directly at <http://localhost:8000/v2/decks/empty-deck.html> for a reader with no deck
 open at all. Not a list and not a table — the same card, the same keys and gestures, the same marks, the
 same rules. A card is still judged with the card in front of you.
 
@@ -462,8 +464,8 @@ const source = cards.length > 0 ? cards : allCards();
 mount(document.body, chooseSession(source, { onlyDue: true }), { onGrade, gradeOf, progress });
 ```
 
-A deck with cards of its own selects its dictionary session with exactly those lines too, the moment its
-corner is pressed — `deck.js` computes it once and hands it to the mounted deck's `switchTo` (§ next),
+A deck with cards of its own selects its dictionary session with exactly those lines too, the moment the
+menu row is pressed — `deck.js` computes it once and hands it to the mounted deck's `switchTo` (§ next),
 rather than opening a second page. One rule either way, not a special page or a second implementation to
 keep in step: one grade per card per day and *paging away settles it* mean the same thing on both sides
 of the switch, because underneath it is the same `mount()` and the same wiring. Grade a card in the
@@ -488,23 +490,18 @@ handed (§ Interactions), because a fixed order studied every session teaches th
 cards. Selecting is enough for what matters: you never meet a card that is not due while due ones are
 waiting.
 
-A small mark in the top corner is the way between a deck and its dictionary — two overlapping cards, a
-picture of what it leads to — and it is the one thing on the page that is not the card. It is the host
-page's element, not the library's: `mount()` neither draws it nor knows it is there, and it sits outside
-the mounted deck so a tap on it is never read as a tap on the card.
+**This deck, or everything you have seen** is a pair of rows in the menu (§ next), and pressing the one
+you are not on calls the mounted deck's `switchTo()` with the other session, in place — no navigation,
+no second page, the same `mount()` throughout. Press back and you return to whichever card you left that
+side on rather than to a fresh shuffle. `decks/empty-deck.html` has no deck of its own to switch back to,
+so it carries no such pair; what it has instead is a real link in the corner, back to whichever deck you
+last had open.
 
-What the mark actually does depends on the page. On a deck with cards of its own it's a button: pressing
-it calls the mounted deck's `switchTo()` with the dictionary session, in place — no navigation, no
-second page, the same `mount()` throughout. Press it again and it switches back to the deck's own
-session, returning to whichever card you left it on rather than dealing a fresh shuffle. On
-`decks/empty-deck.html` there's no deck of its own to switch back to, so the mark there is a real link
-instead, back to whichever deck you last had open.
-
-`openDeck()` adds the mark only when the dictionary holds a card that deck does not —
-`holdsMoreThan(cards)` — and draws what it leads to: two overlapping cards for the dictionary, which is
-many decks at once, one card for a deck. On the toggle this flips with every press, since the one page
-is both sides of it in turn; on the link it's fixed, since `empty-deck.html` is always the many-at-once
-side.
+`openDeck()` offers the pair only when the dictionary holds a card the deck does not —
+`holdsMoreThan(cards)`. "How many decks are there" isn't a question storage can answer — it records
+cards, not decks — but it isn't the useful question either. What matters is whether the other side would
+show you anything you can't already see, and for the only deck you've ever opened it wouldn't. Where
+storage is blocked there's nothing to switch to or link back from either, so neither appears there.
 
 A real link needs somewhere to point, and that's **the deck you came from**, which `openDeck()` records
 as it opens one *with cards* — switching in place is not a visit, so it leaves no record of its own.
@@ -512,42 +509,97 @@ With more than one deck there's no such thing as *the* deck to name in its marku
 always there when it's needed: a dictionary with nothing in it can't render at all, so if there's
 something to come back from, some deck was opened to put it there.
 
-"How many decks are there" isn't a question storage can answer — it records cards, not decks — but it
-isn't the useful question either. What matters is whether the corner would show you anything you can't
-already see, and for the only deck you've ever opened it wouldn't. Where storage is blocked there's
-nothing to switch to or link back from either, so the corner stays away there too.
-
 Cards are not attributed to the deck they came from. The same word can belong to several decks, so that
 needs a mapping rather than a field, and nothing reads it yet.
 
-## Every card, when you want it
+## The menu
 
-The other top corner is a star, and it's the schedule's off switch: press it and the session becomes
-every card in the pool you're looking at, whatever its stars, in the same due order as ever. Press it
-again and you're back to today's. It is `chooseSession`'s `onlyDue`, turned off — no second selection
-rule and no third pool.
+One button beside the card, and three questions behind it:
+
+```text
+ ■ Front first          which side comes up first
+ □ Back first
+ □ Random side
+─────────────────────
+ ■ Everyday German      which cards
+ □ Everything you have seen
+─────────────────────
+ ■ Due today            how many of them
+ □ Every card
+```
+
+Every row names a state you can be *in*, and the mark beside it says which one you're in now. That's the
+one thing the two corner marks this replaced could not do: a single button has to draw the far side of
+itself, so you had to work out which side you were on from a picture of the side you were not.
+
+It hangs off the card's own top-right corner rather than the viewport's. Readers reported the old mark as
+too far from the card, and they were describing a phone: a 4:3 card 75 % of the viewport wide leaves a
+third of a tall screen empty above it, and a control at the very top of that gap is a stretch of the
+thumb from the thing it acts on. `mount()` lends the page a layer for exactly this — `deck.chrome`, an
+element over the card, inside the mounted deck so it can measure itself against the card's own size,
+which is a custom property on that element and unreadable from outside it. The layer is transparent to
+pointers and its contents are not, and **a gesture that starts on its contents belongs to them**: the tap
+that opens the menu doesn't also flip the card under it, and the tap that dismisses it doesn't either.
+The library draws nothing in the layer and never looks inside.
+
+### Which side comes up first
+
+```js
+mount(element, cards, { facing: (card) => "front" | "back" });
+```
+
+The front, the back, or a side chosen at random — per reader, for every deck. `frontText` and `backText`
+don't change meaning: the card is turned over, not rewritten, so a tap still shows the other side and a
+deck author writes exactly what they wrote before.
+
+The library is told only `"front"` or `"back"`, asked once per card as it arrives, and has never heard
+the word *random* — which side a given card lands on is all it needs, and keeping it that way is what
+stops a third mode existing inside `mount()`. Random is a coin per card, tossed with the deck's own
+`random`, so a card you page back to may land the other way up: that's the honest reading of it, and a
+side fixed per card would make paging back and forth a way to be sure of one.
+
+Choose a side and the card in front of you turns over, rather than the change waiting for the next card —
+a choice whose only effect is a mark moving in a sheet you're about to close is one you have no reason to
+believe landed. It's remembered past the page, unlike the row below, because a reader who wants the deck
+the other way round wants it every morning, and the worst an unreadable record can do is show you the
+front.
+
+### How many of them
+
+The schedule's off switch: **Every card** makes the session every card in the pool you're looking at,
+whatever its stars, in the same due order as ever. **Due today** puts it back. It is `chooseSession`'s
+`onlyDue`, turned off — no second selection rule and no third pool.
 
 ```js
 chooseSession(source, { onlyDue: true });  /* what's due today */
 chooseSession(source);                     /* every card, stars and all */
 ```
 
-It filters whichever pool is on screen, so it works on a single deck and on the dictionary alike, and
-the two corners stay two separate questions: *which* cards, and *how many of them*. Turning it on
-survives a switch between the two; it isn't remembered past the page, because the schedule is the
-default and asking past it is something you should have to say rather than drift into.
+It filters whichever pool is on screen, so it works on a single deck and on the dictionary alike, and the
+two stay separate questions: *which* cards, and *how many of them*. Turning it on survives a switch
+between the pools; it is **not** remembered past the page, because the schedule is the default and asking
+past it is something you should have to say rather than drift into. That's the whole difference between
+this row and the side above: one of them can cost you weeks of review without saying so.
 
-Like the corner opposite, it's only there when it would do something: when the schedule is holding
-something back from the pool you're on — which includes a pool with nothing due at all, where you'll be
-looking at the "Nothing to repeat today" card and its back says which corner to press — or when it's
-already on, since a filter you can't turn off is worse than one you were never offered. A deck whose
-cards are all due today carries no star. It draws what pressing it leads to, never the state you're in:
-a solid star for every card, an outlined one for back to today's.
+Both of these pairs are only there when they would do something — this deck's cards against the
+dictionary's when the dictionary holds more, the schedule when it's holding something back from the pool
+you're on (which includes a pool with nothing due at all, where you'll be looking at the "Nothing to
+repeat today" card, whose back says to open the menu) or when it's already on, since a way past the
+schedule you can't put back is worse than one you were never offered. Presence is worked out afresh every
+time the sheet is drawn, because answering one question can take the other away.
 
 The done card is a card, not a screen: no `key`, so it's never written to the dictionary and keeps no
 schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session. A
 pool with nothing *in* it is still an error rather than a done card — "you're done for today" isn't true
 of a dictionary you've never put anything in.
+
+### While it's open
+
+The four arrows belong to the menu: up and down walk the rows, left and right do nothing, `Escape`
+closes it, and `Enter`/`Space` press the focused row. The card is the page and the arrows are the deck's
+every other moment there is — an open sheet is the one moment it isn't, and grading a card you have a
+sheet over isn't what `↑` can be taken to mean. A tap anywhere outside dismisses it and does nothing
+else.
 
 ## Layout
 

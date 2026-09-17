@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { STORAGE_KEY as CARDS_KEY } from "./store.js";
 import { STORAGE_KEY as REVIEW_KEY } from "./review.js";
-import { DECK_KEY, HINTS_KEY, lastDeck, openDeck } from "./deck.js";
+import { DECK_KEY, HINTS_KEY, SIDE_KEY, lastDeck, openDeck } from "./deck.js";
 
 /* jsdom has no Web Animations API, so slides swap instantly and every
    assertion below can stay synchronous. */
@@ -21,8 +21,28 @@ const press = (key) => document.dispatchEvent(new KeyboardEvent("keydown", { key
 const front = () => document.querySelector(".fc-front .fc-text").textContent;
 const marks = () => document.querySelector(".fc-card").className.replace("fc-card", "").trim();
 const filled = () => document.querySelectorAll(".fc-dot.is-filled").length;
-const corner = () => document.querySelector(".fc-corner:not(.fc-corner-filter)");
-const star = () => document.querySelector(".fc-corner-filter");
+const corner = () => document.querySelector(".fc-corner");
+const back = () => document.querySelector(".fc-back .fc-text").textContent;
+const flipped = () => document.querySelector(".fc-card").classList.contains("is-flipped");
+
+/* The menu, and the rows it is showing — rebuilt every time it is opened, so
+   everything here reads it open rather than caching an element. */
+const menu = () => document.querySelector(".fc-menu-open");
+const opened = () => {
+  if (menu().getAttribute("aria-expanded") !== "true") menu().click();
+  return [...document.querySelectorAll(".fc-menu-item")];
+};
+const rows = () => opened().map((item) => item.textContent);
+const groups = () => {
+  opened();
+  return [...document.querySelectorAll(".fc-menu-group")].map((g) => [...g.children].map((i) => i.textContent));
+};
+const chose = () => opened().filter((item) => item.getAttribute("aria-checked") === "true").map((item) => item.textContent);
+const choose = (label) => {
+  const item = opened().find((candidate) => candidate.textContent === label);
+  if (!item) throw new Error(`no menu row named ${label}`);
+  item.click();
+};
 const schedule = (key) => JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}")[key];
 
 const mounted = [];
@@ -543,35 +563,317 @@ describe("openDeck", () => {
     });
   });
 
-  describe("the way out", () => {
+  describe("the menu", () => {
     /* An extra card in the dictionary this deck does not carry itself, so the
-       toggle has somewhere new to switch to. */
+       pool group has somewhere new to switch to. */
     const extra = () => localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
 
-    describe("from a deck with cards of its own", () => {
-      it("is absent for the only deck a reader has ever opened", () => {
+    it("is on every page, because every deck has two sides to choose between", () => {
+      open();
+
+      expect(menu()).not.toBe(null);
+      expect(menu().getAttribute("aria-label")).toBe("Menu");
+      expect(document.querySelector(".fc-menu-sheet").hidden).toBe(true);
+    });
+
+    it("opens, closes, and says which it is", () => {
+      open();
+
+      menu().click();
+      expect(menu().getAttribute("aria-expanded")).toBe("true");
+      expect(document.querySelector(".fc-menu-sheet").hidden).toBe(false);
+
+      menu().click();
+      expect(menu().getAttribute("aria-expanded")).toBe("false");
+      expect(document.querySelector(".fc-menu-sheet").hidden).toBe(true);
+    });
+
+    /* The whole reason it is here rather than out in a corner of the viewport:
+       it measures itself against the card, which it can only do from inside
+       the element the card is sized in (V2-16.2). */
+    it("sits in the library's own chrome layer, beside the card", () => {
+      open();
+
+      expect(document.querySelector(".fc-chrome").contains(menu())).toBe(true);
+      expect(document.querySelector(".fc").contains(menu())).toBe(true);
+    });
+
+    /* A tap that opens the menu is not also a tap on the card (V2-16.2). */
+    it("does not flip the card underneath it", () => {
+      open();
+
+      menu().dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0 }));
+      menu().dispatchEvent(new MouseEvent("pointerup", { bubbles: true, clientX: 0, clientY: 0 }));
+
+      expect(flipped()).toBe(false);
+    });
+
+    it("closes on a tap outside it, and that tap does not flip the card either", () => {
+      open();
+      menu().click();
+
+      const scrim = document.querySelector(".fc-menu-scrim");
+      scrim.dispatchEvent(new MouseEvent("pointerdown", { bubbles: true, clientX: 0, clientY: 0 }));
+      scrim.dispatchEvent(new MouseEvent("pointerup", { bubbles: true, clientX: 0, clientY: 0 }));
+      scrim.click();
+
+      expect(menu().getAttribute("aria-expanded")).toBe("false");
+      expect(flipped()).toBe(false);
+    });
+
+    it("closes on Escape", () => {
+      open();
+      menu().click();
+
+      press("Escape");
+      expect(menu().getAttribute("aria-expanded")).toBe("false");
+    });
+
+    /* The four arrows are the deck's while the card is the page, and an open
+       sheet is the one moment it is not (V2-16.7). */
+    it("keeps the deck's own keys off the card while it is open", () => {
+      open();
+
+      menu().click();
+      press("ArrowRight");
+      press("ArrowUp");
+
+      expect(front()).toBe("eins"); // never paged
+      expect(marks()).toBe(""); // and never graded
+      expect(schedule("a")).toBeUndefined();
+
+      menu().click(); // closed again, and the deck has them back
+      press("ArrowRight");
+      expect(front()).toBe("zwei");
+    });
+
+    it("gives them straight back once it is closed", () => {
+      open();
+
+      menu().click();
+      press("Escape");
+      press("ArrowRight");
+
+      expect(front()).toBe("zwei");
+    });
+
+    it("goes when the deck does, and takes its key listener with it", () => {
+      const deck = open();
+      deck.destroy();
+
+      expect(menu()).toBe(null);
+      expect(() => press("Escape")).not.toThrow();
+    });
+
+    /* Which side comes up first (V2-16.4): what readers asked for, and the
+       one group that is on every page because every deck has two sides. */
+    describe("which side comes up first", () => {
+      it("offers the three sides, front chosen, on a reader's first visit", () => {
         open();
-        expect(corner()).toBe(null);
+
+        expect(groups()[0]).toEqual(["Front first", "Back first", "Random side"]);
+        expect(chose()).toContain("Front first");
+        expect(flipped()).toBe(false);
       });
 
-      it("appears once the dictionary holds a card this deck does not", () => {
+      it("turns the card on screen over, not just the next one", () => {
+        open();
+        expect(front()).toBe("eins");
+
+        choose("Back first");
+
+        expect(flipped()).toBe(true); // the card in front of the reader answered
+        expect(back()).toBe("one");
+        expect(chose()).toContain("Back first");
+      });
+
+      it("deals every card after it back first too", () => {
+        open();
+        choose("Back first");
+        menu().click(); // out of the way
+
+        press("ArrowRight");
+        expect(flipped()).toBe(true);
+        expect(back()).toBe("two");
+
+        press("ArrowLeft");
+        expect(flipped()).toBe(true);
+      });
+
+      /* A tap still turns the card over — "back first" says which side it
+         arrives on, not that the other one is gone. */
+      it("leaves the tap meaning what it always meant", () => {
+        open();
+        choose("Back first");
+        menu().click();
+
+        press(" ");
+        expect(flipped()).toBe(false);
+        expect(front()).toBe("eins");
+      });
+
+      it("remembers the choice past the page", () => {
+        open();
+        choose("Back first");
+
+        expect(JSON.parse(localStorage.getItem(SIDE_KEY))).toEqual({ side: "back" });
+      });
+
+      it("opens on the side the reader last asked for", () => {
+        localStorage.setItem(SIDE_KEY, JSON.stringify({ side: "back" }));
+        open();
+
+        expect(flipped()).toBe(true);
+        expect(chose()).toContain("Back first");
+      });
+
+      it("shows the front where the record is unusable, rather than nothing at all", () => {
+        localStorage.setItem(SIDE_KEY, "{ not json");
+        open();
+
+        expect(flipped()).toBe(false);
+        expect(chose()).toContain("Front first");
+      });
+
+      it("shows the front for a side nobody has heard of", () => {
+        localStorage.setItem(SIDE_KEY, JSON.stringify({ side: "sideways" }));
+        open();
+
+        expect(chose()).toContain("Front first");
+      });
+
+      /* `random` is a coin per card, tossed with the deck's own injectable
+         source — which is what lets a test say which way it lands. */
+      it("tosses a coin per card when the reader asks it to", () => {
+        const flips = [];
+        const coin = () => 0.999; /* leaves the shuffle alone; lands on the front */
+
+        open(cards, { random: coin });
+        choose("Random side");
+        menu().click();
+
+        for (let i = 0; i < 3; i++) {
+          flips.push(flipped());
+          press("ArrowRight");
+        }
+
+        expect(flips).toEqual([false, false, false]);
+      });
+
+      it("lands on the back when the coin says so", () => {
+        open(cards, { random: () => 0.1 });
+        choose("Random side");
+
+        expect(flipped()).toBe(true);
+      });
+
+      it("names the three sides in the reader's language", () => {
+        open(cards, { lang: "de" });
+
+        expect(groups()[0]).toEqual(["Vorderseite zuerst", "Rückseite zuerst", "Zufällige Seite"]);
+      });
+
+      /* Choosing the row the mark is already on is not a change, and must not
+         be treated as one — a re-roll the reader did not ask for included. */
+      it("does nothing when the reader chooses the side they are already on", () => {
+        localStorage.setItem(SIDE_KEY, JSON.stringify({ side: "back" }));
+        open();
+
+        choose("Back first");
+        expect(flipped()).toBe(true);
+        expect(chose()).toContain("Back first");
+      });
+    });
+
+    /* Which cards (V2-13.9), now a row rather than a corner: the deck's own,
+       or the whole dictionary, switched in place. */
+    describe("which cards", () => {
+      it("offers no choice to the only deck a reader has ever opened", () => {
+        open();
+
+        expect(groups()).toHaveLength(1); // the sides, and nothing else
+      });
+
+      it("offers the dictionary once it holds a card this deck does not", () => {
+        document.title = "Everyday German";
         extra();
         open();
 
-        expect(corner().tagName).toBe("BUTTON");
-        expect(corner().getAttribute("aria-label")).toBe("Everything you have seen");
+        expect(groups()[1]).toEqual(["Everyday German", "Everything you have seen"]);
+        expect(chose()).toContain("Everyday German");
       });
 
-      it("labels itself in the reader's language, given one", () => {
+      it("calls this deck 'this deck' where the page has no title of its own", () => {
+        document.title = "";
+        extra();
+        open();
+
+        expect(groups()[1]).toEqual(["This deck", "Everything you have seen"]);
+      });
+
+      it("names the dictionary in the reader's language, given one", () => {
+        document.title = "";
         extra();
         open(cards, { lang: "de" });
 
-        expect(corner().getAttribute("aria-label")).toBe("Alles, was du gesehen hast");
+        expect(groups()[1]).toEqual(["Dieser Stapel", "Alles, was du gesehen hast"]);
+      });
+
+      it("switches in place, no navigation, and back again", () => {
+        document.title = "Everyday German";
+        extra();
+        open();
+
+        expect(front()).toBe("eins");
+
+        choose("Everything you have seen");
+        expect(front()).toBe("vier"); // the dictionary's own card, not this deck's
+        expect(chose()).toContain("Everything you have seen");
+
+        choose("Everyday German");
+        expect(front()).toBe("eins");
+      });
+
+      it("returns to the same card on each side, not a fresh shuffle", () => {
+        document.title = "Everyday German";
+        extra();
+        open();
+
+        press("ArrowRight"); // card b
+        choose("Everything you have seen");
+        menu().click();
+        press("ArrowRight"); // its second card, whichever that is
+        const inDictionary = front();
+
+        choose("Everyday German");
+        expect(front()).toBe("zwei"); // exactly where paging left it
+
+        choose("Everything you have seen");
+        expect(front()).toBe(inDictionary);
+      });
+
+      /* jsdom has no Web Animations API, so a page turn is instant everywhere
+         else in this file — stubbing `animate` to hang open is what makes a
+         tap "mid-slide" reachable at all. */
+      it("does not move its mark when a tap mid-slide is refused", () => {
+        Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
+
+        try {
+          document.title = "Everyday German";
+          extra();
+          open();
+
+          press("ArrowRight"); // card b, still sliding in
+          choose("Everything you have seen"); // refused: the switch never landed
+
+          expect(chose()).toContain("Everyday German");
+        } finally {
+          delete Element.prototype.animate;
+        }
       });
 
       /* A reader learning English and French wants two dictionaries, not one
-         that mixes both (V2-13.7) — a card from a different dictionary is not
-         "more" this deck's toggle should offer. */
+         that mixes both (V2-13.7). */
       describe("scoped to a dictionary", () => {
         it("stamps its own cards with the dictionary it was opened for", () => {
           open(cards, { dictionary: "french" });
@@ -580,18 +882,18 @@ describe("openDeck", () => {
           expect(stored.a.dictionary).toBe("french");
         });
 
-        it("stays absent when the only card beyond this deck is in a different dictionary", () => {
+        it("offers nothing when the only card beyond this deck is in a different dictionary", () => {
           extra(); // dictionary-less
           open(cards, { dictionary: "french" });
 
-          expect(corner()).toBe(null);
+          expect(groups()).toHaveLength(1);
         });
 
-        it("appears once another card in the same dictionary exists", () => {
+        it("offers it once another card in the same dictionary exists", () => {
           localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four", dictionary: "french" } }));
           open(cards, { dictionary: "french" });
 
-          expect(corner()).not.toBe(null);
+          expect(groups()).toHaveLength(2);
         });
 
         it("leads only to cards in the same dictionary, not the whole dictionary", () => {
@@ -604,7 +906,9 @@ describe("openDeck", () => {
           );
           open(cards, { dictionary: "french" });
 
-          corner().click();
+          choose("Everything you have seen");
+          menu().click();
+
           const seen = new Set([front()]);
           for (let i = 0; i < 5; i++) {
             press("ArrowRight");
@@ -618,78 +922,167 @@ describe("openDeck", () => {
         });
       });
 
-      /* It draws what it leads to: the dictionary is many decks at once, a
-         deck is one — both the 4:3 of the real card, and both swapped for
-         the other the moment the reader presses it. */
-      it("switches in place, no navigation, and back again", () => {
-        extra();
-        open();
-
-        expect(corner().querySelectorAll("rect")).toHaveLength(2); // leads to the dictionary
-        expect(front()).toBe("eins");
-
-        corner().click();
-        expect(corner().querySelectorAll("rect")).toHaveLength(1); // leads back to the deck
-        expect(corner().getAttribute("aria-label")).toBe(document.title);
-        expect(front()).toBe("vier"); // the dictionary's own card, not this deck's
-
-        corner().click();
-        expect(corner().querySelectorAll("rect")).toHaveLength(2);
-        expect(front()).toBe("eins");
-      });
-
-      it("returns to the same card on each side of the toggle, not a fresh shuffle", () => {
-        extra();
-        open();
-
-        press("ArrowRight"); // card b
-        corner().click(); // into the dictionary
-        press("ArrowRight"); // its second card, whichever that is
-        const inDictionary = front();
-
-        corner().click(); // back to the deck
-        expect(front()).toBe("zwei"); // exactly where paging left it
-
-        corner().click(); // into the dictionary again
-        expect(front()).toBe(inDictionary);
-      });
-
-      /* jsdom has no Web Animations API, so a page turn is instant everywhere
-         else in this file — stubbing `animate` to hang open is what makes a
-         tap "mid-slide" reachable at all. */
-      it("does not flip its own icon or label when a tap mid-slide is refused", () => {
-        Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
-
-        try {
-          extra();
-          open();
-
-          press("ArrowRight"); // card b, still sliding in
-          corner().click(); // refused: the switch never landed
-
-          expect(corner().querySelectorAll("rect")).toHaveLength(2); // still "leads to the dictionary"
-          expect(corner().getAttribute("aria-label")).toBe("Everything you have seen");
-        } finally {
-          delete Element.prototype.animate;
-        }
-      });
-
-      it("sits outside the mounted deck, where a tap on it is not a tap on the card", () => {
-        extra();
-        open();
-
-        expect(document.querySelector(".fc").contains(corner())).toBe(false);
-      });
-
       /* Nothing about this page changes what the dictionary leads back to —
          only a page with no cards of its own is ever somewhere to leave. */
-      it("does not record itself as somewhere to come back to", () => {
+      it("does not record this page as somewhere to come back to", () => {
+        document.title = "";
         open();
         expect(lastDeck(localStorage)).toBe(null);
       });
     });
 
-    describe("from a page with none", () => {
+    /* How many of them (V2-13.13): what the schedule says is due, or every
+       card in the same pool regardless of its stars. */
+    describe("how many of them", () => {
+      /* Every card in a deck nobody has graded is due, so there is nothing for
+         a filter to let through and no row offering one (V2-13.9's rule). */
+      it("offers no choice where the schedule is holding nothing back", () => {
+        open();
+
+        expect(rows()).not.toContain("Every card");
+      });
+
+      it("appears once the schedule is holding a card back", () => {
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+        open();
+
+        expect(groups().at(-1)).toEqual(["Due today", "Every card"]);
+        expect(chose()).toContain("Due today");
+      });
+
+      it("shows every card in the deck, stars and all", () => {
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 5, dueAt: Date.now() + 30 * DAY } }));
+        open();
+
+        expect(front()).toBe("zwei"); // only b and c are due
+        press("ArrowRight");
+        press("ArrowRight");
+        expect(front()).toBe("zwei"); // two cards, wrapping: a is nowhere in this session
+
+        choose("Every card");
+        expect(chose()).toContain("Every card");
+        menu().click();
+
+        /* Every card, in due order still, so the one furthest from due comes
+           last rather than first — a filter, not a reordering. */
+        press("ArrowRight");
+        press("ArrowRight");
+        expect(front()).toBe("eins");
+        expect(filled()).toBe(5); // wearing every star it earned
+      });
+
+      it("names its two sides in the reader's language", () => {
+        scheduleAll(30);
+        open(cards, { lang: "de" });
+
+        expect(groups().at(-1)).toEqual(["Heute dran", "Alle Karten"]);
+      });
+
+      /* The one place a reader most wants it, which is why the done card's own
+         back names the menu. */
+      it("is there on the done card, and studies the deck anyway", () => {
+        scheduleAll(30);
+        open();
+        expect(front()).toBe("Nothing to repeat today");
+
+        choose("Every card");
+        expect(front()).toBe("eins");
+
+        choose("Due today");
+        expect(front()).toBe("Nothing to repeat today"); // and back to being done
+      });
+
+      it("returns to the card the filtered session was left on", () => {
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+        open();
+
+        choose("Every card"); // a, b, c
+        menu().click();
+        press("ArrowRight");
+        const left = front();
+
+        choose("Due today");
+        choose("Every card");
+
+        expect(front()).toBe(left);
+      });
+
+      /* The same rule over the other pool: the two questions are two
+         questions, and neither answers the other's. */
+      it("filters the dictionary as well as a deck", () => {
+        localStorage.setItem(
+          CARDS_KEY,
+          JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, y: { key: "y", frontText: "fünf", backText: "five" } }),
+        );
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+
+        open([]);
+        expect(front()).toBe("fünf"); // only y is due
+        press("ArrowRight");
+        expect(front()).toBe("fünf"); // and it wraps to itself
+
+        choose("Every card");
+        menu().click();
+        press("ArrowRight");
+        expect(front()).toBe("vier"); // the card the dictionary's own schedule was holding back
+      });
+
+      it("stays on once the reader switches pools", () => {
+        document.title = "Everyday German";
+        localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+        open();
+
+        choose("Every card");
+        choose("Everything you have seen"); // still showing everything
+
+        expect(chose()).toContain("Every card");
+        expect(document.querySelectorAll(".fc-slide")).toHaveLength(1);
+      });
+
+      /* A way past the schedule the reader cannot put back is worse than one
+         they were never offered, so the row stays while it is on even where
+         this pool holds nothing back — and goes again once it is off. */
+      it("stays reachable on a pool that is holding nothing back", () => {
+        document.title = "Everyday German";
+        localStorage.setItem(
+          CARDS_KEY,
+          JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, ...Object.fromEntries(cards.map((c) => [c.key, c])) }),
+        );
+        localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+
+        open();
+        expect(rows()).not.toContain("Every card"); // this deck is all due; nothing to let through
+
+        choose("Everything you have seen"); // the dictionary, which is holding z back
+        expect(rows()).toContain("Every card");
+
+        choose("Every card");
+        choose("Everyday German"); // back to the deck, where it changes nothing
+        expect(rows()).toContain("Due today"); // still there to be put back
+
+        choose("Due today");
+        expect(rows()).not.toContain("Due today");
+      });
+
+      it("does not move its mark when a tap mid-slide is refused", () => {
+        Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
+
+        try {
+          localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+          open();
+
+          press("ArrowRight"); // still sliding
+          choose("Every card"); // refused: the switch never landed
+
+          expect(chose()).toContain("Due today");
+        } finally {
+          delete Element.prototype.animate;
+        }
+      });
+    });
+
+    describe("the way back, from a page with no cards of its own", () => {
       /* Which deck "back" means is not fixed once there is more than one, so
          a deck records itself and a card-less page reads that. */
       it("remembers the deck the reader opened, so a card-less page can lead back to it", () => {
@@ -711,12 +1104,13 @@ describe("openDeck", () => {
         expect(lastDeck(localStorage)).toBe(null);
       });
 
-      it("shows no corner at all where the record it would read is unusable", () => {
+      it("shows no link at all where the record it would read is unusable", () => {
         extra();
         localStorage.setItem(DECK_KEY, "{ not json");
         open([]);
 
         expect(corner()).toBe(null);
+        expect(menu()).not.toBe(null); // the menu is still there; it always is
       });
 
       it("is a real link back to the deck the reader came from", () => {
@@ -733,171 +1127,20 @@ describe("openDeck", () => {
         expect(corner().getAttribute("href")).toBe("/");
         expect(corner().getAttribute("aria-label")).toBe("Everyday German");
         expect(corner().querySelectorAll("rect")).toHaveLength(1);
+        expect(document.querySelector(".fc-chrome").contains(corner())).toBe(true);
       });
-    });
-  });
 
-  /* The reader's own filter: study what is due, or every card in the same pool
-     regardless of its stars (V2-13.13). */
-  describe("the star", () => {
-    const solid = () => star().querySelector("path").getAttribute("class") === "fc-corner-full";
-
-    /* Every card in a deck nobody has graded is due, so there is nothing for a
-       filter to let through and no filter (V2-13.9's rule, same as the corner). */
-    it("is absent where the schedule is holding nothing back", () => {
-      open();
-
-      expect(star()).toBe(null);
-      expect(document.body.children).toHaveLength(1);
-    });
-
-    it("appears once the schedule is holding a card back", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
-      open();
-
-      expect(star()).not.toBe(null);
-      expect(star().getAttribute("aria-label")).toBe("Show every card");
-      expect(solid()).toBe(true); // it leads to every card
-    });
-
-    it("shows every card in the deck, stars and all", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 5, dueAt: Date.now() + 30 * DAY } }));
-      open();
-
-      expect(front()).toBe("zwei"); // only b and c are due
-      press("ArrowRight");
-      press("ArrowRight");
-      expect(front()).toBe("zwei"); // two cards, wrapping: a is nowhere in this session
-
-      star().click();
-      expect(star().getAttribute("aria-label")).toBe("Show only what is due today");
-      expect(solid()).toBe(false); // and now it leads back
-
-      /* Every card, in due order still, so the one furthest from due comes
-         last rather than first — a filter, not a reordering. */
-      press("ArrowRight");
-      press("ArrowRight");
-      expect(front()).toBe("eins");
-      expect(filled()).toBe(5); // wearing every star it earned
-    });
-
-    it("names its two sides in the reader's language", () => {
-      scheduleAll(30);
-      open(cards, { lang: "de" });
-
-      expect(star().getAttribute("aria-label")).toBe("Alle Karten zeigen");
-      star().click();
-      expect(star().getAttribute("aria-label")).toBe("Nur zeigen, was heute dran ist");
-    });
-
-    /* The one place a reader most wants it, which is why the done card's own
-       back names it. */
-    it("is there on the done card, and studies the deck anyway", () => {
-      scheduleAll(30);
-      open();
-      expect(front()).toBe("Nothing to repeat today");
-
-      star().click();
-      expect(front()).toBe("eins");
-
-      star().click();
-      expect(front()).toBe("Nothing to repeat today"); // and back to being done
-    });
-
-    it("returns to the card the filtered session was left on", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
-      open();
-
-      star().click(); // every card: a, b, c
-      press("ArrowRight");
-      const left = front();
-
-      star().click(); // back to what is due
-      star().click(); // and out again
-
-      expect(front()).toBe(left);
-    });
-
-    /* Glossary mode is the same rule over the other pool (V2-13.13): the two
-       corners are two questions, and neither answers the other's. */
-    it("filters the dictionary as well as a deck", () => {
-      localStorage.setItem(
-        CARDS_KEY,
-        JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, y: { key: "y", frontText: "fünf", backText: "five" } }),
-      );
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
-
-      open([]);
-      expect(front()).toBe("fünf"); // only y is due
-      press("ArrowRight");
-      expect(front()).toBe("fünf"); // and it wraps to itself
-
-      star().click();
-      press("ArrowRight");
-      expect(front()).toBe("vier"); // the card the dictionary's own schedule was holding back
-    });
-
-    it("stays on once the reader switches pools", () => {
-      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
-      open();
-
-      star().click();
-      corner().click(); // into the dictionary, still showing everything
-
-      expect(star().getAttribute("aria-label")).toBe("Show only what is due today");
-      expect(document.querySelectorAll(".fc-slide").length).toBe(1);
-    });
-
-    /* A filter the reader cannot turn off is worse than one they were never
-       offered, so it stays while it is on even where this pool holds nothing
-       back — and goes again once it is off. */
-    it("stays reachable on a pool that is holding nothing back", () => {
-      localStorage.setItem(
-        CARDS_KEY,
-        JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, ...Object.fromEntries(cards.map((c) => [c.key, c])) }),
-      );
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ z: { box: 3, dueAt: Date.now() + 30 * DAY } }));
-
-      open();
-      expect(star()).toBe(null); // this deck is all due; nothing to let through
-
-      corner().click(); // the dictionary, which is holding z back
-      expect(star()).not.toBe(null);
-      star().click(); // every card
-
-      corner().click(); // back to the deck, where the filter changes nothing
-      expect(star()).not.toBe(null); // still there to be turned off
-
-      star().click();
-      expect(star()).toBe(null);
-    });
-
-    it("does not change sides when a tap mid-slide is refused", () => {
-      Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
-
-      try {
-        localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
+      /* A deck switches pools from the menu and has nowhere to navigate to. */
+      it("is never drawn on a deck with cards of its own", () => {
+        document.title = "Everyday German";
         open();
+        mounted.splice(0).forEach((deck) => deck.destroy());
+        document.body.replaceChildren();
 
-        press("ArrowRight"); // still sliding
-        star().click(); // refused: the switch never landed
-
-        expect(star().getAttribute("aria-label")).toBe("Show every card");
-        expect(solid()).toBe(true);
-      } finally {
-        delete Element.prototype.animate;
-      }
-    });
-
-    it("sits outside the mounted deck, and goes when the deck does", () => {
-      scheduleAll(30);
-      const deck = open();
-
-      expect(document.querySelector(".fc").contains(star())).toBe(false);
-
-      deck.destroy();
-      expect(star()).toBe(null);
+        extra();
+        open();
+        expect(corner()).toBe(null);
+      });
     });
   });
 });

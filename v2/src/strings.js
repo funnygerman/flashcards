@@ -1,6 +1,7 @@
 /**
- * The app's own words — the guide, the two grade labels, and the toggle's
- * dictionary label — translated. Card content (`frontText`, `backText`, ...) is never touched
+ * The app's own words — the guide, the two grade labels, the menu and the card
+ * that says there is nothing left today — translated. Card content
+ * (`frontText`, `backText`, ...) is never touched
  * here: that is whatever a deck author wrote, in whatever language the deck
  * teaches, and i18n has no opinion on it.
  *
@@ -28,35 +29,44 @@
  * apologise for. `say()` remains as the seam it always was; nothing in this
  * repository currently has a sentence for it.
  *
- * `allLabel` is what the toggle calls the dictionary side of itself — the
- * title `empty-deck.html` used to carry when it was still the page a deck's
- * corner linked to (V2-13.1).
+ * `menu` is the words the menu is made of (§16). `open` names the button that
+ * opens it. The three groups inside — `side`, `pool`, `scope` — each name a
+ * state the reader can be in rather than the move to it: a menu row is a place
+ * to stand, and the mark beside it says which one they are standing on. That
+ * is the one thing the two corners it replaced could not do, and why their own
+ * labels ("Show every card", meaning press-this-to-get-there) are gone rather
+ * than moved: a control that draws the far side of itself has to, because
+ * there is nowhere on it to show both.
  *
- * `filter` names the two sides of the star (V2-13.13), the same way `allLabel`
- * names the far side of the corner: each is what pressing it would show next,
- * never what is on screen now.
+ * `pool.deck` is only a fallback. A deck page has a title, and its own name is
+ * a better word for itself than "this deck" is; this stands in where a page
+ * has none (V2-16.9).
  *
  * `done` is the one card a page has when its own schedule says there is
  * nothing to repeat today (V2-13.12). It is written as a card, in the guide's
  * own register — short lines, no full stops, the gesture named where there is
  * one to name — because that is the only register this app has for saying
  * something to a reader, and an empty screen or a banner would be a second
- * one. Its back names the star, which is always on the page when this card is
- * (V2-13.13): the reader who wants to study anyway is told where to, rather
- * than being left at a dead end.
+ * one. Its back names the menu, which always carries the way past the schedule
+ * when this card is on screen (V2-13.13, V2-16.3): the reader who wants to
+ * study anyway is told where to, rather than being left at a dead end.
  */
 
 const STRINGS = {
   en: {
     grades: { easier: "Knew it", harder: "Didn't know it" },
-    allLabel: "Everything you have seen",
-    filter: { every: "Show every card", due: "Show only what is due today" },
+    menu: {
+      open: "Menu",
+      side: { front: "Front first", back: "Back first", random: "Random side" },
+      pool: { deck: "This deck", all: "Everything you have seen" },
+      scope: { due: "Due today", every: "Every card" },
+    },
     done: {
       category: "done",
       frontText: "Nothing to repeat today",
       frontDetails: "Tap this card",
       backText: "Come back tomorrow",
-      backDetails: "or tap the star to study anyway",
+      backDetails: "or open the menu to study anyway",
     },
     guide: [
       {
@@ -99,14 +109,18 @@ const STRINGS = {
 
   de: {
     grades: { easier: "Gewusst", harder: "Nicht gewusst" },
-    allLabel: "Alles, was du gesehen hast",
-    filter: { every: "Alle Karten zeigen", due: "Nur zeigen, was heute dran ist" },
+    menu: {
+      open: "Menü",
+      side: { front: "Vorderseite zuerst", back: "Rückseite zuerst", random: "Zufällige Seite" },
+      pool: { deck: "Dieser Stapel", all: "Alles, was du gesehen hast" },
+      scope: { due: "Heute dran", every: "Alle Karten" },
+    },
     done: {
       category: "geschafft",
       frontText: "Heute nichts zu wiederholen",
       frontDetails: "Tippe auf diese Karte",
       backText: "Komm morgen wieder",
-      backDetails: "oder tippe auf den Stern, um trotzdem zu lernen",
+      backDetails: "oder öffne das Menü, um trotzdem zu lernen",
     },
     guide: [
       {
@@ -149,14 +163,18 @@ const STRINGS = {
 
   ru: {
     grades: { easier: "Знал", harder: "Не знал" },
-    allLabel: "Всё, что ты видел",
-    filter: { every: "Показать все карточки", due: "Показать только то, что на сегодня" },
+    menu: {
+      open: "Меню",
+      side: { front: "Сначала лицевая", back: "Сначала обратная", random: "Случайная сторона" },
+      pool: { deck: "Эта колода", all: "Всё, что ты видел" },
+      scope: { due: "На сегодня", every: "Все карточки" },
+    },
     done: {
       category: "готово",
       frontText: "Сегодня повторять нечего",
       frontDetails: "Нажми на эту карточку",
       backText: "Возвращайся завтра",
-      backDetails: "или нажми на звезду, чтобы учить дальше",
+      backDetails: "или открой меню, чтобы учить дальше",
     },
     guide: [
       {
