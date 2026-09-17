@@ -124,19 +124,31 @@ const departure = (percent, from = 0) => [
 ];
 
 /**
+ * How far past the threshold a drag can still carry the card, as a fraction
+ * of the viewport. A released card is sent off screen by the exit animation
+ * regardless of where the drag left it, so this is not about how far a grade
+ * is allowed to travel — it is about a finger that never lets go: without a
+ * ceiling here, that finger can drag the card past the edge of the screen and
+ * leave it there, held, with nothing visible to release.
+ */
+const VERTICAL_FREE_MAX = 0.4;
+
+/**
  * How far the card actually moves under a vertical drag of `dy`.
  *
  * Short of the threshold it gives rather than travels: a gesture that stops
  * there is not a grade, and the card springing back is what says so (V2-4.11).
  * Past it the card breaks free and takes every further pixel one for one,
- * because past it the gesture *is* a grade and the card really is leaving.
+ * because past it the gesture *is* a grade and the card really is leaving —
+ * up to `VERTICAL_FREE_MAX`, past which it holds at the edge instead of
+ * following the finger off it.
  * The change of régime at the threshold is the point — it is the one moment
  * a finger can feel the difference between a drag and a swipe, on the axis
  * where nothing else distinguishes them.
  */
 function verticalTravel(dy) {
   const held = Math.min(Math.abs(dy), SWIPE_THRESHOLD) * VERTICAL_GIVE;
-  const free = Math.max(0, Math.abs(dy) - SWIPE_THRESHOLD);
+  const free = Math.min(Math.max(0, Math.abs(dy) - SWIPE_THRESHOLD), window.innerHeight * VERTICAL_FREE_MAX);
 
   return Math.sign(dy) * (held + free);
 }

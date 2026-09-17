@@ -757,6 +757,17 @@ describe("mount", () => {
       expect(slider().style.transform).toBe("translate(-100px, 0)"); /* on its way out */
     });
 
+    /* A finger that never lets go must not be able to drag the card past the
+       edge of the screen and strand it there — the exit animation is what
+       actually sends a graded card off screen, not the drag itself. */
+    it("stops a vertical drag at the edge of the screen instead of following it off", () => {
+      open();
+
+      drag(0, -2000, { release: false });
+      const [, y] = slider().style.transform.match(/translate\(0, (-?[\d.]+)px\)/);
+      expect(Number(y)).toBeCloseTo(-316);
+    });
+
     it("puts the card back when the drag comes to nothing", () => {
       open();
 
