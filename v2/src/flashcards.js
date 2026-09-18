@@ -198,9 +198,20 @@ export function mount(element, cards, options = {}) {
   };
 
   const page = (direction) => {
-    leave(deck.current());
-
+    const leaving = deck.current();
     const arriving = direction > 0 ? deck.next() : deck.previous();
+
+    /* A session of one card has nowhere to page to, and saying so is not the
+       same as doing nothing (V2-3.10): the card gives the way it was pushed
+       and comes back, rather than leaving and being replaced by itself. The
+       reader has not moved on from anything, so nothing is reported as paged
+       past either (V2-5.11) — `leave` below is for a card actually left. */
+    if (arriving === leaving) {
+      view.bounce(direction);
+      return null;
+    }
+
+    leave(leaving);
 
     /* The dots and the mark belong to the card that is about to be on screen,
        so they change with it — in the same off-screen frame as its content,
