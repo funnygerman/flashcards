@@ -554,19 +554,25 @@ body:has(> .fc-credit) .fc {
   position: absolute;
   inset-inline: -1px;
   block-size: calc(var(--fc-mark) * var(--fc-mark-here, 0));
-  background: var(--fc-line);
   transition: block-size 160ms ease;
 }
 
+/* Coloured by which edge it is, the same --fc-easier/--fc-harder the band
+   already uses (V2-5.8) — a settled or revisited card's thin mark is no
+   longer the one place left wearing plain --fc-line. Zero block-size hides
+   the unfilled edge regardless of its colour, so this costs the sub-threshold
+   and paged-back cases (V2-5.7a) nothing. */
 .fc-face::before {
   --fc-mark-here: var(--fc-mark-top, 0);
 
+  background: var(--fc-easier);
   inset-block-start: -1px;
 }
 
 .fc-face::after {
   --fc-mark-here: var(--fc-mark-bottom, 0);
 
+  background: var(--fc-harder);
   inset-block-end: -1px;
 }
 

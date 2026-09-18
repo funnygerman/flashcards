@@ -308,10 +308,12 @@ same card behind (V2-9.3).
 and the direction the card leaves carries it again. Colour agrees with all three and is the only one of
 them that could fail — so it is the one thing here that is never asked to work alone.
 
-The band is the one coloured element in v2: `--fc-easier` and `--fc-harder`, one hue each, with
-`--fc-easier-ink` and `--fc-harder-ink` for the word on them. The thin mark stays `--fc-line` and
-monochrome; only the band takes colour, which is also what keeps a sub-threshold drag and a paged-back
-card exactly as legible as they were before any of this.
+`--fc-easier` and `--fc-harder`, one hue each, colour both the band and the thin mark beneath it —
+a settled or revisited card wears the same hue as the moment it was graded, rather than the thin mark
+alone staying `--fc-line` once the band goes away. `--fc-easier-ink` and `--fc-harder-ink` are for the
+word on the band, which the thin mark carries no text to need. A sub-threshold drag and a paged-back
+card are exactly as legible as they were before any of this: the edge a bar is on, not its colour, is
+still what a reader without colour vision reads.
 
 Blue and orange rather than green and red. `harder` means "not known well enough" (V2-5.1) — a report
 about recall, not an error — and a penalty colour invites a reader to avoid earning it, which is the one
