@@ -33,29 +33,28 @@ export function keyIntent(key) {
   return KEY_INTENTS[key];
 }
 
-/** The keys that press a control. Only these are worth taking from the deck. */
-const ACTIVATION_KEYS = new Set(["Enter", " "]);
+/**
+ * Which keys would actually press `target`, and are therefore not the deck's.
+ *
+ * A button is pressed by Enter and by Space. A link is pressed by Enter only —
+ * Space on a link scrolls the page and nothing else, so giving it up costs the
+ * reader a flip and buys them nothing. That mattered more than it sounds:
+ * every deck page carries a credit link, and it is the first thing Tab lands
+ * on, so one Tab used to leave Space doing nothing at all for the rest of the
+ * session, with nothing on screen to explain the silence (V2-4.12).
+ */
+function activates(target, key) {
+  const tag = target?.tagName;
+
+  if (tag === "BUTTON") return key === "Enter" || key === " ";
+
+  return tag === "A" && Boolean(target.hasAttribute?.("href")) && key === "Enter";
+}
 
 /** Keys belong to the deck unless the reader is typing into something. */
 function isTyping(target) {
   const tag = target?.tagName;
   return Boolean(target?.isContentEditable) || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-}
-
-/**
- * A control the reader has focused — a link that goes somewhere, a button.
- *
- * It only takes the keys that would press it. A deck page may carry a link out
- * of the deck (§13), and `Enter` on that focused link has to follow it, since
- * `keydown` below calls preventDefault(); but the arrows mean nothing to a link
- * and everything to the deck, so they stay the deck's. Taking every key here
- * instead would leave the reader unable to page or grade after tapping the link
- * and pressing Back — browsers restore focus to the anchor — with the swipes
- * still working and nothing on screen to explain the silence.
- */
-function isControl(target) {
-  const tag = target?.tagName;
-  return tag === "BUTTON" || (tag === "A" && Boolean(target.hasAttribute?.("href")));
 }
 
 /**
@@ -108,7 +107,15 @@ export function bindInput(element, onIntent, onTrack) {
     keydown(event) {
       const intent = keyIntent(event.key);
       if (!intent || isTyping(event.target)) return;
-      if (isControl(event.target) && ACTIVATION_KEYS.has(event.key)) return;
+
+      /* A focused control keeps only the keys that would press it. A deck page
+         may carry a link out of the deck (§13), and `Enter` on that focused
+         link has to follow it, since this handler calls preventDefault(); the
+         arrows mean nothing to a link and everything to the deck, so they stay
+         the deck's — otherwise a reader who tapped the link and pressed Back
+         would find the deck deaf to the keyboard, browsers having restored
+         focus to the anchor, with the swipes still working. */
+      if (activates(event.target, event.key)) return;
 
       event.preventDefault();
       onIntent(intent);

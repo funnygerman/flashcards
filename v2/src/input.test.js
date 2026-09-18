@@ -179,6 +179,41 @@ describe("bindInput", () => {
     expect(intents).toEqual(["next", "previous", "easier", "harder"]);
   });
 
+  /* Space is not one of a link's keys: it scrolls the page and nothing else, so
+     handing it over costs the reader a flip and buys them nothing. Every deck
+     page carries a credit link and it is the first thing Tab lands on, so one
+     Tab used to leave Space dead for the rest of the session (V2-4.12). */
+  it("keeps Space on a focused link, which would not be pressed by it", () => {
+    const { intents } = listen();
+
+    const link = document.createElement("a");
+    link.setAttribute("href", "#somewhere");
+    document.body.append(link);
+
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    link.dispatchEvent(event);
+    link.remove();
+
+    expect(event.defaultPrevented).toBe(true);
+    expect(intents).toEqual(["flip"]);
+  });
+
+  /* A button is a different matter: Space really does press one, so the deck
+     gives it up — that is how a keyboard reader opens the menu at all. */
+  it("gives Space up to a focused button, which would be pressed by it", () => {
+    const { intents } = listen();
+
+    const target = document.createElement("button");
+    document.body.append(target);
+
+    const event = new KeyboardEvent("keydown", { key: " ", bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    target.remove();
+
+    expect(event.defaultPrevented).toBe(false);
+    expect(intents).toEqual([]);
+  });
+
   it("leaves a field's keys entirely alone, arrows included", () => {
     const { intents } = listen();
 

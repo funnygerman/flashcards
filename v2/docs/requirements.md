@@ -246,6 +246,20 @@ back below the threshold, which turns a guess into an experiment.
 middle and the edge empties. A drag fills an edge and never empties one, so dragging up on a card that
 is already marked easier does not shrink that mark on the way to redrawing it.
 
+**V2-4.12** A focused control keeps only the keys that would actually press it, and the deck keeps the
+rest. A button is pressed by `Enter` and by `Space`; a link by `Enter` alone.
+
+That last distinction is the whole of this requirement, and it was missing. `Space` on a link scrolls the
+page and does nothing else, so handing it over cost the reader a flip and bought them nothing — a
+keystroke that reached neither the deck nor the control, with nothing on screen to explain the silence,
+which is exactly what §15 exists to prevent. It was not a corner case either: every deck page carries a
+credit link and it is the first thing `Tab` lands on, so one `Tab` left `Space` dead for the rest of the
+session.
+
+The arrows are nobody's but the deck's, whatever is focused. They mean nothing to a link or a button, and
+a reader who tapped a link and pressed Back — browsers restore focus to the anchor — would otherwise find
+the deck deaf to the keyboard while the swipes went on working.
+
 ---
 
 ## 5. Grading
@@ -1449,7 +1463,20 @@ in full. `strings.js` carries a translated fallback for a page with no title (V2
 in particular it does not flip the card it lands on (V2-16.2). Nothing else is modal about it: the deck
 underneath keeps its state, its session and its place.
 
----
+**V2-16.11** Closing the sheet does not hand focus back to the button. Focus is dropped, and the
+keyboard is the deck's again.
+
+This is deliberately not what a menu button usually does, and the usual pattern assumes something this
+page does not have: somewhere for focus to go back *to*. The deck's keys are bound to the document and
+the card is not focusable (§4) — the reader's place is not a focus ring, it is the card in front of them.
+Parking focus on the button after closing therefore does not restore anything; it takes the keyboard away
+from the one thing on the page, because a focused control keeps the keys that would press it (V2-4.12).
+`Space` reopened the menu instead of flipping the card, over and over, and the reader could not see why:
+the card has no focus ring to have visibly lost.
+
+The cost is one `Tab` to reach the button again, on a page with two focusable things on it. That is the
+better half of the trade, and it is the same reasoning V2-4.12 settles one step earlier: a control may
+have the keys it would use, and not one more.
 
 ## Open questions
 

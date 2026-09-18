@@ -928,6 +928,55 @@ describe("openDeck", () => {
     expect(front()).toBe("Nothing to repeat today");
   });
 
+  /* A menu button that keeps focus after closing keeps the keys that would
+     press it, so Space reopens the menu instead of flipping the card — on a
+     page whose whole model is that the keys are the deck's (V2-16.11). */
+  describe("where focus goes when the menu closes", () => {
+    const focused = () => document.activeElement;
+
+    it("does not leave the reader standing on the button", () => {
+      open();
+
+      menu().click(); /* open */
+      menu().click(); /* and closed again */
+
+      expect(focused()).not.toBe(menu());
+    });
+
+    it("hands the keyboard back to the deck", () => {
+      open();
+
+      menu().click();
+      menu().click();
+
+      press(" ");
+      expect(flipped()).toBe(true);
+    });
+
+    it("leaves focus alone when the reader is somewhere else entirely", () => {
+      open();
+
+      const elsewhere = document.createElement("a");
+      elsewhere.setAttribute("href", "#away");
+      document.body.append(elsewhere);
+
+      menu().click();
+      elsewhere.focus();
+      menu().click(); /* closed from the button, focus is not ours to move */
+
+      expect(focused()).toBe(elsewhere);
+      elsewhere.remove();
+    });
+
+    it("still puts focus on a row while the sheet is open", () => {
+      open();
+
+      menu().click();
+
+      expect([...document.querySelectorAll(".fc-menu-item")]).toContain(focused());
+    });
+  });
+
   describe("the menu", () => {
     /* An extra card in the dictionary this deck does not carry itself, so the
        pool group has somewhere new to switch to. */
