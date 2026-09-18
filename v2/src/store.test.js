@@ -184,3 +184,39 @@ describe("allCards", () => {
 /* Whether a deck page should offer a link to the dictionary at all: not "how
    many decks are there" — storage records cards, not decks (V2-13.7) — but
    "would that link show the reader anything they cannot see here?". */
+
+/* V2-6.4: storage holding something that is not a card degrades to an empty
+   dictionary. Any non-null object used to pass, and the dictionary dealt it to
+   the reader as a blank card with a progress row under it. */
+describe("allCards, an entry that is not a card", () => {
+  const bucket = (entries) => createStorage(JSON.stringify(entries));
+
+  it.each([
+    ["an empty object", {}],
+    ["an array", [1, 2]],
+    ["some other tool's record", { note: "left here by something else" }],
+    ["a card with no back", { key: "x", frontText: "eins" }],
+    ["a card with no front", { key: "x", backText: "one" }],
+    ["a card whose text is blank", { key: "x", frontText: "", backText: "" }],
+    ["a card whose text is not text", { key: "x", frontText: 12, backText: true }],
+  ])("skips %s rather than dealing a blank card", (_name, entry) => {
+    expect(allCards(bucket({ x: entry }), undefined)).toEqual([]);
+  });
+
+  it("keeps the readable cards beside it", () => {
+    const good = { key: "ok", frontText: "eins", backText: "one" };
+
+    expect(allCards(bucket({ bad: {}, ok: good }), undefined)).toEqual([good]);
+  });
+
+  /* V2-6.5's replacement reaches it on a deck page, which has a card to
+     repair itself with; the dictionary has none, which is why the skip
+     above matters. */
+  it("lets a deck replace such an entry under its own key", () => {
+    const storage = bucket({ x: { note: "not a card" } });
+    const card = { key: "x", frontText: "eins", backText: "one" };
+
+    expect(syncCards([card], storage)).toEqual([card]);
+    expect(allCards(storage, undefined)).toEqual([card]);
+  });
+});

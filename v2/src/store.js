@@ -14,12 +14,24 @@ export const STORAGE_KEY = "flashcards.cards";
  * The card stored under `key`, or null if there is nothing usable there.
  * `Object.hasOwn` rather than `in`, so a card keyed `constructor` or `toString`
  * reads its own entry instead of one inherited from Object.prototype.
+ *
+ * Usable means it is actually a card: V2-2.2's two required fields, both
+ * present and both carrying something. Any non-null object used to pass, which
+ * is not what V2-6.4 promises — a bucket holding `{}`, an array, or a record
+ * some other tool left under a key of its own was dealt to the reader as a
+ * blank card, front and back, with a progress row under it. On a deck page
+ * `syncCards` would replace it (V2-6.5); the dictionary has no deck to repair
+ * itself with, so it stayed, unanswerable and impossible to get rid of.
  */
 function storedCard(stored, key) {
   if (!Object.hasOwn(stored, key)) return null;
 
   const card = stored[key];
-  return card && typeof card === "object" ? card : null;
+  if (!card || typeof card !== "object" || Array.isArray(card)) return null;
+
+  const said = (value) => typeof value === "string" && value !== "";
+
+  return said(card.frontText) && said(card.backText) ? card : null;
 }
 
 /**

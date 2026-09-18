@@ -452,6 +452,29 @@ an empty dictionary. A deck must render whether or not storage works.
 **V2-6.5** An unusable entry under a card's key is replaced, so a bad write cannot break every future
 visit the same way.
 
+A card is what V2-2.1 describes, and "not a card" is read strictly: an entry missing either of V2-2.2's
+two required fields, or carrying them empty or as something other than text, is skipped rather than
+handed on. Any non-null object used to pass, and a bucket holding `{}`, an array, or a record some other
+tool had left under a key of its own was dealt to the reader as a blank card — front and back empty, with
+a progress row under it, gradable, and earning a schedule of its own. On a deck page V2-6.5 replaces such
+an entry, because there is a card to replace it with; the dictionary has no deck to repair itself with,
+so what it cannot read it must not deal.
+
+**V2-6.9** A card's key is a string and nothing else is inferred from it (V2-2.3) — `__proto__`
+included. Every map read out of storage therefore has no prototype, which is what makes that key
+ordinary here.
+
+Reads were already guarded: `Object.hasOwn` rather than `in`, so a card keyed `constructor` or
+`toString` reads its own entry rather than one inherited from `Object.prototype`. The writes were plain
+indexing, and `map.__proto__ = entry` on an ordinary object sets the prototype instead of storing
+anything — so the grade went nowhere, `JSON.stringify` wrote `{}` back, `gradedToday` answered null for
+ever, and the card was the one thing in the app a reader could never be finished with: never filtered out
+of a session (V2-13.14), never retired from one for longer than it took to be dealt again (V2-13.15).
+`syncCards` dropped the same card from the dictionary while rewriting the whole bucket on every visit.
+
+It is fixed where the maps are made rather than at each write, so every bucket is covered, including any
+added later.
+
 **V2-6.6** This dictionary is what §13 studies: a page with no cards of its own reads it. The review schedule
 (§11) does not read it — it keys its own storage by the same card `key`, independently.
 
