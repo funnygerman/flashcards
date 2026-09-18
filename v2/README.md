@@ -634,6 +634,15 @@ for the day: the page deals the next lot out of what you can still answer, and o
 left does the done card arrive. What it deals replaces what the page was holding for that session, so
 switching pool and back doesn't walk you into a spent one.
 
+The four sessions a page can deal — two pools × two scopes — overlap, so each one is **selected afresh
+every time you ask for it** and kept only where the answer hasn't changed. Grading shortens the sequence
+you're on; it can't reach the three you're not, and holding those as first dealt meant a card you'd
+answered under *Every card* came back under *Due today* and refused you. Re-selecting reads the schedule,
+which is where the answer lives, so every session agrees with it — and with whatever another tab has been
+doing. "Unchanged" is the same cards, in any order (`neutral` moves a card's `dueAt` just by your paging
+past it), and an unchanged session comes back as the same array, which is what keeps you on the card you
+left.
+
 The done card is a card, not a screen: no `key`, so it's never written to the dictionary and keeps no
 schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session. A
 pool with nothing *in* it is still an error rather than a done card — "you're done for today" isn't true

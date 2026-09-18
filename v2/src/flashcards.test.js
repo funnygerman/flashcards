@@ -1126,3 +1126,37 @@ describe("mount, a host that settles its grades", () => {
     expect(text()).toBe("eins");
   });
 });
+
+/* A grade given somewhere this mount cannot see — another tab, another of the
+   host's own sessions — reaches the card on screen as a refusal. The card has
+   to be wearing the grade being refused, or the sentence explains nothing. */
+describe("mount, a card settled since it was shown", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    for (const deck of mounted.splice(0)) deck.destroy();
+    document.body.replaceChildren();
+  });
+
+  it("marks the card it refuses, even where it arrived bare", () => {
+    let elsewhere = null;
+    const refused = [];
+
+    open({
+      settles: (card) => Boolean(card.key),
+      gradeOf: (card) => (card.key === "a" ? elsewhere : null),
+      onRefuse: (card, reason) => refused.push([card.key, reason]),
+    });
+
+    expect(document.querySelector(".fc-card").className).toBe("fc-card");
+
+    elsewhere = "easier"; /* the reader graded it in another tab */
+    press("ArrowDown");
+
+    expect(refused).toEqual([["a", "settled"]]);
+    expect(document.querySelector(".fc-card").classList.contains("is-easier")).toBe(true);
+    expect(front(".fc-text").textContent).toBe("eins");
+  });
+});

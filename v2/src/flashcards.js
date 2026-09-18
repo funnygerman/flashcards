@@ -244,6 +244,11 @@ export function mount(element, cards, options = {}) {
        can say why — which is the visible result V2-15.1 asks of every gesture,
        and the one case where the card itself has none to give. */
     if (isSettled(card)) {
+      /* Wearing the grade it is being refused for. It normally arrives already
+         marked (V2-5.14), but a grade given somewhere else since — another tab,
+         another of this page's own sessions — is news to the card on screen,
+         and a sentence about a grade with no grade under it explains nothing. */
+      view.mark(gradeFor(card));
       onRefuse?.(card, "settled");
       return null;
     }

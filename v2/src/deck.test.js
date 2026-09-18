@@ -691,6 +691,62 @@ describe("openDeck", () => {
     });
   });
 
+  /* The four sessions a page can deal overlap, so a card answered on one of
+     them must be gone from all of them (V2-13.16). Keeping each selection as
+     first dealt meant the due session went on offering cards the reader had
+     answered under "Every card", refusing every one of them and never reaching
+     the card that says the day is done — the original complaint, by another
+     door. */
+  describe("a card answered on one session, met on another", () => {
+    const message = () => document.querySelector(".fc-front").getAttribute("data-message");
+
+    it("is gone from the due session it was not answered on", () => {
+      open();
+
+      chooseAndClose("Every card");
+      press("ArrowUp"); /* answers whichever card that session leads with */
+
+      chooseAndClose("Due today");
+
+      const offered = [];
+      for (let i = 0; i < 4; i += 1) {
+        offered.push(front());
+        press("ArrowRight");
+      }
+
+      expect(offered).not.toContain("eins");
+      expect(message()).toBe(null);
+    });
+
+    it("leaves the due session saying the day is done, once every card is answered", () => {
+      open();
+
+      press("ArrowUp"); /* one under "Due today" */
+
+      chooseAndClose("Every card");
+      for (let i = 0; i < 6; i += 1) press("ArrowUp"); /* the rest, over here */
+
+      chooseAndClose("Due today");
+
+      expect(front()).toBe("Nothing to repeat today");
+      expect(message()).toBe(null);
+    });
+
+    /* The other half of the same rule: a session nothing has happened to comes
+       back as it was, cursor and all (V2-3.8). */
+    it("leaves an untouched session exactly where the reader left it", () => {
+      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
+
+      open();
+
+      press("ArrowRight"); /* zwei */
+      chooseAndClose("Everything you have seen");
+      chooseAndClose("This deck");
+
+      expect(front()).toBe("zwei");
+    });
+  });
+
   /* A session worked through does not come back through the menu: switching
      pool and back returns to the session as it now is, not to the one the
      reader finished (V2-13.15). */

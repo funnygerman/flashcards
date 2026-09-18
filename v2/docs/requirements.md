@@ -1028,7 +1028,32 @@ says so (V2-13.12), which is then the honest version of the same announcement.
 
 What is dealt replaces what the page holds for that session, so the menu cannot walk back into a spent
 one: switching pool and back (V2-13.9) returns to the session as it now is, not to the one the reader
-finished.
+finished. It also marks that session spent, so the reader's own "every card" filter does not deal a
+finished sitting back to them: having been through it once, it too asks only for what is left.
+
+**V2-13.16** A session is selected afresh every time it is asked for, and kept only where the answer has
+not changed.
+
+The four sessions one page can deal (V2-13.9 × V2-13.13) are four views of overlapping pools, so a card
+answered on one of them is a card answered on all of them. Holding each selection as first dealt did not
+say that. A reader who answered a card under "Every card" met it again under "Due today" and was refused
+(V2-5.16) — the day's finished card offered back by the one session that exists to hold only what can
+still be answered; work a deck across both filters and the due session went on offering every card of it,
+refusing all of them, and never reached V2-13.12's card at all. That is V2-3.9's own complaint arriving by
+another door, and V2-3.9 cannot close it: a grade shortens the sequence the reader is on, not the three
+they are not.
+
+Re-selecting closes it, because it reads the schedule, which is where the answer actually lives. Every
+session then agrees with the schedule and so with every other — and, the schedule being storage, with
+whatever the reader has been doing in another tab.
+
+Unchanged means the same cards, in whatever order they come back in. Order is deliberately not part of
+that: review state selects what is studied and does not order it (V2-13.4) — the shuffle does — and
+`neutral` moves a card's `dueAt` merely by the reader paging past it (V2-11.5), so one selection can sort
+differently from the next without a single card having left it. An unchanged session is handed back as
+the very array it was dealt as, which is what keeps V2-3.8's "switching back returns to the card you left
+on" true. A session whose cards have actually gone is a different session and is dealt as one, cursor
+included: the reader who emptied it did that themselves.
 
 ---
 

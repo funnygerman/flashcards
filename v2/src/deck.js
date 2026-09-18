@@ -431,18 +431,42 @@ function cornerLink(storage) {
  * (V2-13.8) — "you are done for today" is false where there was never
  * anything to be done.
  *
+ * A session is selected afresh every time it is asked for, and kept only where
+ * the answer has not changed (V2-13.16). Keeping it outright was the first
+ * version and it was wrong in the one way that matters: the four sessions
+ * overlap, so a card answered on one of them is still standing in the other
+ * three. A reader who graded a card under "Every card" met it again under
+ * "Due today", refusing them (V2-5.16) — the very card the day was finished
+ * with, offered back by the session that exists to hold only what can still be
+ * answered. Grade a whole deck across both filters and the due session went on
+ * offering every card of it, refusing all of them, never reaching the card that
+ * says the day is done. Re-selecting reads the schedule, which is where the
+ * answer actually lives, so every session agrees with it and with the others —
+ * and, being storage, with whatever another tab has been doing too.
+ *
+ * Unchanged means the same cards, in whatever order they come back in, which
+ * is what lets V2-3.8's "switching back returns to the card you left" survive:
+ * an untouched session comes back as the very array it was dealt as, so mount()
+ * finds the order it already built for it. Order is deliberately not part of
+ * the comparison — review state selects what is studied and does not order it
+ * (V2-13.4), the shuffle does, and `neutral` moves a card's `dueAt` just by
+ * being paged past (V2-11.5), so the same session can sort differently one
+ * moment to the next without a single card having left it. A session whose
+ * cards have actually gone is a different session and is dealt as one.
+ *
  * `redeal` is the same selection made again, for a session that has been
  * worked through to the end (V2-13.15). It asks only for what the reader can
  * still answer today — a card already graded is done for the day whatever the
  * schedule says about it (V2-5.16) — so a deck bigger than one sitting hands
  * over its next fifty rather than stopping at the cap, and a pool with nothing
- * left deals the card that says so. The answer replaces what this dealer holds
- * for that session, which is what keeps a spent selection from coming back
- * through the menu: switching pool and back returns to the session as it now
- * is, not to the one the reader finished.
+ * left deals the card that says so. It also marks that session spent, which is
+ * what stops the reader's own "every card" filter dealing a finished sitting
+ * back to them: having been through it once, it too asks only for what is
+ * left.
  */
 function dealer(source, storage, dictionary, now, done) {
   const dealt = new Map();
+  const spent = new Set();
 
   const pool = (all) => (all ? allCards(storage, dictionary) : source);
 
@@ -453,23 +477,42 @@ function dealer(source, storage, dictionary, now, done) {
     return chosen.length === 0 && cards.length > 0 ? [done] : chosen;
   };
 
+  /* Two selections are the same session when they hold the same cards. By key,
+     because a pool read back out of storage is a fresh set of objects every
+     time (store.js) and identity would call every selection new; the card that
+     says there is nothing left carries none, and compares equal to itself,
+     which is exactly right — one done card is another. */
+  const same = (held, fresh) => {
+    if (held.length !== fresh.length) return false;
+
+    const keys = new Set(held.map((card) => card.key));
+    return fresh.every((card) => keys.has(card.key));
+  };
+
   const deal = (all, everything) => {
     const id = `${all}:${everything}`;
+    const held = dealt.get(id);
 
     /* A first deal under the reader's own filter shows every card in the pool,
        today's answered ones included: they wear their marks and refuse a
        second grade (V2-5.16), which is the only place that refusal is ever
        met. A due session has no room for them — nothing could be done with
-       one — so it asks for unanswered cards from the start (V2-13.14). */
-    if (!dealt.has(id)) dealt.set(id, select(all, everything, !everything));
+       one — so it asks for unanswered cards from the start (V2-13.14), and so
+       does a session the reader has already been through. */
+    const fresh = select(all, everything, !everything || spent.has(id));
 
-    return dealt.get(id);
+    if (held && same(held, fresh)) return held;
+
+    dealt.set(id, fresh);
+    return fresh;
   };
 
   const redeal = (all, everything) => {
     const id = `${all}:${everything}`;
-    const next = select(all, everything, true);
 
+    spent.add(id);
+
+    const next = select(all, everything, true);
     dealt.set(id, next);
     return next;
   };
