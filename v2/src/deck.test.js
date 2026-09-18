@@ -1208,11 +1208,10 @@ describe("openDeck", () => {
          that is worth saying whether or not the other one differs today
          (V2-16.3). */
       it("offers the choice even where both sides hold the same cards", () => {
-        document.title = "Everyday German";
         open();
 
-        expect(groups()[1]).toEqual(["Everyday German", "Everything you have seen"]);
-        expect(chose()).toContain("Everyday German");
+        expect(groups()[1]).toEqual(["This deck", "Everything you have seen"]);
+        expect(chose()).toContain("This deck");
 
         choose("Everything you have seen");
         expect(chose()).toContain("Everything you have seen");
@@ -1238,24 +1237,14 @@ describe("openDeck", () => {
       });
 
       it("offers the dictionary once it holds a card this deck does not", () => {
-        document.title = "Everyday German";
-        extra();
-        open();
-
-        expect(groups()[1]).toEqual(["Everyday German", "Everything you have seen"]);
-        expect(chose()).toContain("Everyday German");
-      });
-
-      it("calls this deck 'this deck' where the page has no title of its own", () => {
-        document.title = "";
         extra();
         open();
 
         expect(groups()[1]).toEqual(["This deck", "Everything you have seen"]);
+        expect(chose()).toContain("This deck");
       });
 
       it("names the dictionary in the reader's language, given one", () => {
-        document.title = "";
         extra();
         open(cards, { lang: "de" });
 
@@ -1263,7 +1252,6 @@ describe("openDeck", () => {
       });
 
       it("switches in place, no navigation, and back again", () => {
-        document.title = "Everyday German";
         extra();
         open();
 
@@ -1273,12 +1261,11 @@ describe("openDeck", () => {
         expect(front()).toBe("vier"); // the dictionary's own card, not this deck's
         expect(chose()).toContain("Everything you have seen");
 
-        choose("Everyday German");
+        choose("This deck");
         expect(front()).toBe("eins");
       });
 
       it("returns to the same card on each side, not a fresh shuffle", () => {
-        document.title = "Everyday German";
         extra();
         open();
 
@@ -1288,7 +1275,7 @@ describe("openDeck", () => {
         press("ArrowRight"); // its second card, whichever that is
         const inDictionary = front();
 
-        choose("Everyday German");
+        choose("This deck");
         expect(front()).toBe("zwei"); // exactly where paging left it
 
         choose("Everything you have seen");
@@ -1302,14 +1289,13 @@ describe("openDeck", () => {
         Element.prototype.animate = () => ({ finished: new Promise(() => {}) });
 
         try {
-          document.title = "Everyday German";
           extra();
           open();
 
           press("ArrowRight"); // card b, still sliding in
           choose("Everything you have seen"); // refused: the switch never landed
 
-          expect(chose()).toContain("Everyday German");
+          expect(chose()).toContain("This deck");
         } finally {
           delete Element.prototype.animate;
         }
@@ -1480,7 +1466,6 @@ describe("openDeck", () => {
       });
 
       it("stays on once the reader switches pools", () => {
-        document.title = "Everyday German";
         localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
         localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 3, dueAt: Date.now() + 30 * DAY } }));
         open();
@@ -1495,7 +1480,6 @@ describe("openDeck", () => {
       /* The rows do not come and go as the reader moves between pools, however
          differently the schedule treats the two. */
       it("stays put across a pool the schedule is holding nothing back from", () => {
-        document.title = "Everyday German";
         localStorage.setItem(
           CARDS_KEY,
           JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" }, ...Object.fromEntries(cards.map((c) => [c.key, c])) }),
@@ -1509,7 +1493,7 @@ describe("openDeck", () => {
         expect(groups()).toHaveLength(3);
 
         choose("Every card");
-        choose("Everyday German"); // back to the deck, where it changes nothing
+        choose("This deck"); // back to the deck, where it changes nothing
         expect(groups()).toHaveLength(3);
         expect(chose()).toContain("Every card"); // and it is still on
       });
@@ -1876,7 +1860,6 @@ describe("openDeck", () => {
     };
 
     it("loses a card to the dictionary's session when it is answered on the deck's", () => {
-      document.title = "Everyday German";
       withExtra();
       open();
 
@@ -1886,7 +1869,7 @@ describe("openDeck", () => {
       chooseAndClose("Everything you have seen");
       expect(walk()).toEqual(new Set(["vier", "eins", "zwei", "drei"]));
 
-      chooseAndClose("Everyday German");
+      chooseAndClose("This deck");
       expect(front()).toBe("eins");
       press("ArrowUp"); /* eins, answered on this deck */
 
@@ -1895,7 +1878,6 @@ describe("openDeck", () => {
     });
 
     it("loses it to the deck's session when it is answered on the dictionary's", () => {
-      document.title = "Everyday German";
       withExtra();
       open();
 
@@ -1904,7 +1886,7 @@ describe("openDeck", () => {
       expect(front()).toBe("eins");
 
       press("ArrowUp");
-      chooseAndClose("Everyday German");
+      chooseAndClose("This deck");
 
       expect(walk()).toEqual(new Set(["zwei", "drei"]));
     });
@@ -1936,7 +1918,6 @@ describe("openDeck", () => {
        still the pool, answered cards and all, which is where the refusal lives
        (V2-13.13). The two facts have to hold at the same time. */
     it("does not deal a spent session back through the other pool", () => {
-      document.title = "Everyday German";
       withExtra();
       open();
 
@@ -1945,7 +1926,7 @@ describe("openDeck", () => {
       for (let i = 0; i < 4; i += 1) press("ArrowUp"); /* the whole dictionary, answered */
       expect(front()).toBe("Nothing to repeat today");
 
-      chooseAndClose("Everyday German");
+      chooseAndClose("This deck");
       expect(front()).toBe("eins"); /* the deck's own "every card", marks and all */
       expect(marks()).toBe("is-easier");
 

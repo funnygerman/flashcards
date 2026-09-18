@@ -54,9 +54,12 @@
  * a sentence with a subject once one of these sits over it, and three unrelated
  * fragments without.
  *
- * `pool.deck` is only a fallback. A deck page has a title, and its own name is
- * a better word for itself than "this deck" is; this stands in where a page
- * has none (V2-16.9).
+ * `pool.deck` names the reader's own deck in the pool row, opposite
+ * `pool.all`. It used to prefer the page's own title where one existed
+ * ("Everyday German" beside "Everything you have seen") and fall back to
+ * this otherwise (V2-16.9) — dropped in favour of always saying "this deck",
+ * which reads the same in every language this menu is offered in rather than
+ * mixing a translated row with an untranslated page title.
  *
  * `empty` is what a dictionary with nothing in it says (V2-13.8). It is a
  * different card from `done` and has to be: "come back tomorrow" is false

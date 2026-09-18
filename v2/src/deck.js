@@ -858,10 +858,7 @@ export function openDeck(cards, options = {}) {
       offered.push({
         title: strings.menu.title.pool,
         options: [
-          /* The deck's own name where the page has one: "Everyday German" says
-             what this side is in a way "This deck" cannot, and the reader has
-             the other side's name in full right beside it. */
-          { label: document.title || strings.menu.pool.deck, chosen: !showingAll, choose: () => show(false, everything) },
+          { label: strings.menu.pool.deck, chosen: !showingAll, choose: () => show(false, everything) },
           { label: strings.menu.pool.all, chosen: showingAll, choose: () => show(true, everything) },
         ],
       });
