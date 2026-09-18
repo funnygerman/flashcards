@@ -231,3 +231,65 @@ describe("chooseSession, only what has not been answered today", () => {
     expect(chooseSession([{ frontText: "guide" }], { now: NOW, storage, onlyUnanswered: true })).toHaveLength(1);
   });
 });
+
+/* A sitting's worth is a cap, not the end of the day (V2-13.15), so the two
+   sizes either side of it are where that is decided: exactly the cap is a pool
+   that comes back whole, one more is a pool that has a remainder to hand over
+   once the first sitting has been answered. */
+describe("chooseSession, at the size of a sitting", () => {
+  let storage;
+
+  beforeEach(() => {
+    storage = memoryStorage();
+  });
+
+  const pool = (size) => Array.from({ length: size }, (_, i) => card(`card-${i}`));
+
+  it("takes a pool of exactly a sitting's worth whole", () => {
+    const cards = pool(SESSION_LIMIT);
+
+    expect(chooseSession(cards, { now: NOW, storage, onlyDue: true, onlyUnanswered: true })).toHaveLength(SESSION_LIMIT);
+  });
+
+  /* And the deal that follows it is the remainder, not the whole pool again:
+     the fifty already answered are the day's (V2-13.14), so what is left over
+     is the one card the cap held back. */
+  it("hands over what the cap held back, once the sitting has been answered", () => {
+    const cards = pool(SESSION_LIMIT + 1);
+    const first = chooseSession(cards, { now: NOW, storage, onlyDue: true, onlyUnanswered: true });
+
+    for (const chosen of first) recordGrade(chosen.key, "easier", storage, NOW);
+
+    const next = chooseSession(cards, { now: NOW, storage, onlyDue: true, onlyUnanswered: true });
+
+    expect(next).toHaveLength(1);
+    expect(first).not.toContain(next[0]);
+  });
+
+  /* One more grade and there is nothing to deal at all, which is the page's
+     cue to say the day is done (V2-13.12) rather than to deal a third sitting. */
+  it("selects nothing once the remainder has been answered too", () => {
+    const cards = pool(SESSION_LIMIT + 1);
+
+    for (const chosen of cards) recordGrade(chosen.key, "easier", storage, NOW);
+
+    expect(chooseSession(cards, { now: NOW, storage, onlyDue: true, onlyUnanswered: true })).toEqual([]);
+  });
+});
+
+/* The day's filter is the one thing that could never see a card keyed
+   `__proto__`: nothing about it could be written down at all, so `gradedToday`
+   answered null for ever and the card was dealt back every time (V2-6.9). */
+describe("chooseSession, a card keyed like a prototype's own business", () => {
+  const AWKWARD = ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"];
+
+  it.each(AWKWARD)("drops a card keyed %s once the reader has answered it today", (key) => {
+    const storage = memoryStorage();
+    const deck = [card(key), card("ordinary")];
+
+    recordGrade(key, "easier", storage, NOW);
+
+    expect(keys(chooseSession(deck, { now: NOW, storage, onlyUnanswered: true }))).toEqual(["ordinary"]);
+    expect(keys(chooseSession(deck, { now: NOW, storage }))).toContain(key);
+  });
+});

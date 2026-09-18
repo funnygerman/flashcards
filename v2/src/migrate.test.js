@@ -144,3 +144,46 @@ describe("migrateKeys", () => {
     expect(storage.read(REVIEW_KEY)).toEqual({ old: { box: 1, dueAt: 1 } });
   });
 });
+
+/* A rename has to work in both directions across the one key that used to be
+   unstorable (V2-6.9): a deck author correcting a key *away* from `__proto__`
+   is exactly the repair such a reader needs, and one correcting a key *onto*
+   it must not quietly drop the box they earned. Both buckets are written here
+   by plain assignment, so both depend on the prototype-less map readMap hands
+   back. Fixtures use a computed key, because `{ __proto__: value }` written
+   out longhand sets the prototype instead of making an entry. */
+describe("migrateKeys, a key that is a prototype's own business", () => {
+  it("moves the reader's schedule out of __proto__", () => {
+    const storage = createStorage(withReview({ ["__proto__"]: { box: 4, dueAt: 1000 } }));
+
+    migrateKeys([{ key: "safe", wasKey: "__proto__", frontText: "x", backText: "y" }], storage);
+
+    expect(storage.read(REVIEW_KEY)).toEqual({ safe: { box: 4, dueAt: 1000 } });
+    expect(Object.hasOwn(storage.read(REVIEW_KEY), "__proto__")).toBe(false);
+  });
+
+  it("moves the dictionary entry out of it too, and corrects the key it carries", () => {
+    const storage = createStorage(withCards({ ["__proto__"]: { key: "__proto__", frontText: "x", backText: "y" } }));
+
+    migrateKeys([{ key: "safe", wasKey: "__proto__", frontText: "x", backText: "y" }], storage);
+
+    expect(storage.read(CARDS_KEY)).toEqual({ safe: { key: "safe", frontText: "x", backText: "y" } });
+  });
+
+  it("moves an entry onto __proto__ without losing it", () => {
+    const storage = createStorage({
+      ...withReview({ old: { box: 4, dueAt: 1000 } }),
+      ...withCards({ old: { key: "old", frontText: "x", backText: "y" } }),
+    });
+
+    migrateKeys([{ key: "__proto__", wasKey: "old", frontText: "x", backText: "y" }], storage);
+
+    const review = storage.read(REVIEW_KEY);
+    const dictionary = storage.read(CARDS_KEY);
+
+    expect(Object.hasOwn(review, "__proto__")).toBe(true);
+    expect(review["__proto__"]).toEqual({ box: 4, dueAt: 1000 });
+    expect(dictionary["__proto__"]).toEqual({ key: "__proto__", frontText: "x", backText: "y" });
+    expect(Object.keys(review)).toEqual(["__proto__"]);
+  });
+});

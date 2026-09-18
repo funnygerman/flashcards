@@ -198,6 +198,8 @@ describe("allCards, an entry that is not a card", () => {
     ["a card with no back", { key: "x", frontText: "eins" }],
     ["a card with no front", { key: "x", backText: "one" }],
     ["a card whose text is blank", { key: "x", frontText: "", backText: "" }],
+    ["a card whose text is only spaces", { key: "x", frontText: "   ", backText: " " }],
+    ["a card whose text is only a tab", { key: "x", frontText: "\t", backText: "\n" }],
     ["a card whose text is not text", { key: "x", frontText: 12, backText: true }],
   ])("skips %s rather than dealing a blank card", (_name, entry) => {
     expect(allCards(bucket({ x: entry }), undefined)).toEqual([]);
@@ -218,5 +220,65 @@ describe("allCards, an entry that is not a card", () => {
 
     expect(syncCards([card], storage)).toEqual([card]);
     expect(allCards(storage, undefined)).toEqual([card]);
+  });
+});
+
+/* The other half of V2-6.4's "not a card": an entry that is not an object at
+   all. `{}` and an array are the shapes a bucket picks up from another tool;
+   a string, a number, a boolean or a null are what a half-finished write or a
+   hand-edited bucket leaves behind, and none of them has a front or a back to
+   deal. */
+describe("allCards, an entry that is not even an object", () => {
+  it.each([
+    ["null", null],
+    ["a string", "das Wasser"],
+    ["a number", 42],
+    ["a boolean", true],
+  ])("skips %s rather than dealing a blank card", (_name, entry) => {
+    expect(allCards(createStorage(JSON.stringify({ x: entry })), undefined)).toEqual([]);
+  });
+});
+
+/* A card's key is a string and nothing else is inferred from it (V2-6.9).
+   `constructor` is covered above; `__proto__` is the one that actually broke,
+   because the write — not the read — was where it went wrong: `stored[key] =
+   card` on an ordinary object set the prototype, `JSON.stringify` wrote `{}`
+   back, and the card vanished from the dictionary while the whole bucket was
+   rewritten on every single visit. */
+describe("a card keyed like a prototype's own business", () => {
+  const AWKWARD = ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"];
+
+  const named = (key) => ({ key, frontText: `front ${key}`, backText: `back ${key}` });
+
+  it.each(AWKWARD)("stores a card keyed %s and reads it back as its own entry", (key) => {
+    const storage = createStorage();
+
+    expect(syncCards([named(key)], storage)).toEqual([named(key)]);
+    expect(Object.hasOwn(JSON.parse(storage.read()), key)).toBe(true);
+    expect(allCards(storage)).toEqual([named(key)]);
+  });
+
+  /* And the bucket settles: an unchanged card is not rewritten on the next
+     visit. A card that could not be stored read back as missing every time,
+     which meant a full rewrite of the dictionary on every visit to the deck. */
+  it.each(AWKWARD)("leaves the bucket alone on a second visit to a card keyed %s", (key) => {
+    const storage = createStorage();
+
+    syncCards([named(key)], storage);
+    const settled = storage.read();
+    expect(Object.hasOwn(JSON.parse(settled), key)).toBe(true); /* there is something there to leave alone */
+
+    syncCards([named(key)], storage);
+
+    expect(storage.read()).toBe(settled);
+  });
+
+  it.each(AWKWARD)("keeps an ordinary card beside one keyed %s", (key) => {
+    const storage = createStorage();
+    const ordinary = { key: "wasser-water", frontText: "das Wasser", backText: "water" };
+
+    syncCards([named(key), ordinary], storage);
+
+    expect(allCards(storage)).toEqual([named(key), ordinary]);
   });
 });

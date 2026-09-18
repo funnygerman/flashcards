@@ -396,3 +396,45 @@ describe("bindInput", () => {
     expect(intents).toEqual([]);
   });
 });
+
+/* The arrows are nobody's but the deck's, whatever is focused (V2-4.12) — and
+   a button is the case that matters, because every deck page has one: the menu
+   (§16). A button takes Enter and Space, both of which would press it, and
+   must not take the four keys it has no use for; otherwise a reader who opened
+   the menu once would find the deck deaf to the arrows for the rest of the
+   session, the button having kept the focus. */
+describe("a focused button", () => {
+  const bound = [];
+
+  afterEach(() => {
+    for (const dispose of bound.splice(0)) dispose();
+  });
+
+  const pressOn = (target, key) => {
+    const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+    target.dispatchEvent(event);
+    return event.defaultPrevented;
+  };
+
+  it("keeps the four arrows on the deck", () => {
+    const element = document.createElement("div");
+    document.body.append(element);
+
+    const intents = [];
+    const unbind = bindInput(element, (intent) => intents.push(intent));
+    bound.push(() => {
+      unbind();
+      element.remove();
+    });
+
+    const target = document.createElement("button");
+    document.body.append(target);
+    target.focus();
+
+    const prevented = ["ArrowRight", "ArrowLeft", "ArrowUp", "ArrowDown"].map((key) => pressOn(target, key));
+    target.remove();
+
+    expect(intents).toEqual(["next", "previous", "easier", "harder"]);
+    expect(prevented).toEqual([true, true, true, true]);
+  });
+});

@@ -282,3 +282,97 @@ describe("isDue", () => {
     expect(isDue({ box: 0, dueAt: NOW }, NOW + 1)).toBe(true);
   });
 });
+
+/*
+ * The reader's day turns over at their own midnight, and `now` is injectable
+ * precisely so that can be asked without moving the machine's clock. Built
+ * from local parts rather than a UTC string, because the day this module
+ * stamps is the local one (V2-11.10) — a fixture pinned in UTC would straddle
+ * midnight differently in every time zone this suite runs in.
+ */
+describe("the turn of the day", () => {
+  let storage;
+
+  const late = new Date(2026, 0, 1, 23, 59).getTime();
+  const early = new Date(2026, 0, 2, 0, 1).getTime();
+
+  beforeEach(() => {
+    storage = memoryStorage();
+  });
+
+  it("spends the day the grade was given on, and no other", () => {
+    recordGrade("a", "harder", storage, late);
+
+    expect(gradedToday("a", storage, late)).toBe("harder");
+    expect(gradedToday("a", storage, early)).toBe(null);
+  });
+
+  /* Two minutes apart, and the card is due at both: `harder` files it in box 0,
+     due immediately (V2-11.2), so the schedule asks for it back straight away
+     and only the day is holding it. That is the disagreement V2-13.14 exists to
+     settle, at the one moment it can be watched being settled. */
+  it("leaves the card due on both sides of midnight, the day being the only thing holding it", () => {
+    recordGrade("a", "harder", storage, late);
+
+    expect(isDue(reviewState("a", storage, late), late)).toBe(true);
+    expect(isDue(reviewState("a", storage, early), early)).toBe(true);
+  });
+
+  /* `baseBox` is yesterday's business. A new day finds the card wherever the
+     old one left it and moves it one step from there — not from the box the
+     previous day started in, which a stale `baseBox` would have it do. */
+  it("starts the new day from the box the old one left the card in", () => {
+    recordGrade("a", "easier", storage, late); // box 0 -> 1
+    recordGrade("a", "easier", storage, late); // the same day again: still box 1
+
+    expect(recordGrade("a", "easier", storage, early)).toEqual({ box: 2, dueAt: early + 3 * DAY });
+  });
+});
+
+/*
+ * A card's key is a string and nothing else is inferred from it (V2-6.9).
+ * storage.js is where the prototype-less map is made; this is the module that
+ * has to be able to spend a day on such a card. `map.__proto__ = entry` on an
+ * ordinary object sets the prototype instead of storing anything, so the grade
+ * went nowhere, `gradedToday` answered null for ever, and the card became the
+ * one thing in the app a reader could never be finished with: never filtered
+ * out of a session (V2-13.14), never retired from one for longer than it took
+ * to be dealt again (V2-13.15).
+ */
+describe("a card keyed like a prototype's own business", () => {
+  const AWKWARD = ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"];
+
+  let storage;
+
+  beforeEach(() => {
+    storage = memoryStorage();
+  });
+
+  it.each(AWKWARD)("records a grade on a card keyed %s, and can read the day back off it", (key) => {
+    expect(reviewState(key, storage, NOW)).toEqual({ box: 0, dueAt: NOW });
+
+    expect(recordGrade(key, "easier", storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
+    expect(reviewState(key, storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
+    expect(gradedToday(key, storage, NOW)).toBe("easier");
+    expect(gradedToday(key, storage, NOW + DAY)).toBe(null);
+  });
+
+  /* The same one-grade-a-day rule, on the key that could not previously keep a
+     record of the day at all: without `baseBox` surviving the round trip, the
+     second grade would stack on the first. */
+  it.each(AWKWARD)("moves a card keyed %s one box from where the day found it, however often it is graded", (key) => {
+    recordGrade(key, "easier", storage, NOW);
+    recordGrade(key, "harder", storage, NOW);
+
+    expect(recordGrade(key, "easier", storage, NOW)).toEqual({ box: 1, dueAt: NOW + DAY });
+  });
+
+  it.each(AWKWARD)("keeps an ordinary card's schedule beside one keyed %s", (key) => {
+    recordGrade(key, "easier", storage, NOW);
+    recordGrade("ordinary", "easier", storage, NOW);
+
+    expect(reviewState(key, storage, NOW).box).toBe(1);
+    expect(reviewState("ordinary", storage, NOW).box).toBe(1);
+    expect(Object.keys(JSON.parse(storage.read())).sort()).toEqual([key, "ordinary"].sort());
+  });
+});
