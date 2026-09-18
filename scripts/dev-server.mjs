@@ -51,7 +51,10 @@ const server = createServer(async (req, res) => {
   try {
     let file = target;
     const info = await stat(file);
-    if (info.isDirectory()) file = join(file, "index.html");
+    if (info.isDirectory()) {
+      file = join(file, "index.html");
+      await stat(file);
+    }
 
     const type = MIME[extname(file)] ?? "application/octet-stream";
     res.writeHead(200, { "content-type": type, "cache-control": "no-store" });
