@@ -502,12 +502,31 @@ an empty dictionary. A deck must render whether or not storage works.
 visit the same way.
 
 A card is what V2-2.1 describes, and "not a card" is read strictly: an entry missing either of V2-2.2's
-two required fields, or carrying them empty or as something other than text, is skipped rather than
-handed on. Any non-null object used to pass, and a bucket holding `{}`, an array, or a record some other
+two required fields, or carrying them as something other than text, or carrying nothing a reader could
+read — `""` and `"   "` alike, since a card is what can be read and whitespace is not text — is skipped
+rather than handed on. Any non-null object used to pass, and a bucket holding `{}`, an array, or a record some other
 tool had left under a key of its own was dealt to the reader as a blank card — front and back empty, with
 a progress row under it, gradable, and earning a schedule of its own. On a deck page V2-6.5 replaces such
 an entry, because there is a card to replace it with; the dictionary has no deck to repair itself with,
 so what it cannot read it must not deal.
+
+**V2-6.10** A day that cannot be recorded is not enforced. Where storage keeps nothing (V2-6.4), no card
+settles: grades are taken and shown, the cards come back round, and nothing is ever refused as already
+answered.
+
+The day is a fact about storage — `gradedToday` reads it out of the same entry `recordGrade` writes
+(V2-11.13) — so a reader whose site data is blocked has no day for V2-5.16's refusal to stand on. What
+a mount has instead is its own memory of the grades it has taken, and that memory is not the same thing.
+Leaning on it meant such a reader worked through one session, had it dealt back to them because nothing
+could be filtered out (V2-13.14 needs the same entry), and then found every card of it refusing a second
+answer that no schedule anywhere remembered. A deck that renders but cannot be studied is not what V2-6.4
+asks for.
+
+It is settled by reading back, not by assuming: the first real grade is written and then looked for, and
+only its absence turns settling off. `neutral` proves nothing either way, because it deliberately does
+not spend the day (V2-11.12) — reading one back as "no grade today" is correct and says nothing about
+whether storage works, and mistaking it for a failed write switched settling off the first time a reader
+paged past a card.
 
 **V2-6.9** A card's key is a string and nothing else is inferred from it (V2-2.3) — `__proto__`
 included. Every map read out of storage therefore has no prototype, which is what makes that key
@@ -1135,8 +1154,13 @@ Re-selecting closes it, because it reads the schedule, which is where the answer
 session then agrees with the schedule and so with every other — and, the schedule being storage, with
 whatever the reader has been doing in another tab.
 
-Unchanged means the same cards, in whatever order they come back in. Order is deliberately not part of
-that: review state selects what is studied and does not order it (V2-13.4) — the shuffle does — and
+Unchanged means the same cards — by key where a card has one, and by identity where it does not. That
+second half is not a formality: both of §13's notices are keyless (V2-13.8, V2-13.12), so comparing them
+by key alone made "nothing here yet" and "nothing to repeat today" the same session, and a page that had
+shown one went on showing it after the other became true. A reader whose dictionary filled up in another
+tab was still being told it was empty. A keyless card is only ever equal to itself.
+
+Order is deliberately not part of it either: review state selects what is studied and does not order it (V2-13.4) — the shuffle does — and
 `neutral` moves a card's `dueAt` merely by the reader paging past it (V2-11.5), so one selection can sort
 differently from the next without a single card having left it. An unchanged session is handed back as
 the very array it was dealt as, which is what keeps V2-3.8's "switching back returns to the card you left

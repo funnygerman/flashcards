@@ -2082,6 +2082,41 @@ describe("openDeck", () => {
      recorded, so nothing about the day can be remembered either — but the
      session itself is the library's, in memory, and everything it promises
      still holds inside the sitting. */
+  /* Both notices are keyless, so a dealer comparing sessions by key alone made
+     them the same session and kept whichever it had first: a reader whose
+     dictionary filled up in another tab went on being told it was empty
+     (V2-13.16). A keyless card is only ever equal to itself. */
+  describe("one notice is not the other", () => {
+    it("stops saying the dictionary is empty once it is not", () => {
+      open([]); /* nothing stored anywhere: "Nothing here yet" */
+      expect(front()).toBe("Nothing here yet");
+
+      /* Another tab opens a deck and answers all of it. */
+      localStorage.setItem(CARDS_KEY, JSON.stringify(Object.fromEntries(cards.map((c) => [c.key, c]))));
+      localStorage.setItem(
+        REVIEW_KEY,
+        JSON.stringify(
+          Object.fromEntries(cards.map((c) => [c.key, { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" }])),
+        ),
+      );
+
+      chooseAndClose("Every card");
+      expect(front()).not.toBe("Nothing here yet");
+
+      chooseAndClose("Due today");
+      expect(front()).toBe("Nothing to repeat today");
+    });
+
+    it("keeps saying the dictionary is empty while it still is", () => {
+      open([]);
+
+      chooseAndClose("Every card");
+      chooseAndClose("Due today");
+
+      expect(front()).toBe("Nothing here yet");
+    });
+  });
+
   describe("a deck whose storage never answers", () => {
     const blocked = {
       getItem: () => {
@@ -2114,10 +2149,15 @@ describe("openDeck", () => {
       expect(localStorage.getItem(REVIEW_KEY)).toBe(null);
     });
 
-    /* The cards come back round because nothing could be written down about
-       them — but the session itself remembers, so the answer already given
-       stands and a second one is still refused (V2-5.16). */
-    it("still refuses a second answer on a card answered in this sitting", () => {
+    /* A day that cannot be recorded is not enforced (V2-6.10). Storage that
+       keeps nothing has no memory of today for a refusal to stand on, so
+       nothing settles: the cards come back round and stay answerable, which is
+       the deck this reader had before any of this and the only one they can
+       have. Refusing instead — which is what the session's own memory of the
+       grades would do — left a reader with site data blocked working through
+       one session and then meeting every card of it again, each one refusing a
+       second answer that no schedule anywhere remembered. */
+    it("does not settle a grade it could not write down", () => {
       open(cards, { storage: blocked });
       for (let i = 0; i < 5; i += 1) press("ArrowRight");
 
@@ -2125,7 +2165,32 @@ describe("openDeck", () => {
       expect(front()).toBe("eins");
 
       press("ArrowUp");
-      expect(said()).toBe("Already graded today");
+      expect(said()).toBe(null);
+      expect(front()).toBe("zwei"); /* answered again, and gone again */
+    });
+
+    /* Which also means the session never runs out: with nothing retired there
+       is nothing for it to run out of, and the reader is never told the day is
+       done on the strength of grades nobody kept. */
+    it("never claims the day is done", () => {
+      open(cards, { storage: blocked });
+      for (let i = 0; i < 5; i += 1) press("ArrowRight");
+
+      for (let i = 0; i < 12; i += 1) press("ArrowUp");
+
+      expect(front()).not.toBe("Nothing to repeat today");
+    });
+
+    /* Storage that works is untouched by any of this: the first grade reads
+       back, so the day is enforced exactly as it always was. */
+    it("goes on settling where storage does keep the grade", () => {
+      open();
+
+      press("ArrowUp");
+      expect(schedule("a")).toMatchObject({ grade: "easier" });
+
+      press("ArrowLeft");
+      expect(front()).not.toBe("eins"); /* retired, as usual */
     });
   });
 

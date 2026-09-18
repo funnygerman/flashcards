@@ -29,7 +29,10 @@ function storedCard(stored, key) {
   const card = stored[key];
   if (!card || typeof card !== "object" || Array.isArray(card)) return null;
 
-  const said = (value) => typeof value === "string" && value !== "";
+  /* Trimmed, because a card is what the reader can read: `" "` is a string
+     and is not text, and the dictionary dealt one as a card with both faces
+     blank — the very thing this guard was added to stop. */
+  const said = (value) => typeof value === "string" && value.trim() !== "";
 
   return said(card.frontText) && said(card.backText) ? card : null;
 }

@@ -198,6 +198,8 @@ describe("allCards, an entry that is not a card", () => {
     ["a card with no back", { key: "x", frontText: "eins" }],
     ["a card with no front", { key: "x", backText: "one" }],
     ["a card whose text is blank", { key: "x", frontText: "", backText: "" }],
+    ["a card whose text is only spaces", { key: "x", frontText: "   ", backText: " " }],
+    ["a card whose text is only a tab", { key: "x", frontText: "\t", backText: "\n" }],
     ["a card whose text is not text", { key: "x", frontText: 12, backText: true }],
   ])("skips %s rather than dealing a blank card", (_name, entry) => {
     expect(allCards(bucket({ x: entry }), undefined)).toEqual([]);

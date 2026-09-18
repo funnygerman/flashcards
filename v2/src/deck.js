@@ -492,16 +492,24 @@ function dealer(source, storage, dictionary, now, done, empty) {
     return [cards.length > 0 ? done : empty];
   };
 
-  /* Two selections are the same session when they hold the same cards. By key,
-     because a pool read back out of storage is a fresh set of objects every
-     time (store.js) and identity would call every selection new; the card that
-     says there is nothing left carries none, and compares equal to itself,
-     which is exactly right — one done card is another. */
+  /* Two selections are the same session when they hold the same cards: by key
+     where a card has one, because a pool read back out of storage is a fresh
+     set of objects every time (store.js) and identity would call every
+     selection new — and by identity where it does not.
+
+     That second half is not a formality. The two notices are both keyless, so
+     comparing them by key made "nothing here yet" and "nothing to repeat
+     today" the same session, and a page that had shown one kept showing it
+     after the other became true: a reader whose dictionary filled up in
+     another tab was still told it was empty (V2-13.8, V2-13.12). A keyless
+     card is only ever equal to itself. */
   const same = (held, fresh) => {
     if (held.length !== fresh.length) return false;
 
-    const keys = new Set(held.map((card) => card.key));
-    return fresh.every((card) => keys.has(card.key));
+    const identify = (card) => card.key ?? card;
+    const held_ = new Set(held.map(identify));
+
+    return fresh.every((card) => held_.has(identify(card)));
   };
 
   const deal = (all, everything) => {
@@ -614,6 +622,15 @@ export function openDeck(cards, options = {}) {
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
 
+  /* Whether a grade actually gets written down. Storage that is absent or
+     blocked records nothing (V2-6.4), and a day that cannot be recorded cannot
+     be enforced (V2-6.10): without this, a reader with site data blocked
+     worked through one session and then met every card of it again, each one
+     refusing a second answer that no schedule anywhere remembered. Asked of
+     storage rather than assumed, because the only honest test of whether a
+     grade was kept is reading it back. */
+  let recording = true;
+
   /* The guide's own box — in memory only, gone the moment this mount ends,
      the same as everything else about a guide card (V2-6.3). Card three
      claims "a star for each day you get it right... wrong answer clears
@@ -692,15 +709,23 @@ export function openDeck(cards, options = {}) {
       }
 
       recordGrade(card.key, level, storage, now);
+
+      /* Only a real grade proves anything here. `neutral` deliberately does not
+         spend the day (V2-11.12), so reading one back as "no grade today" is
+         exactly right and says nothing at all about whether storage works —
+         mistaking it for a failed write switched settling off for the whole
+         mount the first time a reader paged past a card. */
+      if (recording && level !== "neutral" && gradedToday(card.key, storage, now) === null) recording = false;
     },
 
     /* Which cards a grade is the last word on: the ones this page keeps a
        schedule for, which is the ones with a key (V2-5.16). A guide card and
-       the card that says there is nothing left today carry none — their grades
-       go nowhere at all (V2-15.5, V2-13.12) — so there is nothing about either
-       to be finished with, and the guide goes on answering a reader who swipes
-       at its grading cards twice. */
-    settles: (card) => Boolean(card.key),
+       the two notices carry none — their grades go nowhere at all (V2-15.5,
+       V2-13.12) — so there is nothing about either to be finished with, and
+       the guide goes on answering a reader who swipes at its grading cards
+       twice. Nothing is the last word on anything once storage has shown it is
+       keeping none of it (V2-6.10). */
+    settles: (card) => recording && Boolean(card.key),
 
     /* The card that says there is nothing to repeat today is a notice, not
        material: it carries no key, so nothing it is swiped at with could ever
