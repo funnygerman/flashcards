@@ -990,3 +990,139 @@ describe("mount", () => {
     expect(graded).toEqual([]);
   });
 });
+
+/* A host that keeps a schedule says which cards a grade is the last word on
+   (V2-5.16). Such a card leaves the session when it is answered (V2-3.9), and
+   a second grading gesture on one is refused rather than applied. */
+describe("mount, a host that settles its grades", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    for (const deck of mounted.splice(0)) deck.destroy();
+    document.body.replaceChildren();
+  });
+
+  const text = () => front(".fc-text").textContent;
+
+  const settled = (options = {}) => open({ settles: (card) => Boolean(card.key), ...options });
+
+  it("takes an answered card out of the session", () => {
+    settled();
+
+    press("ArrowUp");
+    expect(text()).toBe("zwei");
+
+    press("ArrowLeft");
+    expect(text()).toBe("drei");
+  });
+
+  it("holds the session open until the last card is answered", () => {
+    const empty = vi.fn(() => null);
+    settled({ onEmpty: empty });
+
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(empty).not.toHaveBeenCalled();
+    expect(text()).toBe("drei");
+  });
+
+  it("asks the host what follows a session that has run out", () => {
+    const after = [{ key: "z", frontText: "nothing left", backText: "come back" }];
+    settled({ onEmpty: () => after });
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(text()).toBe("nothing left");
+  });
+
+  /* Nothing to put there is not an empty screen: a deck with no card at all is
+     the one thing mount() refuses outright (V2-3.6). */
+  it("keeps the last card where a host has no answer", () => {
+    settled();
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(text()).toBe("drei");
+  });
+
+  it("refuses a second grade on a card it already carries one for", () => {
+    const graded = [];
+    const refused = [];
+
+    settled({
+      gradeOf: (card) => (card.key === "a" ? "easier" : null),
+      onGrade: (card, level) => graded.push([card.key, level]),
+      onRefuse: (card, reason) => refused.push([card.key, reason]),
+    });
+
+    press("ArrowDown");
+
+    expect(refused).toEqual([["a", "settled"]]);
+    expect(graded).toEqual([]);
+    expect(text()).toBe("eins"); /* nothing moved */
+  });
+
+  it("goes on refusing, however often it is asked", () => {
+    const refused = [];
+
+    settled({ gradeOf: () => "easier", onRefuse: (card) => refused.push(card.key) });
+
+    press("ArrowDown");
+    press("ArrowUp");
+    press("ArrowDown");
+
+    expect(refused).toEqual(["a", "a", "a"]);
+    expect(text()).toBe("eins");
+  });
+
+  /* The refusal is about a grade, not about the card: everything else the
+     reader can do to it still works. */
+  it("leaves paging and flipping alone", () => {
+    settled({ gradeOf: () => "easier", onRefuse: () => {} });
+
+    press(" ");
+    expect(isFlipped()).toBe(true);
+
+    press("ArrowRight");
+    expect(text()).toBe("zwei");
+  });
+
+  it("does not settle a card the host keeps no schedule for", () => {
+    const graded = [];
+    const refused = [];
+    const loose = track(
+      mount(document.body, [{ frontText: "guide", backText: "guide" }], {
+        storage: localStorage,
+        random: unshuffled,
+        settles: (card) => Boolean(card.key),
+        onGrade: (card, level) => graded.push(level),
+        onRefuse: () => refused.push("refused"),
+      }),
+    );
+
+    press("ArrowUp");
+    press("ArrowDown");
+
+    expect(loose).toBeTruthy();
+    expect(graded).toEqual(["easier", "harder"]);
+    expect(refused).toEqual([]);
+  });
+
+  /* Without the option nothing settles, which is the bare deck that wraps for
+     ever and lets a reader change their mind (the library's own default). */
+  it("changes nothing for a host that does not ask for it", () => {
+    open();
+
+    press("ArrowUp");
+    press("ArrowLeft");
+
+    expect(text()).toBe("eins");
+  });
+});

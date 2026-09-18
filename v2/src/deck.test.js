@@ -42,6 +42,14 @@ const choose = (label) => {
   if (!item) throw new Error(`no menu row named ${label}`);
   item.click();
 };
+
+/* Choosing a row leaves the sheet up — a reader may have more than one
+   question — and an open menu owns the arrows (V2-16.7). Anything that goes on
+   to press one has to put the menu away first, exactly as a reader would. */
+const chooseAndClose = (label) => {
+  choose(label);
+  menu().click();
+};
 const schedule = (key) => JSON.parse(localStorage.getItem(REVIEW_KEY) ?? "{}")[key];
 
 const mounted = [];
@@ -132,18 +140,73 @@ describe("openDeck", () => {
   it("records a grade against the review schedule", () => {
     open();
 
-    press("ArrowUp"); /* card a, which the grade then takes away */
+    press("ArrowUp"); /* card a, which the grade then takes out of the session */
     expect(schedule("a")).toMatchObject({ box: 1, grade: "easier" });
+    expect(front()).toBe("zwei");
+  });
 
-    press("ArrowLeft"); /* back to card a, still wearing its mark */
-    expect(marks()).toBe("is-easier");
-    expect(filled()).toBe(1);
+  /* An answered card is out of the session for good, so there is no paging
+     back to it and no second answer to give it (V2-3.9, V2-5.16). */
+  it("takes an answered card out of the session, in both directions", () => {
+    open();
 
-    press("ArrowDown"); /* a change of mind, applied to the box the day found */
-    expect(schedule("a")).toMatchObject({ box: 0, grade: "harder" });
+    press("ArrowUp"); /* a, answered */
+    expect(front()).toBe("zwei");
 
     press("ArrowLeft");
+    expect(front()).toBe("drei");
+
+    press("ArrowLeft");
+    expect(front()).toBe("zwei");
+  });
+
+  /* The last answer of a session is the end of it: the page has one card left
+     to show and it is the one that says there is nothing left (V2-13.15). */
+  it("says there is nothing left once every card has been answered", () => {
+    open();
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+
+    expect(front()).toBe("Nothing to repeat today");
+
+    /* And it stays that way, however the reader pages around it. */
+    press("ArrowRight");
+    expect(front()).toBe("Nothing to repeat today");
+    press("ArrowLeft");
+    expect(front()).toBe("Nothing to repeat today");
+  });
+
+  /* The card that says so is not material: swiping at it earns nothing and
+     cannot page the reader off it (V2-13.12). */
+  it("keeps the card that says so out of the schedule", () => {
+    open();
+
+    for (const card of cards) void card, press("ArrowUp");
+    press("ArrowUp");
+
+    expect(front()).toBe("Nothing to repeat today");
     expect(filled()).toBe(0);
+    expect(Object.keys(JSON.parse(localStorage.getItem(REVIEW_KEY)))).toEqual(["a", "b", "c"]);
+  });
+
+  /* A session is a sitting's worth, not the whole pool (V2-13.4). Working
+     through one deals the next rather than declaring the day over. */
+  it("deals the next sitting when a capped session runs out", () => {
+    const many = Array.from({ length: 51 }, (_, i) => ({ key: `k${i}`, frontText: `f${i}`, backText: `b${i}` }));
+
+    open(many);
+
+    for (let i = 0; i < 50; i += 1) press("ArrowUp");
+
+    /* Fifty answered, one card of the deck never dealt — so the session that
+       follows is that card, not the end of the day. */
+    expect(front()).not.toBe("Nothing to repeat today");
+    expect(Object.keys(JSON.parse(localStorage.getItem(REVIEW_KEY)))).toHaveLength(50);
+
+    press("ArrowUp");
+    expect(front()).toBe("Nothing to repeat today");
   });
 
   it("reports a card paged past without grading, without deferring it", () => {
@@ -154,25 +217,23 @@ describe("openDeck", () => {
     expect(schedule("a").grade).toBeUndefined();
   });
 
-  it("brings a grade back after a reload, marked and still the reader's to change", () => {
+  /* A reload is not a second chance at the day. The card the reader answered
+     this morning is not dealt again, however its own box reads (V2-13.14) —
+     `harder` files a card in box 0, due immediately, and the day still has the
+     final word. */
+  it("does not deal a card the reader already answered today", () => {
     open().destroy();
     mounted.length = 0;
     document.body.replaceChildren();
 
-    /* The reader graded this card earlier today, in a page since gone. */
-    localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+    localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 0, dueAt: Date.now(), baseBox: 0, day: today(), grade: "harder" } }));
 
     open();
-    expect(marks()).toBe("is-easier");
+    expect(front()).toBe("zwei");
 
-    /* Disagreeing with it is allowed and counts — and lands on the box the day
-       found the card in rather than stacking on the first grade (V2-11.10), so
-       a card promoted to box 1 this morning goes back to 0 rather than to 1. */
-    press("ArrowDown");
-    expect(schedule("a")).toMatchObject({ box: 0, grade: "harder" });
-
-    press("ArrowLeft");
-    expect(marks()).toBe("is-harder");
+    press("ArrowUp");
+    press("ArrowUp");
+    expect(front()).toBe("Nothing to repeat today");
   });
 
   it("draws a row of one mark per box above the first", () => {
@@ -278,7 +339,7 @@ describe("openDeck", () => {
       expect(schedule(before)).toBeUndefined();
     });
 
-    it("stays settled if today's grade was given under the old key", () => {
+    it("carries today's answer across, so the card is not dealt again", () => {
       localStorage.setItem(
         REVIEW_KEY,
         JSON.stringify({ [before]: { box: 3, dueAt: 0, baseBox: 2, day: today(), grade: "easier" } }),
@@ -286,9 +347,10 @@ describe("openDeck", () => {
 
       open([card]);
 
-      /* Marked on arrival, exactly as it would be had the key never moved. */
-      expect(marks()).toBe("is-easier");
-      expect(schedule(after).box).toBe(3);
+      /* The day's answer moved with the key, exactly as the box did, so this
+         page has nothing left to offer (V2-13.14). */
+      expect(front()).toBe("Nothing to repeat today");
+      expect(schedule(after)).toMatchObject({ box: 3, grade: "easier", day: today() });
     });
 
     it("does not leave the old card behind in the dictionary", () => {
@@ -394,6 +456,23 @@ describe("openDeck", () => {
       press("ArrowUp");
       press("ArrowLeft"); /* back to the card the swipe was made on */
       expect(marks()).toBe("is-easier");
+    });
+
+    /* Nothing about a guide card is stored, so there is no day for it to have
+       been answered on and nothing for a second answer to corrupt: it stays in
+       the guide, and swiping at it again is answered rather than refused
+       (V2-5.16). */
+    it("goes on answering a reader who swipes at the same guide card twice", () => {
+      const message = () => document.querySelector(".fc-front").getAttribute("data-message");
+
+      open();
+
+      press("ArrowUp");
+      press("ArrowLeft"); /* the card is still there to be swiped at */
+      press("ArrowDown");
+
+      expect(message()).toBe(null);
+      expect(filled()).toBe(0); /* the guide's own box answered the second swipe */
     });
 
     /* Card three claims a star for every day the reader gets a card right,
@@ -539,27 +618,97 @@ describe("openDeck", () => {
      and `previous` brings it back to be changed, so no gesture is dropped and
      the card has nothing to apologise for (V2-15.2). `say()` remains the seam
      for a host that has a sentence; this one no longer does. */
-  describe("a grade given twice in a day", () => {
+  /* Where a reader meets a card they have already answered: not in a due
+     session, which holds none, but through their own "every card" filter
+     (V2-13.13), which shows the pool regardless of schedule or day. */
+  describe("a card already answered today", () => {
     const message = () => document.querySelector(".fc-front").getAttribute("data-message");
+    const answered = () =>
+      localStorage.setItem(
+        REVIEW_KEY,
+        JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }),
+      );
 
-    it("says nothing, because nothing was refused", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+    it("arrives wearing the mark it was left with", () => {
+      answered();
       open();
+      choose("Every card");
 
-      press("ArrowDown");
-
-      expect(message()).toBe(null);
+      expect(front()).toBe("eins");
+      expect(marks()).toBe("is-easier");
     });
 
-    it("takes the card away and records the change of mind", () => {
-      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }));
+    it("says so rather than taking a second answer", () => {
+      answered();
       open();
+      chooseAndClose("Every card");
 
       press("ArrowDown");
 
+      expect(message()).toBe("Already graded today");
+
+      /* Nothing moved and nothing was stored: the card is where it was, still
+         wearing this morning's mark, and so is its schedule (V2-5.16). */
+      expect(front()).toBe("eins");
+      expect(marks()).toBe("is-easier");
+      expect(schedule("a")).toMatchObject({ box: 1, grade: "easier" });
+    });
+
+    it("says it again on a second attempt, rather than giving in", () => {
+      answered();
+      open();
+      chooseAndClose("Every card");
+
+      press("ArrowDown");
+      press("ArrowUp");
+
+      expect(front()).toBe("eins");
+      expect(schedule("a")).toMatchObject({ box: 1, grade: "easier" });
+    });
+
+    it("says it in the reader's own language", () => {
+      answered();
+      open(cards, { lang: "de" });
+      chooseAndClose("Alle Karten");
+
+      press("ArrowDown");
+
+      expect(message()).toBe("Heute schon bewertet");
+    });
+
+    /* The cards beside it in the same session are ordinary material: the
+       refusal is about one card's day, not about the filter. */
+    it("does not stop the reader answering the rest", () => {
+      answered();
+      open();
+      chooseAndClose("Every card");
+
+      press("ArrowRight");
       expect(front()).toBe("zwei");
-      expect(schedule("a")).toMatchObject({ box: 0, grade: "harder" });
+
+      press("ArrowUp");
+      expect(schedule("b")).toMatchObject({ box: 1, grade: "easier" });
     });
+  });
+
+  /* A session worked through does not come back through the menu: switching
+     pool and back returns to the session as it now is, not to the one the
+     reader finished (V2-13.15). */
+  it("keeps a spent session spent across a switch of pools", () => {
+    localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
+
+    open();
+
+    press("ArrowUp");
+    press("ArrowUp");
+    press("ArrowUp");
+    expect(front()).toBe("Nothing to repeat today");
+
+    chooseAndClose("Everything you have seen");
+    expect(front()).not.toBe("Nothing to repeat today");
+
+    chooseAndClose("This deck");
+    expect(front()).toBe("Nothing to repeat today");
   });
 
   describe("the menu", () => {

@@ -57,31 +57,67 @@ export function shuffle(items, random = Math.random) {
  * back to the lead: it has done its job for this mount and does not return
  * until the next one decides to deal it again (deck.js's own concern, not
  * this module's).
+ *
+ * `retire` is the one thing here that shortens a ring rather than walking it:
+ * a card the reader has answered is out of this sequence for good, so the
+ * sequence it leaves behind is one card shorter and `previous` can no longer
+ * reach it (V2-3.9). Both rings are this module's own copies, so shortening
+ * one never reorders or empties an array the caller still holds (V2-3.3).
  */
 export function createOrder(cards, random = Math.random, lead = []) {
   const deck = shuffle(cards, random);
-  let ring = lead.length > 0 ? lead : deck;
+
+  /* A copy for the same reason `shuffle` makes one: `retire` shortens whatever
+     ring is current, and the caller's lead — deck.js hands over the very array
+     strings.js holds its guide in — is not this module's to shorten. */
+  const front = [...lead];
+  let ring = front.length > 0 ? front : deck;
   let index = 0;
 
   /* Every lead index the reader has actually had on screen. Seeded with the
      first card, which is on screen from the moment this is called and before
      any step is taken. Left to grow stale once the deck takes over — nothing
      reads it again after that, the lead having done its one job. */
-  const seen = new Set(ring === lead ? [0] : []);
+  const seen = new Set(ring === front ? [0] : []);
 
   const step = (delta) => {
     /* Forward off the lead's last card, having shown every one of them, is
        the one move that changes rings rather than wrapping within one —
        every other step, in either direction, is a plain wrapping cursor over
        whichever ring is current. */
-    if (delta > 0 && ring === lead && index === ring.length - 1 && seen.size === ring.length) {
+    if (delta > 0 && ring === front && index === ring.length - 1 && seen.size === ring.length) {
       ring = deck;
       index = 0;
       return ring[index];
     }
 
     index = (index + delta + ring.length) % ring.length;
-    if (ring === lead) seen.add(index);
+    if (ring === front) seen.add(index);
+    return ring[index];
+  };
+
+  /*
+   * Take the current card out of the sequence and stand on what followed it.
+   *
+   * Returns the card now current, or null where there was nothing to take it
+   * out of: the last card of a ring stays put and is reported as null rather
+   * than leaving an order with no card to show at all — what comes after a
+   * sequence that has run out is the caller's question (flashcards.js asks its
+   * host), and answering it by emptying the ring first would leave nothing to
+   * fall back to if the host has no answer.
+   *
+   * A lead card is shown, not studied (V2-3.3): it carries no schedule and its
+   * grade goes nowhere (V2-15.5), so there is nothing about it to be done with
+   * and this is a plain step forward. The lead's own `seen` bookkeeping is
+   * therefore never asked to survive a ring that changed length underneath it.
+   */
+  const retire = () => {
+    if (ring === front) return step(1);
+    if (ring.length <= 1) return null;
+
+    ring.splice(index, 1);
+    index %= ring.length;
+
     return ring[index];
   };
 
@@ -92,5 +128,6 @@ export function createOrder(cards, random = Math.random, lead = []) {
     current: () => ring[index],
     next: () => step(1),
     previous: () => step(-1),
+    retire,
   };
 }

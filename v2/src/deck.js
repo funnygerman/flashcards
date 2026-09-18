@@ -113,10 +113,12 @@ function writeSide(side, storage = pageStorage()) {
  * them the arrows grade. No full stops anywhere: these are instructions and
  * labels, not sentences, and a card is not a page of prose.
  *
- * Card three's back is where `previous` is taught as the way to take a grade
- * back. It is worth a line now that a grade leaves immediately: the reader's
- * own last answer is the one they are most likely to want to change, and there
- * is no longer a refusal message to explain itself when they try (V2-15.2).
+ * Card three's back is where the day's end of a grade is taught: an answered
+ * card is gone until tomorrow (V2-5.16), which is the one consequence of
+ * grading a reader cannot see from the gesture itself. It used to teach
+ * `previous` as the way to take a grade back, and could not go on doing so
+ * once a grade stopped being takeable back — a guide that taught an undo the
+ * app does not have would be worse than no line at all.
  *
  * No `key` on any of them, which is what keeps them out of everything a card
  * normally touches: they are not written to the dictionary (V2-6.3), never
@@ -429,28 +431,50 @@ function cornerLink(storage) {
  * (V2-13.8) — "you are done for today" is false where there was never
  * anything to be done.
  *
- * Dealing is all this does. It used to also report whether a pool's schedule
- * was holding anything back, which is what decided whether the menu drew the
- * schedule group at all; the menu's shape is fixed now (V2-16.3), so there is
- * nobody left to ask.
+ * `redeal` is the same selection made again, for a session that has been
+ * worked through to the end (V2-13.15). It asks only for what the reader can
+ * still answer today — a card already graded is done for the day whatever the
+ * schedule says about it (V2-5.16) — so a deck bigger than one sitting hands
+ * over its next fifty rather than stopping at the cap, and a pool with nothing
+ * left deals the card that says so. The answer replaces what this dealer holds
+ * for that session, which is what keeps a spent selection from coming back
+ * through the menu: switching pool and back returns to the session as it now
+ * is, not to the one the reader finished.
  */
 function dealer(source, storage, dictionary, now, done) {
   const dealt = new Map();
 
   const pool = (all) => (all ? allCards(storage, dictionary) : source);
 
-  return (all, everything) => {
+  const select = (all, everything, onlyUnanswered) => {
+    const cards = pool(all);
+    const chosen = chooseSession(cards, { now, storage, onlyDue: !everything, onlyUnanswered });
+
+    return chosen.length === 0 && cards.length > 0 ? [done] : chosen;
+  };
+
+  const deal = (all, everything) => {
     const id = `${all}:${everything}`;
 
-    if (!dealt.has(id)) {
-      const cards = pool(all);
-      const chosen = chooseSession(cards, { now, storage, onlyDue: !everything });
-
-      dealt.set(id, chosen.length === 0 && cards.length > 0 ? [done] : chosen);
-    }
+    /* A first deal under the reader's own filter shows every card in the pool,
+       today's answered ones included: they wear their marks and refuse a
+       second grade (V2-5.16), which is the only place that refusal is ever
+       met. A due session has no room for them — nothing could be done with
+       one — so it asks for unanswered cards from the start (V2-13.14). */
+    if (!dealt.has(id)) dealt.set(id, select(all, everything, !everything));
 
     return dealt.get(id);
   };
+
+  const redeal = (all, everything) => {
+    const id = `${all}:${everything}`;
+    const next = select(all, everything, true);
+
+    dealt.set(id, next);
+    return next;
+  };
+
+  return { deal, redeal };
 }
 
 /**
@@ -547,7 +571,7 @@ export function openDeck(cards, options = {}) {
      brought cards of its own decides only which pool it draws from, not
      whether the schedule filters it; the reader's own menu decides that
      (V2-13.13), for whichever pool they are on. */
-  const deal = dealer(source, storage, dictionary, now, done);
+  const { deal, redeal } = dealer(source, storage, dictionary, now, done);
 
   let showingAll = !own;
   let everything = false;
@@ -589,11 +613,34 @@ export function openDeck(cards, options = {}) {
 
       recordGrade(card.key, level, storage, now);
     },
+
+    /* Which cards a grade is the last word on: the ones this page keeps a
+       schedule for, which is the ones with a key (V2-5.16). A guide card and
+       the card that says there is nothing left today carry none — their grades
+       go nowhere at all (V2-15.5, V2-13.12) — so there is nothing about either
+       to be finished with, and the guide goes on answering a reader who swipes
+       at its grading cards twice. */
+    settles: (card) => Boolean(card.key),
+
+    /* A grading gesture dropped because the card has already had its answer
+       today. The card cannot show this itself — nothing about it moves — so
+       the page says it in words, on the card, which is the one register this
+       app has for a sentence (V2-15.2). */
+    onRefuse: (card, reason) => {
+      if (reason === "settled") deck.say(strings.settled);
+    },
+
+    /* The session has been worked through. What follows is the same selection
+       made again out of what the reader can still answer today — the next
+       sitting's worth of a pool too big for one, or the card that says there
+       is nothing left (V2-13.15). */
+    onEmpty: () => redeal(showingAll, everything),
     /* What the reader said about this card earlier today, so a card comes back
-       after a reload wearing the mark it already had (V2-5.14). It is not a
-       refusal waiting to happen: they may swipe the other way and change it,
-       and review.js applies the change to the box the day found the card in
-       rather than stacking it on the first grade (V2-11.10). */
+       after a reload wearing the mark it already had (V2-5.14) — and, being a
+       card this page settles, wearing it for the rest of the day: a second
+       grading gesture on it is refused above rather than applied (V2-5.16).
+       A due session never holds such a card (V2-13.14); the reader's own
+       "every card" filter is where they are met. */
     gradeOf: (card) => card.key && gradedToday(card.key, storage, now),
 
     /* The box is the count outright, so box 0 fills no marks — what a card

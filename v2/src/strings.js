@@ -21,13 +21,14 @@
  * Short by necessity, like the refusal below was: the band across a phone-sized
  * card holds about four words.
  *
- * There is no refusal message here any more. There was one — "Already rated
- * today", said on the card when a grading gesture was dropped — and it went
- * when the gesture stopped being droppable: a grade takes the card away
- * (V2-8.4) and `previous` brings it back to be changed (V2-5.13), so there is
- * no longer a swipe that does nothing and nothing left for the card to
- * apologise for. `say()` remains as the seam it always was; nothing in this
- * repository currently has a sentence for it.
+ * `settled` is what the card says when the reader grades a card they have
+ * already answered today (V2-5.16). It is short for the same reason the grade
+ * labels are — it goes on the same band, which across a phone-sized card holds
+ * about four words — and it names the day rather than the card: what has run
+ * out is today's answer to this card, not the card itself, and tomorrow it is
+ * ordinary material again. It is met only through the reader's own "every
+ * card" filter, a due session having nothing to gain by offering a card
+ * nothing can be done with (V2-13.14).
  *
  * `menu` is the words the menu is made of (§16). `open` names the button that
  * opens it. The three groups inside — `side`, `pool`, `scope` — each name a
@@ -55,6 +56,7 @@
 const STRINGS = {
   en: {
     grades: { easier: "Knew it", harder: "Didn't know it" },
+    settled: "Already graded today",
     menu: {
       open: "Menu",
       side: { front: "Front first", back: "Back first", random: "Random side" },
@@ -87,7 +89,7 @@ const STRINGS = {
         category: "guide",
         frontText: "Swipe down if you didn't",
         frontDetails: "or press ↓",
-        backText: "Swipe right takes it back",
+        backText: "It comes back tomorrow",
         backDetails: "Swipe left",
       },
       {
@@ -109,6 +111,7 @@ const STRINGS = {
 
   de: {
     grades: { easier: "Gewusst", harder: "Nicht gewusst" },
+    settled: "Heute schon bewertet",
     menu: {
       open: "Menü",
       side: { front: "Vorderseite zuerst", back: "Rückseite zuerst", random: "Zufällige Seite" },
@@ -141,7 +144,7 @@ const STRINGS = {
         category: "Anleitung",
         frontText: "Wische nach unten, wenn nicht",
         frontDetails: "oder drücke ↓",
-        backText: "Wische nach rechts, um sie zurückzuholen",
+        backText: "Sie kommt morgen wieder",
         backDetails: "Wische nach links",
       },
       {
@@ -163,6 +166,7 @@ const STRINGS = {
 
   ru: {
     grades: { easier: "Знал", harder: "Не знал" },
+    settled: "Сегодня уже оценено",
     menu: {
       open: "Меню",
       side: { front: "Сначала лицевая", back: "Сначала обратная", random: "Случайная сторона" },
@@ -195,7 +199,7 @@ const STRINGS = {
         category: "инструкция",
         frontText: "Смахни вниз, если не знал",
         frontDetails: "или нажми ↓",
-        backText: "Смахни вправо, чтобы вернуть её",
+        backText: "Она вернётся завтра",
         backDetails: "Смахни влево",
       },
       {

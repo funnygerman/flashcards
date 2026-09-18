@@ -45,11 +45,17 @@ describe("stringsFor", () => {
     }
   });
 
-  /* The refusal message went when the refusal did: a grade takes the card away
-     and `previous` brings it back to be changed, so no gesture is dropped and
-     there is nothing for the card to say about one (V2-15.2). */
-  it.each(LANGS)("carries no refusal message for %s", (lang) => {
-    expect(stringsFor(lang).settled).toBeUndefined();
+  /* A card already answered today refuses a second answer, and the card has no
+     way of showing that itself — nothing about it moves — so the page says it
+     in words (V2-5.16, V2-15.2). */
+  it.each(LANGS)("carries a refusal message for %s", (lang) => {
+    expect(stringsFor(lang).settled.length).toBeGreaterThan(0);
+  });
+
+  /* It goes on the band the grade labels go on, which across a phone-sized
+     card holds about four words. */
+  it.each(LANGS)("keeps the refusal short enough for the band in %s", (lang) => {
+    expect(stringsFor(lang).settled.split(" ")).toHaveLength(3);
   });
 
   it("keeps no card keyed, in every language, the same as the English guide (V2-6.3)", () => {
