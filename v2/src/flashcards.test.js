@@ -1230,3 +1230,72 @@ describe("mount, a host that vetoes a grade outright", () => {
     expect(refused).toEqual(["settled"]);
   });
 });
+
+/* A session of one card has nowhere to page to. It used to run the whole page
+   turn anyway — the card left and an identical one arrived from the other
+   side — which is exactly what fetching the next card looks like (V2-3.10). */
+describe("mount, a session with nowhere to page to", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    for (const deck of mounted.splice(0)) deck.destroy();
+    document.body.replaceChildren();
+  });
+
+  const alone = [{ key: "solo", frontText: "allein", backText: "alone" }];
+
+  const only = (options = {}) =>
+    track(mount(document.body, alone, { storage: localStorage, random: unshuffled, ...options }));
+
+  it("keeps the card where it is, in both directions", () => {
+    only();
+
+    press("ArrowRight");
+    expect(front(".fc-text").textContent).toBe("allein");
+
+    press("ArrowLeft");
+    expect(front(".fc-text").textContent).toBe("allein");
+  });
+
+  /* The reader has not moved on from anything, so nothing is reported as
+     paged past (V2-5.11). Reporting one per press also meant a card nobody
+     could page away from collected a `neutral` every time they tried. */
+  it("reports nothing as paged past, however often it is tried", () => {
+    const graded = [];
+    only({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    for (let i = 0; i < 5; i += 1) press("ArrowRight");
+    for (let i = 0; i < 5; i += 1) press("ArrowLeft");
+
+    expect(graded).toEqual([]);
+  });
+
+  /* A grade is a different matter: it still reports, and still settles. */
+  it("still takes a grade on the card it cannot page away from", () => {
+    const graded = [];
+    only({ onGrade: (card, level) => graded.push([card.key, level]) });
+
+    press("ArrowUp");
+
+    expect(graded).toEqual([["solo", "easier"]]);
+  });
+
+  /* Two cards is somewhere to go, and pages exactly as it always did. */
+  it("pages normally the moment there are two cards", () => {
+    const graded = [];
+    track(
+      mount(document.body, [alone[0], { key: "pair", frontText: "zwei", backText: "two" }], {
+        storage: localStorage,
+        random: unshuffled,
+        onGrade: (card, level) => graded.push([card.key, level]),
+      }),
+    );
+
+    press("ArrowRight");
+
+    expect(front(".fc-text").textContent).toBe("zwei");
+    expect(graded).toEqual([["solo", "neutral"]]);
+  });
+});

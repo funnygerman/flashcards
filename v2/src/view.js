@@ -40,6 +40,19 @@ const GRADE_EXIT_MS = 160;
  */
 const VERTICAL_GIVE = 0.22;
 
+/**
+ * How far a page turn with nowhere to go carries the card, and for how long.
+ *
+ * Short, and short of anywhere: the card gives in the direction it was pushed
+ * and comes back, which is the same thing a drag that never reached the
+ * threshold does (V2-4.11) and means the same thing here — the reader's
+ * gesture was read, and there was nothing that way. Far enough to be a
+ * movement rather than a twitch; nowhere near the edge, because arriving there
+ * is what a real page turn says.
+ */
+const BOUNCE_PX = 26;
+const BOUNCE_MS = 200;
+
 function createElement(tag, className, parent) {
   const element = document.createElement(tag);
   element.className = className;
@@ -559,6 +572,40 @@ export function createView(container, steps, labels, facing = () => "front") {
         swap(data, level, onSwap);
         return animate(slider, offscreen(100).reverse());
       });
+    },
+
+    /**
+     * Answer a page turn that has nowhere to go: the card gives the way it was
+     * pushed and comes back (V2-3.10).
+     *
+     * A one-card session used to run the whole page turn — the card left, and
+     * an identical one arrived from the other side. Nothing about that is
+     * readable as "there is nothing else": it is exactly what fetching the
+     * next card looks like, so a reader on the card that says the day is done
+     * saw it leave and return, which reads as the app having lost its place
+     * rather than as an answer.
+     *
+     * `from` is where a drag left the card, for the same reason `slide` takes
+     * one: the bounce carries on from under the finger rather than snapping to
+     * the middle first. There is nothing to swap and no card arriving, so
+     * unlike the two slides this returns nothing for the deck to wait on —
+     * nothing is in flight that a second gesture could interrupt.
+     */
+    bounce(direction) {
+      const from = dragged.x;
+
+      release();
+
+      animate(
+        slider,
+        [
+          { transform: `translateX(${from}px)` },
+          { transform: `translateX(${direction * -BOUNCE_PX}px)` },
+          { transform: "translateX(0)" },
+        ],
+        BOUNCE_MS,
+        "ease-out",
+      );
     },
 
     drag,

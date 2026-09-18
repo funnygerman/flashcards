@@ -128,6 +128,12 @@ swiped, and `→` follows the same motion, arriving from ahead the way paging fo
 card takes it out of the session, so the ring gets shorter as you work, and answering the last of it ends
 the sitting rather than dealing the deck again from the top.
 
+**A page turn with nowhere to go bounces** instead of turning: the card gives the way you pushed it and
+comes back. A session of one card — the "Nothing to repeat today" card, or a deck that really does hold
+one — used to run the whole page turn, so the card left and an identical one arrived from the other side.
+That is exactly what fetching the next card looks like, so it read as the app having lost its place rather
+than as an answer. Nothing is reported as paged past either, since you haven't moved on from anything.
+
 **The card answers a gesture while you are making it.** Drag sideways and it goes with your finger, and
 the page turn carries on from wherever you let go rather than snapping back first. Drag up or down and it
 resists, while the edge you are pulling towards fills in — and at the threshold the card comes loose and

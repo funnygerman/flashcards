@@ -2117,6 +2117,57 @@ describe("openDeck", () => {
     });
   });
 
+  /* The card that says the day is done is a session of one, so paging it is a
+     page turn with nowhere to go (V2-3.10). It used to leave and come straight
+     back, which reads as the app having lost its place rather than as an
+     answer. */
+  describe("paging a session of one card", () => {
+    it("keeps the card that says the day is done where it is", () => {
+      scheduleAll(30);
+      open();
+
+      press("ArrowRight");
+      expect(front()).toBe("Nothing to repeat today");
+
+      press("ArrowLeft");
+      expect(front()).toBe("Nothing to repeat today");
+    });
+
+    it("keeps a deck of one real card where it is, the same way", () => {
+      const solo = [{ key: "solo", frontText: "allein", backText: "alone" }];
+
+      open(solo);
+
+      press("ArrowRight");
+      expect(front()).toBe("allein");
+      press("ArrowLeft");
+      expect(front()).toBe("allein");
+    });
+
+    /* Nothing is left behind, so nothing is reported as left behind: a card
+       the reader could not page away from used to collect a `neutral`, and a
+       schedule, on every press (V2-5.11, V2-11.5). */
+    it("writes no schedule for a card the reader could not page away from", () => {
+      const solo = [{ key: "solo", frontText: "allein", backText: "alone" }];
+
+      open(solo);
+
+      for (let i = 0; i < 4; i += 1) press("ArrowRight");
+
+      expect(localStorage.getItem(REVIEW_KEY)).toBe(null);
+    });
+
+    it("still answers a grade on it", () => {
+      const solo = [{ key: "solo", frontText: "allein", backText: "alone" }];
+
+      open(solo);
+      press("ArrowUp");
+
+      expect(schedule("solo")).toMatchObject({ box: 1, grade: "easier" });
+      expect(front()).toBe("Nothing to repeat today"); /* and the day is done */
+    });
+  });
+
   describe("a deck whose storage never answers", () => {
     const blocked = {
       getItem: () => {

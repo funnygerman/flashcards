@@ -87,7 +87,8 @@ dictionary the way the deck's own cards do.
 **V2-3.4** One card is on screen at a time.
 
 **V2-3.5** The deck wraps in both directions: past the last card is the first, and back from the first is
-the last. There is no completion screen and no position indicator (V2-10.3).
+the last. There is no completion screen and no position indicator (V2-10.3). Where there is only one card
+to wrap to, V2-3.10 says what the wrap looks like.
 
 A session does end, though, and V2-3.9 is how: the wrap is over what is *left* to answer, and answering
 the last of it is the end of the sitting. What the reader sees then is a card like any other, supplied by
@@ -136,6 +137,26 @@ one (V2-3.6): showing a card that belongs to neither the old source nor the new 
 nothing. `switchTo` returns whether it actually applied, so a host drawing its own state around the call
 — the mark beside deck.js's menu rows (V2-16.3) — moves that state only once the mount's own has, rather
 than assuming every call lands.
+
+**V2-3.10** A page turn with nowhere to go says so, and does not pretend otherwise: the card gives the
+way it was pushed and comes back.
+
+A session of one card wraps to itself (V2-3.5), and it used to do that by running the whole page turn —
+the card left by one edge and an identical one arrived from the other. Nothing in that is readable as
+"there is nothing else", because it is exactly what fetching the next card looks like: a reader on the
+card that says the day is done (V2-13.12) saw it leave and return, which reads as the app having lost its
+place. The same was true of a deck holding one card, and that is the more telling case — it is the same
+ring and the same page turn, so a fix for the notice alone would have left an ordinary card lying in the
+same way.
+
+The bounce is V2-4.11's own answer borrowed: a drag that never reached the threshold gives and springs
+back, and it means the same thing here — the gesture was read, and there was nothing that way. It is
+short, and nowhere near the edge, because arriving at the edge is what a real page turn says.
+
+Nothing is reported as paged past either (V2-5.11). The reader has not moved on from anything, and a card
+nobody can page away from used to collect a `neutral` — and with it a schedule (V2-11.5) — every time they
+tried. A grade is untouched by any of this: it is still taken, still recorded, and still ends the session
+where the session can end (V2-3.9).
 
 **V2-3.9** A card the host settles (`settles(card)`, V2-5.16) leaves the session the moment it is graded.
 Not paged past — taken out: the sequence is one card shorter, and neither `next` nor `previous` reaches it
@@ -1079,8 +1100,9 @@ It is a card because that is the only register this app has for saying something
 V2-15.4), written in the guide's own voice: short lines, no full stops, and the one gesture worth naming
 named. Its back names the menu, which always carries the way past the schedule when this card is on
 screen (V2-13.13) — a reader who has finished today's cards and wants to keep going is shown where,
-rather than being left at what looks like a dead end. It wraps to itself, exactly as any one-card session
-does (V2-3.5) — there is simply nothing else in the session to wrap to.
+rather than being left at what looks like a dead end. Paging it gives and comes back, exactly as any
+one-card session does (V2-3.10) — there is nothing else in the session to wrap to, and a page turn that
+delivered this same card again would say the opposite.
 
 Both pools can be in this state at once, and each says so on its own side of the switch (V2-13.9).
 
