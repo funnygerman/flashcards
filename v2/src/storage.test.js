@@ -114,3 +114,25 @@ describe("readMap, a key that is a prototype's own business", () => {
     expect(Object.keys(readMap(storage, "k")).sort()).toEqual([key, "ordinary"].sort());
   });
 });
+
+/* A bucket written before this existed — or by another tab, or by an older
+   build — arrives as raw JSON rather than through `writeMap`, and that is the
+   path `Object.assign` onto a prototype-less target exists for: `JSON.parse`
+   makes `__proto__` an own property, and copying it onto an ordinary object
+   would hand the prototype back the key (V2-6.9). */
+describe("readMap, a bucket that already holds an awkward key", () => {
+  it("reads a stored __proto__ entry as an ordinary key, prototype still empty", () => {
+    const map = readMap(memoryStorage('{"__proto__":{"box":4},"ordinary":{"box":1}}'), "k");
+
+    expect(Object.getPrototypeOf(map)).toBe(null);
+    expect(Object.hasOwn(map, "__proto__")).toBe(true);
+    expect(map["__proto__"]).toEqual({ box: 4 });
+    expect(Object.keys(map).sort()).toEqual(["__proto__", "ordinary"]);
+  });
+
+  it("does not take the entry for a prototype to inherit through", () => {
+    const map = readMap(memoryStorage('{"__proto__":{"box":4}}'), "k");
+
+    expect(map.box).toBeUndefined();
+  });
+});

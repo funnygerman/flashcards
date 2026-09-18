@@ -1592,6 +1592,664 @@ describe("openDeck", () => {
       });
     });
   });
+
+  /* What a reader's own reload looks like from here: the mount is torn down
+     and a fresh one opened over the same storage, which is the only thing that
+     survives it. */
+  const reload = () => {
+    for (const deck of mounted.splice(0)) deck.destroy();
+    document.body.replaceChildren();
+  };
+
+  /** What the card is saying, where a gesture has been refused (V2-15.2). */
+  const said = () => document.querySelector(".fc-front").getAttribute("data-message");
+
+  /* A sitting's worth is a cap on the session, not an answer about the day
+     (V2-13.15), so the sizes either side of the cap are where the difference
+     shows: one card, and exactly fifty. */
+  describe("a session at the size of a sitting", () => {
+    const pool = (size) => Array.from({ length: size }, (_, i) => ({ key: `k${i}`, frontText: `f${i}`, backText: `b${i}` }));
+
+    /* The card is the whole session, so `retire` has nothing to stand on and
+       the page is asked what follows on the very first grade — the one case
+       where a session ends without a card ever having been paged to. */
+    it("says the day is done on the one grade a session of one card allows", () => {
+      open(pool(1));
+
+      expect(front()).toBe("f0");
+
+      press("ArrowUp");
+      expect(front()).toBe("Nothing to repeat today");
+    });
+
+    /* Exactly the cap is the boundary the 51-card case above cannot speak for:
+       there is no remainder, so the deal that follows must be the end of the
+       day rather than a fifty-first card the pool does not have. */
+    it("ends the day when a session of exactly a sitting's worth is worked through", () => {
+      open(pool(50));
+
+      for (let i = 0; i < 50; i += 1) press("ArrowUp");
+
+      expect(front()).toBe("Nothing to repeat today");
+      expect(Object.keys(JSON.parse(localStorage.getItem(REVIEW_KEY)))).toHaveLength(50);
+    });
+  });
+
+  /* The day is the reader's own and turns over at their midnight (V2-11.10).
+     `now` is injectable for exactly this: a card answered at 23:59 is finished
+     with for two more minutes, and then it is ordinary material again. */
+  describe("the day turning over", () => {
+    const late = new Date(2026, 0, 1, 23, 59).getTime();
+    const early = new Date(2026, 0, 2, 0, 1).getTime();
+
+    /* `harder` files a card in box 0, due immediately, so the schedule is
+       asking for it back all evening and only the day is holding it
+       (V2-13.14) — which makes this the one grade whose expiry can be watched. */
+    it("holds an answered card back for the rest of the evening", () => {
+      open(cards, { now: late });
+      press("ArrowDown"); /* a, answered the hard way */
+      reload();
+
+      open(cards, { now: late + 30_000 }); /* 23:59:30, still the same day */
+      expect(front()).toBe("zwei");
+    });
+
+    it("deals it again two minutes later, the day having turned over", () => {
+      open(cards, { now: late });
+      press("ArrowDown");
+      reload();
+
+      open(cards, { now: early });
+      expect(front()).toBe("eins");
+    });
+
+    /* And the new day starts from the box the old one left the card in, not
+       from the box that day began with: `baseBox` belongs to the day that
+       wrote it, and a grade the morning after is a first grade again. */
+    it("moves the card one box from where the new day finds it", () => {
+      open(cards, { now: late });
+      press("ArrowUp"); /* a: box 0 -> 1 */
+      reload();
+
+      open(cards, { now: early + 2 * DAY }); /* past the day this bought it */
+      press("ArrowUp");
+
+      expect(schedule("a")).toMatchObject({ box: 2, baseBox: 1, grade: "easier" });
+    });
+  });
+
+  /* Paging past a card is not answering it (V2-11.5). It renews the card's
+     schedule so that a card only ever seen is not permanently, indistinguishably
+     due — and that is all it does: no grade, no mark, no retirement, and no
+     claim on the day. */
+  describe("a card the reader only paged past", () => {
+    it("can still be answered, once", () => {
+      open();
+
+      press("ArrowRight"); /* off a, which is reported neutral */
+      press("ArrowLeft"); /* and back to it */
+      expect(front()).toBe("eins");
+
+      press("ArrowUp");
+      expect(schedule("a")).toMatchObject({ box: 1, grade: "easier" });
+      expect(front()).toBe("zwei"); /* answered, and gone with it */
+    });
+
+    /* A session paged all the way round is not a session worked through: none
+       of it has been answered, so there is nothing for V2-13.15 to redeal. */
+    it("does not spend the session, however far round it is paged", () => {
+      open();
+
+      for (let i = 0; i < 6; i += 1) press("ArrowRight");
+
+      expect(front()).toBe("eins");
+      expect(said()).toBe(null);
+    });
+
+    it("is dealt again after a reload, unlike one that was answered", () => {
+      open();
+
+      press("ArrowRight"); /* a, paged past */
+      press("ArrowUp"); /* b, answered */
+      reload();
+
+      open();
+      const offered = [front()];
+      press("ArrowRight");
+      offered.push(front());
+
+      expect(offered).toContain("eins");
+      expect(offered).not.toContain("zwei");
+    });
+  });
+
+  /* The complaint V2-13.14 was written for, at its extreme: a reader who
+     finished the deck this morning and opens it again after lunch. A session
+     dealt from the schedule alone handed them their whole morning's work back,
+     every card of it refusing them. */
+  describe("a deck whose every card has been answered", () => {
+    /* Answered the hard way on purpose: `harder` files a card in box 0, due
+       immediately, so the schedule is asking for all three back and only the
+       day is holding them (V2-13.14). Graded `easier` they would be held back
+       by the schedule anyway, and this would prove nothing. */
+    const finished = () => {
+      open();
+      for (let i = 0; i < 3; i += 1) press("ArrowDown");
+      expect(front()).toBe("Nothing to repeat today");
+      reload();
+    };
+
+    it("opens on the card that says the day is done, after a reload", () => {
+      finished();
+
+      open();
+
+      expect(front()).toBe("Nothing to repeat today");
+      expect(said()).toBe(null);
+    });
+
+    /* And the reader's own filter still shows them — that is what it is for
+       (V2-13.13) — wearing this morning's marks and refusing a second answer,
+       which is the one place that refusal is ever met. */
+    it("still shows them all, marked, under the reader's own filter", () => {
+      finished();
+
+      open();
+      chooseAndClose("Every card");
+
+      const seen = new Set();
+      for (let i = 0; i < 3; i += 1) {
+        seen.add(front());
+        expect(marks()).toBe("is-harder");
+        press("ArrowRight");
+      }
+
+      expect(seen).toEqual(new Set(["eins", "zwei", "drei"]));
+
+      press("ArrowUp");
+      expect(said()).toBe("Already graded today");
+    });
+  });
+
+  /* Refused is not untouchable (V2-5.16). What is refused is the answer, not
+     the gesture: a reader has to be able to try, or the refusal is
+     indistinguishable from a card that has stopped responding. */
+  describe("what a card refusing a second answer can still do", () => {
+    const answered = () =>
+      localStorage.setItem(
+        REVIEW_KEY,
+        JSON.stringify({ a: { box: 1, dueAt: Date.now(), baseBox: 0, day: today(), grade: "easier" } }),
+      );
+
+    /** A drag past the threshold, held rather than released. */
+    const drag = (dy) => {
+      const card = document.querySelector(".fc");
+      for (const type of ["pointerdown", "pointermove"]) {
+        card.dispatchEvent(new MouseEvent(type, { clientX: 200, clientY: 200 + (type === "pointerdown" ? 0 : dy), bubbles: true }));
+      }
+      return card;
+    };
+
+    it("follows the finger and names the grade being reached for", () => {
+      answered();
+      open();
+      chooseAndClose("Every card");
+
+      drag(-60);
+
+      expect(document.querySelector(".fc-card").getAttribute("data-grade-edge")).toBe("top");
+      expect(document.querySelector(".fc-front").getAttribute("data-grade")).toBe("Knew it");
+    });
+
+    /* And springs back wearing the mark it already had, with the sentence over
+       it — the mark is never shrunk by a gesture that came to nothing (V2-4.11). */
+    it("springs back still wearing this morning's mark, with the refusal on it", () => {
+      answered();
+      open();
+      chooseAndClose("Every card");
+
+      const card = drag(-60);
+      card.dispatchEvent(new MouseEvent("pointerup", { clientX: 200, clientY: 140, bubbles: true }));
+
+      expect(said()).toBe("Already graded today");
+      expect(marks()).toBe("is-easier");
+      expect(front()).toBe("eins");
+    });
+
+    it("flips, pages, and comes back still marked", () => {
+      answered();
+      open();
+      chooseAndClose("Every card");
+
+      press(" ");
+      expect(flipped()).toBe(true);
+
+      press("ArrowRight");
+      expect(front()).toBe("zwei");
+
+      press("ArrowLeft");
+      expect(front()).toBe("eins");
+      expect(marks()).toBe("is-easier");
+    });
+
+    /* The whole point of refusing rather than quietly absorbing: the box stays
+       one step from where the day found it (V2-11.10), across a reload and a
+       second attempt made on a different session from the first. */
+    it("keeps the box the day found it in, across a reload and another session", () => {
+      open();
+      press("ArrowUp"); /* a: box 0 -> 1, under "Due today" */
+      reload();
+
+      open();
+      chooseAndClose("Every card");
+
+      /* The answered card is dealt behind the two still due, its own grade
+         having pushed it a day out. */
+      press("ArrowRight");
+      press("ArrowRight");
+      expect(front()).toBe("eins");
+      expect(marks()).toBe("is-easier");
+
+      press("ArrowDown"); /* the other grade, on the other session */
+
+      expect(said()).toBe("Already graded today");
+      expect(schedule("a")).toMatchObject({ box: 1, baseBox: 0, grade: "easier" });
+    });
+  });
+
+  /* Two pools times two scopes, and a card answered on any one of them is
+     answered on all four (V2-13.16). The pool axis is the half the existing
+     cases do not walk: a card answered on this deck is the dictionary's card
+     too, and the dictionary's session has to agree. */
+  describe("the four sessions, across the pool they are dealt from", () => {
+    const withExtra = () =>
+      localStorage.setItem(CARDS_KEY, JSON.stringify({ z: { key: "z", frontText: "vier", backText: "four" } }));
+
+    /** Every card this session will show, paged all the way round it. */
+    const walk = (steps = 5) => {
+      const seen = new Set([front()]);
+      for (let i = 0; i < steps; i += 1) {
+        press("ArrowRight");
+        seen.add(front());
+      }
+      return seen;
+    };
+
+    it("loses a card to the dictionary's session when it is answered on the deck's", () => {
+      document.title = "Everyday German";
+      withExtra();
+      open();
+
+      /* Dealt whole first, so what follows is a session already in hand being
+         re-selected rather than one dealt for the first time after the grade —
+         which is the half of V2-13.16 that actually went wrong. */
+      chooseAndClose("Everything you have seen");
+      expect(walk()).toEqual(new Set(["vier", "eins", "zwei", "drei"]));
+
+      chooseAndClose("Everyday German");
+      expect(front()).toBe("eins");
+      press("ArrowUp"); /* eins, answered on this deck */
+
+      chooseAndClose("Everything you have seen");
+      expect(walk()).toEqual(new Set(["vier", "zwei", "drei"]));
+    });
+
+    it("loses it to the deck's session when it is answered on the dictionary's", () => {
+      document.title = "Everyday German";
+      withExtra();
+      open();
+
+      chooseAndClose("Everything you have seen");
+      press("ArrowRight"); /* past the dictionary's own card, onto one of this deck's */
+      expect(front()).toBe("eins");
+
+      press("ArrowUp");
+      chooseAndClose("Everyday German");
+
+      expect(walk()).toEqual(new Set(["zwei", "drei"]));
+    });
+
+    /* Unchanged means the same cards, in whatever order they come back in
+       (V2-13.16). `neutral` renews the schedule of a card merely paged past
+       (V2-11.5), which can move it up the due order without a single card
+       having left the session — and a session re-dealt over that would lose
+       the reader's place for no reason at all (V2-3.8). */
+    it("keeps a session whose cards have only changed places", () => {
+      const now = Date.parse("2026-01-01T12:00:00Z");
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ a: { box: 0, dueAt: now + DAY } }));
+
+      open(cards, { now });
+      chooseAndClose("Every card"); /* a is due tomorrow, so it is dealt last: zwei, drei, eins */
+      for (let i = 0; i < 4; i += 1) press("ArrowRight");
+
+      expect(front()).toBe("drei");
+      expect(schedule("a").dueAt).toBe(now); /* paged past, so it now sorts first */
+
+      chooseAndClose("Due today");
+      chooseAndClose("Every card");
+
+      expect(front()).toBe("drei"); /* a re-dealt session would start over, on eins */
+    });
+
+    /* A session worked through stays worked through, whichever way the reader
+       comes back to it (V2-13.15) — and the other pool's own "every card" is
+       still the pool, answered cards and all, which is where the refusal lives
+       (V2-13.13). The two facts have to hold at the same time. */
+    it("does not deal a spent session back through the other pool", () => {
+      document.title = "Everyday German";
+      withExtra();
+      open();
+
+      chooseAndClose("Everything you have seen");
+      chooseAndClose("Every card");
+      for (let i = 0; i < 4; i += 1) press("ArrowUp"); /* the whole dictionary, answered */
+      expect(front()).toBe("Nothing to repeat today");
+
+      chooseAndClose("Everyday German");
+      expect(front()).toBe("eins"); /* the deck's own "every card", marks and all */
+      expect(marks()).toBe("is-easier");
+
+      press("ArrowUp");
+      expect(said()).toBe("Already graded today");
+
+      chooseAndClose("Everything you have seen");
+      expect(front()).toBe("Nothing to repeat today");
+    });
+  });
+
+  /* A card's key is a string and nothing else is inferred from it (V2-6.9).
+     `__proto__` was the one key a reader could never be finished with: the
+     grade went nowhere, so the card was never filtered out of a session
+     (V2-13.14) and never stayed retired past the next deal (V2-13.15). This is
+     that card put through everything an ordinary one goes through. */
+  describe("a card keyed like a prototype's own business", () => {
+    const AWKWARD = ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"];
+
+    const deckOf = (key) => [
+      { key, frontText: "awkward", backText: "awkward back" },
+      { key: "b", frontText: "zwei", backText: "two" },
+    ];
+
+    it.each(AWKWARD)("is stored, answered, retired, and gone from the session a reload deals, keyed %s", (key) => {
+      open(deckOf(key));
+
+      expect(front()).toBe("awkward");
+
+      press("ArrowUp");
+      expect(front()).toBe("zwei");
+      expect(JSON.parse(localStorage.getItem(REVIEW_KEY))[key]).toMatchObject({ box: 1, grade: "easier" });
+      expect(Object.hasOwn(JSON.parse(localStorage.getItem(CARDS_KEY)), key)).toBe(true);
+
+      press("ArrowLeft"); /* answered, so there is no paging back to it (V2-3.9) */
+      expect(front()).toBe("zwei");
+
+      reload();
+      open(deckOf(key));
+      expect(front()).toBe("zwei"); /* and the day's filter agrees with the day */
+    });
+
+    it.each(AWKWARD)("wears its mark and refuses a second answer under the filter, keyed %s", (key) => {
+      open(deckOf(key));
+      press("ArrowUp");
+
+      chooseAndClose("Every card");
+      press("ArrowRight"); /* the answered card sorts behind the one still due */
+      expect(front()).toBe("awkward");
+      expect(marks()).toBe("is-easier");
+
+      press("ArrowDown");
+      expect(said()).toBe("Already graded today");
+      expect(JSON.parse(localStorage.getItem(REVIEW_KEY))[key]).toMatchObject({ box: 1, grade: "easier" });
+    });
+  });
+
+  /* Storage holding something that is not a card degrades to an empty
+     dictionary (V2-6.4). A deck page repairs such an entry under its own key
+     (V2-6.5); the dictionary has no deck to repair itself with, so what it
+     cannot read it must not deal — it used to hand the reader a blank card,
+     front and back, gradable and impossible to get rid of. */
+  describe("a dictionary holding things that are not cards", () => {
+    it("deals the cards it can read and skips the rest", () => {
+      localStorage.setItem(
+        CARDS_KEY,
+        JSON.stringify({
+          empty: {},
+          list: [1, 2],
+          foreign: { note: "left here by something else" },
+          halfWritten: { key: "halfWritten", frontText: "eins" },
+          blank: { key: "blank", frontText: "", backText: "" },
+          ok: { key: "ok", frontText: "fünf", backText: "five" },
+        }),
+      );
+
+      open([]);
+
+      /* The only entry with both of V2-2.2's fields — and the half-written one
+         beside it says "eins", so a session that dealt it would say so too. */
+      expect(front()).toBe("fünf");
+      press("ArrowRight");
+      expect(front()).toBe("fünf"); /* one card, wrapping to itself */
+    });
+
+    it("says there is nothing here yet where it can read none of them", () => {
+      localStorage.setItem(CARDS_KEY, JSON.stringify({ empty: {}, list: [1, 2], foreign: { note: "elsewhere" } }));
+
+      open([]);
+
+      expect(front()).toBe("Nothing here yet");
+      expect(corner()).toBe(null);
+    });
+  });
+
+  /* The page with nothing to study, past the two cases already covered: a
+     reader who cannot be read a dictionary at all is in the same position as
+     one whose dictionary is empty (V2-6.4, V2-13.8), and the notice refuses a
+     grade on either side of the reader's own filter (V2-5.17). */
+  describe("a dictionary that cannot be read at all", () => {
+    const blocked = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {},
+    };
+
+    it("says there is nothing here yet, rather than rendering nothing", () => {
+      open([], { storage: blocked });
+
+      expect(front()).toBe("Nothing here yet");
+      expect(corner()).toBe(null);
+      expect(groups()).toHaveLength(2); /* the sides and the scope; no pool to offer */
+    });
+
+    it("goes on saying it under the reader's own every-card filter", () => {
+      open([], { storage: blocked });
+
+      chooseAndClose("Every card");
+
+      expect(front()).toBe("Nothing here yet");
+
+      press("ArrowUp");
+      expect(said()).toBe("Nothing to grade");
+      expect(marks()).toBe("");
+      expect(filled()).toBe(0);
+    });
+  });
+
+  /* A deck must render whether or not storage works (V2-6.4). Nothing can be
+     recorded, so nothing about the day can be remembered either — but the
+     session itself is the library's, in memory, and everything it promises
+     still holds inside the sitting. */
+  describe("a deck whose storage never answers", () => {
+    const blocked = {
+      getItem: () => {
+        throw new Error("blocked");
+      },
+      setItem: () => {
+        throw new Error("blocked");
+      },
+      removeItem: () => {},
+    };
+
+    /* An unreadable flag reads as a reader who has not met the guide, which is
+       the harmless direction to fail in (V2-15.6): it is dealt first, and the
+       deck is behind it. */
+    it("deals the guide and then the deck, rather than failing to mount", () => {
+      open(cards, { storage: blocked });
+
+      expect(front()).toBe("Tap this card");
+
+      for (let i = 0; i < 5; i += 1) press("ArrowRight");
+      expect(front()).toBe("eins");
+    });
+
+    it("takes a grade that goes nowhere, and still takes the card away", () => {
+      open(cards, { storage: blocked });
+      for (let i = 0; i < 5; i += 1) press("ArrowRight");
+
+      expect(() => press("ArrowUp")).not.toThrow();
+      expect(front()).toBe("zwei");
+      expect(localStorage.getItem(REVIEW_KEY)).toBe(null);
+    });
+
+    /* The cards come back round because nothing could be written down about
+       them — but the session itself remembers, so the answer already given
+       stands and a second one is still refused (V2-5.16). */
+    it("still refuses a second answer on a card answered in this sitting", () => {
+      open(cards, { storage: blocked });
+      for (let i = 0; i < 5; i += 1) press("ArrowRight");
+
+      for (let i = 0; i < 3; i += 1) press("ArrowUp");
+      expect(front()).toBe("eins");
+
+      press("ArrowUp");
+      expect(said()).toBe("Already graded today");
+    });
+  });
+
+  /* A key that has moved brings the reader's progress with it (V2-6.8). Today's
+     grade is the part that has to survive the move in both directions: an
+     answer carried across is an answer (covered above), and an answer given
+     *after* the move belongs to the new key alone. */
+  describe("a key that moved, answered in the same session", () => {
+    const card = { key: "new", wasKey: "old", frontText: "hundert", backText: "one hundred" };
+
+    it("records the grade under the card's current key, and retires the card", () => {
+      localStorage.setItem(REVIEW_KEY, JSON.stringify({ old: { box: 4, dueAt: 0 } }));
+
+      open([card]);
+      expect(filled()).toBe(4); /* the box the reader earned under the old key */
+
+      press("ArrowUp");
+
+      expect(schedule("new")).toMatchObject({ box: 5, baseBox: 4, grade: "easier" });
+      expect(schedule("old")).toBeUndefined();
+      expect(front()).toBe("Nothing to repeat today"); /* the one card, answered and gone */
+    });
+  });
+
+  /* The guide is dealt in front of a first session (V2-15.3) and hands over to
+     it; what happens at the far end of that session is the deck's own business
+     again, and the guide must not have left anything of itself behind. */
+  describe("the guide, and the session it leads into", () => {
+    beforeEach(newcomer);
+
+    it("ends the day when the deck behind it is worked through", () => {
+      open();
+
+      for (let i = 0; i < 5; i += 1) press("ArrowRight");
+      expect(front()).toBe("eins");
+
+      for (let i = 0; i < 3; i += 1) press("ArrowUp");
+
+      expect(front()).toBe("Nothing to repeat today");
+      expect(Object.keys(JSON.parse(localStorage.getItem(REVIEW_KEY)))).toEqual(["a", "b", "c"]);
+    });
+
+    /* The guide's own box lives for one mount and belongs to the guide
+       (V2-15.4a): the first real card wears the box storage has for it, which
+       for a reader on their first session is none at all. */
+    it("does not hand its own stars to the first real card", () => {
+      open();
+
+      press("ArrowUp"); /* guide card one, earning the guide a star */
+      press("ArrowUp"); /* and another */
+      expect(filled()).toBe(2);
+
+      for (let i = 0; i < 3; i += 1) press("ArrowRight");
+
+      expect(front()).toBe("eins");
+      expect(filled()).toBe(0);
+    });
+  });
+
+  /* Closing the sheet drops focus (V2-16.11), and the reader is as likely to
+     close it from a row as from the button — Escape and the scrim both leave
+     focus inside a sheet that is about to be hidden, which is the case the
+     button-to-button path cannot speak for. */
+  describe("closing the menu from a row", () => {
+    /* Aimed at whatever actually has focus, rather than at the document: the
+       whole question here is which element the key is delivered to, and a
+       keydown dispatched on the document itself could never tell. */
+    const pressOn = (target, key) => {
+      const event = new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true });
+      target.dispatchEvent(event);
+      return event.defaultPrevented; /* whether the deck took it */
+    };
+
+    it("drops focus when Escape closes the sheet", () => {
+      open();
+      menu().click();
+      expect([...document.querySelectorAll(".fc-menu-item")]).toContain(document.activeElement);
+
+      press("Escape");
+
+      expect(document.querySelector(".fc-menu-sheet").contains(document.activeElement)).toBe(false);
+      pressOn(document.activeElement, " ");
+      expect(flipped()).toBe(true);
+    });
+
+    it("drops focus when a tap outside closes it", () => {
+      open();
+      choose("Back first"); /* a row chosen, and focus left standing on it */
+
+      document.querySelector(".fc-menu-scrim").click();
+
+      expect(document.querySelector(".fc-menu-sheet").contains(document.activeElement)).toBe(false);
+      pressOn(document.activeElement, " ");
+      expect(flipped()).toBe(false); /* back first, so a flip shows the front */
+      expect(front()).toBe("eins");
+    });
+
+    /* The other half of V2-16.11's trade: while the button does hold focus,
+       the arrows are still the deck's, because a button is not pressed by them
+       (V2-4.12). Only Space and Enter are ever worth giving up, which is why
+       one Tab back to the button costs the reader nothing but the flip. */
+    it("leaves the arrows the deck's even while the button holds focus", () => {
+      open();
+      menu().focus();
+
+      pressOn(menu(), "ArrowRight");
+      expect(front()).toBe("zwei");
+
+      pressOn(menu(), "ArrowUp");
+      expect(schedule("b")).toMatchObject({ grade: "easier" });
+    });
+
+    /* Space, though, would press the button, so the deck leaves it alone —
+       which in a browser reopens the menu instead of flipping the card. That
+       is the cost V2-16.11 weighs and accepts, and the whole reason focus is
+       dropped when the sheet closes rather than handed back to the button. */
+    it("gives Space up while the button holds focus, which is why focus is dropped at all", () => {
+      open();
+      menu().focus();
+
+      expect(pressOn(menu(), " ")).toBe(false); /* not the deck's to take */
+      expect(flipped()).toBe(false);
+    });
+  });
 });
 
 /** review.js stamps the reader's own calendar day; mirror it for the fixture. */
