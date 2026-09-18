@@ -13,7 +13,7 @@ repository needs it.
 
 **Live:** [Everyday German](https://funnygerman.github.io/flashcards/v2/decks/everyday-german.html) ·
 [Numbers and Time](https://funnygerman.github.io/flashcards/v2/decks/numbers-and-time.html) ·
-[everything you have seen](https://funnygerman.github.io/flashcards/v2/dictionary.html)
+[everything you have seen](https://funnygerman.github.io/flashcards/v2/decks/empty-deck.html)
 
 ## Running it
 
@@ -51,8 +51,8 @@ One HTML file is one deck: its cards, and one call.
 v2/README.md            how it works, and why it works that way
 v2/docs/requirements.md what it is, statement by statement (`V2-*`)
 v2/src/                 the library, the schedule, and the page that assembles them
-v2/decks/               one file per deck
-v2/dictionary.html      every card you have opened, as a deck
+v2/decks/               one file per deck — empty-deck.html brings none, so it
+                        studies every card you have opened instead
 v2/dist/                built by npm run build; deployment's minified v2/src, not committed
 scripts/dev-server.mjs  a static file server, because file:// cannot load modules
 scripts/build.mjs       bundles + minifies v2/src for the deployed site only

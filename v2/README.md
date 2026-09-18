@@ -656,9 +656,17 @@ past it), and an unchanged session comes back as the same array, which is what k
 left.
 
 The done card is a card, not a screen: no `key`, so it's never written to the dictionary and keeps no
-schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session. A
-pool with nothing *in* it is still an error rather than a done card — "you're done for today" isn't true
-of a dictionary you've never put anything in.
+schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session.
+
+A pool with nothing *in* it gets a **different** card — "Nothing here yet" — because "you're done for
+today" isn't true of a dictionary you've never put anything in. It used to render nothing at all: no card,
+no menu, no way back, an empty page under the credit line. That rested on "a page nobody can have studied
+from is a page reached by typing its address", which isn't so — blocked storage, a private window, cleared
+site data, a new profile, or a browser evicting `localStorage` from a site left alone for a week all get
+you there by an ordinary route. It promises no way onward, because there is none: a reader with an empty
+dictionary has never opened a deck for the corner link to name. And the guide isn't dealt in front of it —
+five cards teaching a swipe, ending at "nothing here yet", would spend the one showing the guide ever
+gets.
 
 ### While it's open
 
