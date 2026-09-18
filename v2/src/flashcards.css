@@ -608,15 +608,22 @@ body:has(> .fc-credit) .fc {
  * pseudo-element belongs to and nothing above it; both faces carry it, so the
  * band reads correctly whichever way the card is facing.
  *
- * Which edge follows the mark the card already wears. The fallback covers a
- * card that wears none: today a refusal always comes from a settled card and a
- * settled card always has a mark, but a band nobody can see would be a silent
- * failure of the one thing here whose whole job is not to be silent.
+ * Which edge follows the mark the card already wears. A card wearing none goes
+ * to the bottom edge, which is a real state and not only a safety net: the card
+ * that says there is nothing to repeat today refuses a grade (V2-5.17) and has
+ * never carried one. It takes plain --fc-line rather than the edge's own
+ * --fc-harder, because it is the card speaking and not a verdict on anything —
+ * an orange band under "Nothing to grade" reads as the app having judged a
+ * word it has in fact declined to judge.
  *
  * A band, not a bar: tall enough to hold type at a size a phone can read, which
  * a mark at 1.4 % of the card width is not. rem is the floor and the card
  * fraction takes over above it, so the band is legible on the smallest card and
  * still in proportion on the largest. */
+.fc-card:not(.is-easier, .is-harder) .fc-face[data-message]::after {
+  background: var(--fc-line);
+}
+
 .fc-card.is-easier .fc-face[data-message]::before,
 .fc-card.is-harder .fc-face[data-message]::after,
 .fc-card:not(.is-easier, .is-harder) .fc-face[data-message]::after {

@@ -45,17 +45,23 @@ describe("stringsFor", () => {
     }
   });
 
-  /* A card already answered today refuses a second answer, and the card has no
-     way of showing that itself — nothing about it moves — so the page says it
-     in words (V2-5.16, V2-15.2). */
-  it.each(LANGS)("carries a refusal message for %s", (lang) => {
-    expect(stringsFor(lang).settled.length).toBeGreaterThan(0);
+  /* A grading gesture that is dropped leaves the card with nothing to show —
+     nothing about it moves — so the page says it in words (V2-5.16, V2-5.17,
+     V2-15.2). Keyed by the reason it answers, so the two cannot drift apart. */
+  const REASONS = ["settled", "nothing"];
+
+  it.each(LANGS)("carries a sentence for every refusal reason in %s", (lang) => {
+    expect(Object.keys(stringsFor(lang).refusal).sort()).toEqual([...REASONS].sort());
+
+    for (const reason of REASONS) expect(stringsFor(lang).refusal[reason].length).toBeGreaterThan(0);
   });
 
-  /* It goes on the band the grade labels go on, which across a phone-sized
+  /* They go on the band the grade labels go on, which across a phone-sized
      card holds about four words. */
-  it.each(LANGS)("keeps the refusal short enough for the band in %s", (lang) => {
-    expect(stringsFor(lang).settled.split(" ")).toHaveLength(3);
+  it.each(LANGS)("keeps every refusal short enough for the band in %s", (lang) => {
+    for (const reason of REASONS) {
+      expect(stringsFor(lang).refusal[reason].split(" ").length).toBeLessThanOrEqual(4);
+    }
   });
 
   it("keeps no card keyed, in every language, the same as the English guide (V2-6.3)", () => {
