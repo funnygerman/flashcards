@@ -343,8 +343,21 @@ function deckMenu(chrome, strings, groups) {
     sheet.hidden = !shown;
     scrim.hidden = !shown;
 
-    if (shown) draw(0);
-    else button.focus();
+    if (shown) {
+      draw(0);
+      return;
+    }
+
+    /* Closing does not hand focus back to the button, which is what a menu
+       button usually does. The deck's keys are bound to the document and the
+       card itself is not focusable (§4) — there is no "back" for focus to go
+       to, and a reader left standing on the button has Space reopening the
+       menu instead of flipping the card, since a focused control keeps the
+       keys that would press it (input.js). One control holding the keyboard
+       hostage is a worse trade than one Tab to reach it again, on a page whose
+       whole model is that the keys are the deck's (V2-16.11). */
+    const here = document.activeElement;
+    if (here === button || sheet.contains(here)) here.blur();
   };
 
   /**

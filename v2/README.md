@@ -199,8 +199,11 @@ Keys are bound to the document, not to a focusable card: one page is one deck, s
 focus first and nothing the reader can click that takes the keyboard away. Key presses are ignored when
 they are aimed at something else: a field being typed into (input, textarea, select, `contenteditable`)
 or a focused control (a link with an `href`, a button). The two take different amounts: a field takes
-every key, arrows included, because it uses them to move the caret; a control takes only `Enter` and
-`Space`, the keys that would press it. The deck calls `preventDefault()` on what it takes, so without
+every key, arrows included, because it uses them to move the caret; a control takes only the keys that
+would actually press it — `Enter` and `Space` for a button, **`Enter` alone for a link**. That last
+distinction matters more than it sounds: `Space` on a link scrolls the page and does nothing else, so
+handing it over cost a flip and bought nothing, and since every deck page carries a credit link that's
+the first thing `Tab` lands on, one `Tab` used to leave `Space` dead for the rest of the session. The deck calls `preventDefault()` on what it takes, so without
 that much, `Enter` on the menu button would flip the card instead of pressing it — but the arrows mean
 nothing to a control and everything to the deck, so tabbing to the button and pressing an arrow still
 pages. The one exception is an open menu, which takes the four arrows and `Escape` for itself
@@ -669,6 +672,12 @@ five cards teaching a swipe, ending at "nothing here yet", would spend the one s
 gets.
 
 ### While it's open
+
+Closing the sheet drops focus rather than handing it back to the button, which is not what a menu button
+usually does — the usual pattern assumes somewhere for focus to go back *to*, and here there isn't one:
+the keys are bound to the document and the card isn't focusable, so the reader's place is the card, not a
+focus ring. Parking focus on the button took the keyboard away from the deck, and `Space` reopened the
+menu instead of flipping the card with nothing on screen to say why. One `Tab` gets you back to it.
 
 The four arrows belong to the menu: up and down walk the rows, left and right do nothing, `Escape`
 closes it, and `Enter`/`Space` press the focused row. The card is the page and the arrows are the deck's
