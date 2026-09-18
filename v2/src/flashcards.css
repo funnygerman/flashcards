@@ -235,13 +235,17 @@ html:has(> body > .fc) body {
 }
 
 /* Everything an open sheet covers, so the tap that dismisses it is spent on
-   dismissing it rather than also flipping the card underneath. Invisible on
-   purpose: the sheet is opaque and bordered, and a page that dims itself to
-   show a list of seven words is a page making more of the moment than it is
+   dismissing it rather than also flipping the card underneath. A faint tint
+   rather than no fill at all: once the sheet sits away from the button that
+   opened it (below) rather than hanging off it, an unmarked backdrop left the
+   reader unsure whether the card behind it was live. The tint stays flat —
+   a plain fill, no blur — so it reads as "the card is behind something" and
+   not as the drama a heavier scrim would add for a list of seven words
    (V2-7.2). */
 .fc-menu-scrim {
   position: absolute;
   inset: 0;
+  background: color-mix(in srgb, var(--fc-fg) 6%, transparent);
 }
 
 /* `hidden` is a UA display:none, which any author `display` here would beat —
@@ -252,15 +256,27 @@ html:has(> body > .fc) body {
   display: none;
 }
 
-/* The sheet: a list of the states the reader can be in, hanging under the
-   button and over the card. No shadow and no radius (V2-7.2) — one hairline
-   is all it takes to be a surface, at this size. */
+/* The sheet: a list of the states the reader can be in, floating over the
+   card rather than hanging off the button that opened it. Centred on the
+   viewport by the usual fixed-position trick — half down, half in, then
+   pulled back by its own half-size — rather than `inset: 0; margin: auto`,
+   which centres a box only where its width and height are already known and
+   leaves one sized from content, as this one is, pinned to a corner instead.
+   The same min/max widths as before now stand in for padding: the sheet
+   claims only the room seven short rows need and never grows into a
+   full-screen sheet on a phone. The block-size cap and scroll are a safety
+   margin for a narrow, tall window, not a size this menu's own three groups
+   ever reach. No shadow and no radius (V2-7.2) — one hairline is all it
+   takes to be a surface, at this size. */
 .fc-menu-sheet {
-  position: absolute;
-  inset-block-start: calc(100% + 0.3rem);
-  inset-inline-end: 0;
+  position: fixed;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  transform: translate(-50%, -50%);
   min-inline-size: 11rem;
-  max-inline-size: min(18rem, 78vw);
+  max-inline-size: min(18rem, calc(100vw - 2rem));
+  max-block-size: calc(100vh - 2rem);
+  overflow-y: auto;
   background: var(--fc-bg);
   border: 1px solid var(--fc-muted);
   color: var(--fc-fg);
