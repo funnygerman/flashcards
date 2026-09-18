@@ -1160,3 +1160,73 @@ describe("mount, a card settled since it was shown", () => {
     expect(front(".fc-text").textContent).toBe("eins");
   });
 });
+
+/* A host's own veto on a grading gesture, for a card the library cannot work
+   out for itself: one that can never carry a grade has none for `settles` to
+   find (V2-5.17). */
+describe("mount, a host that vetoes a grade outright", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  afterEach(() => {
+    for (const deck of mounted.splice(0)) deck.destroy();
+    document.body.replaceChildren();
+  });
+
+  const text = () => front(".fc-text").textContent;
+
+  it("drops the gesture with the host's own reason", () => {
+    const graded = [];
+    const refused = [];
+
+    open({
+      refuses: (card) => (card.key === "a" ? "nothing" : null),
+      onGrade: (card, level) => graded.push([card.key, level]),
+      onRefuse: (card, reason) => refused.push([card.key, reason]),
+    });
+
+    press("ArrowUp");
+
+    expect(refused).toEqual([["a", "nothing"]]);
+    expect(graded).toEqual([]);
+    expect(text()).toBe("eins");
+    expect(document.querySelector(".fc-card").className).toBe("fc-card");
+  });
+
+  it("lets everything it does not veto through", () => {
+    const graded = [];
+
+    open({
+      refuses: (card) => (card.key === "a" ? "nothing" : null),
+      onGrade: (card, level) => graded.push([card.key, level]),
+      onRefuse: () => {},
+    });
+
+    press("ArrowRight");
+    press("ArrowUp");
+
+    /* The vetoed card is still reported as paged past (V2-5.11) — a veto is
+       about grading it, not about having been shown it. */
+    expect(graded).toEqual([
+      ["a", "neutral"],
+      ["b", "easier"],
+    ]);
+  });
+
+  /* The library's own "already answered" refusal still stands beside it. */
+  it("keeps the settled reason for a card it settles itself", () => {
+    const refused = [];
+
+    open({
+      settles: (card) => Boolean(card.key),
+      gradeOf: (card) => (card.key === "a" ? "easier" : null),
+      refuses: () => null,
+      onRefuse: (card, reason) => refused.push(reason),
+    });
+
+    press("ArrowDown");
+
+    expect(refused).toEqual(["settled"]);
+  });
+});

@@ -665,13 +665,20 @@ export function openDeck(cards, options = {}) {
        at its grading cards twice. */
     settles: (card) => Boolean(card.key),
 
-    /* A grading gesture dropped because the card has already had its answer
-       today. The card cannot show this itself — nothing about it moves — so
-       the page says it in words, on the card, which is the one register this
-       app has for a sentence (V2-15.2). */
-    onRefuse: (card, reason) => {
-      if (reason === "settled") deck.say(strings.settled);
-    },
+    /* The card that says there is nothing to repeat today is a notice, not
+       material: it carries no key, so nothing it is swiped at with could ever
+       be recorded (V2-13.12). Being keyless it is not settled either — that is
+       what keeps the guide's own cards answerable (V2-5.16) — so without this
+       it took a grade like one of them, naming it on the band and coming back
+       wearing the mark, which said the answer had landed when there was
+       nothing there for it to land on (V2-5.17). */
+    refuses: (card) => (card === done ? "nothing" : null),
+
+    /* A grading gesture dropped. The card cannot show this itself — nothing
+       about it moves — so the page says it in words, on the card, which is the
+       one register this app has for a sentence (V2-15.2). The reason names its
+       own sentence, so the two cannot drift apart. */
+    onRefuse: (card, reason) => deck.say(strings.refusal[reason]),
 
     /* The session has been worked through. What follows is the same selection
        made again out of what the reader can still answer today — the next

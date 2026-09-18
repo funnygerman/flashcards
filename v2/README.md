@@ -305,6 +305,18 @@ The sentence names the day, not the card. What's run out is today's answer to th
 ordinary material again. And you only ever meet it through your own *Every card* row — a due session
 holds nothing you've already answered (§ The dictionary), so there's no card in it to be refused.
 
+Refused isn't untouchable: the card still drags with your finger, the edge still fills, the band still
+names the grade you're reaching for, and it springs back on release wearing the mark it already had. You
+have to be able to try, or a refusal is indistinguishable from a card that's stopped responding.
+
+The "Nothing to repeat today" card refuses too, and says **Nothing to grade**. It has no key, so nothing
+you do to it is written anywhere — but being keyless also meant it wasn't *settled*, which is what keeps
+the guide's grading cards answerable, so it used to take a grade like one of them: band, exit, and the
+mark still on it when it came back. Nothing was recorded and the star row correctly stayed empty, which
+is exactly the problem — every visible part of the gesture said the answer had landed. Its band is plain
+ink rather than the edge's orange, because a card carrying no grade has no edge to follow and an orange
+band under "Nothing to grade" reads as a verdict on a word the app has just declined to judge.
+
 ### The first session
 
 The other silence is the first one: **nothing on the card says that swiping exists**. Tap, read the

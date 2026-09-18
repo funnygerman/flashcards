@@ -48,10 +48,16 @@ import { createView } from "./view.js";
  *                  moment it is graded (V2-3.9) and refuses a second grade
  *                  (`onRefuse`); omit it and no card settles, which is the bare
  *                  deck that wraps for ever.
- *                  `onRefuse(card, reason)` is a grading gesture dropped —
- *                  `"settled"` is the only reason there is. The library has no
- *                  sentence of its own for it (V2-1.2); the host says what it
- *                  means, through `say()` or otherwise (V2-15.2).
+ *                  `refuses(card)` is the host's own veto on a grading
+ *                  gesture: a reason to drop it, or null to let it through. It
+ *                  is for a card that can never carry a grade at all — a notice
+ *                  rather than material (V2-13.12) — which the library cannot
+ *                  work out for itself, having no grade to go on.
+ *                  `onRefuse(card, reason)` is a grading gesture dropped, with
+ *                  `refuses`'s own reason or `"settled"` for a card the library
+ *                  settled itself. The library has no sentence for either
+ *                  (V2-1.2); the host says what it means, through `say()` or
+ *                  otherwise (V2-15.2).
  *                  `onEmpty()` is asked what to study when settling has taken
  *                  the last card out of the session, and answers with another
  *                  list of cards — the card that says there is nothing left
@@ -69,6 +75,7 @@ export function mount(element, cards, options = {}) {
     lead = [],
     facing,
     settles,
+    refuses,
     onRefuse,
     onEmpty,
   } = options;
@@ -169,6 +176,13 @@ export function mount(element, cards, options = {}) {
      (V2-5.16). */
   const isSettled = (card) => Boolean(settles?.(card)) && gradeFor(card) !== null;
 
+  /* Why a grading gesture on this card is not the reader's to make, or null
+     where it is. The host's own veto comes first and covers what this module
+     cannot work out — a card that can never carry a grade has none for
+     `isSettled` to find, so a notice would otherwise be graded like any other
+     keyless card (V2-13.12, V2-5.17). */
+  const refusal = (card) => refuses?.(card) || (isSettled(card) ? "settled" : null);
+
   view.show(deck.current(), gradeFor(deck.current()));
   showProgress();
 
@@ -240,16 +254,20 @@ export function mount(element, cards, options = {}) {
     const card = deck.current();
 
     /* A card already answered today is not the reader's to answer again
-       (V2-5.16). Nothing moves, nothing is stored, and the host is told so it
-       can say why — which is the visible result V2-15.1 asks of every gesture,
-       and the one case where the card itself has none to give. */
-    if (isSettled(card)) {
-      /* Wearing the grade it is being refused for. It normally arrives already
-         marked (V2-5.14), but a grade given somewhere else since — another tab,
+       (V2-5.16), and a notice was never theirs to answer at all (V2-5.17).
+       Nothing moves, nothing is stored, and the host is told so it can say
+       why — which is the visible result V2-15.1 asks of every gesture, and the
+       one case where the card itself has none to give. */
+    const dropped = refusal(card);
+
+    if (dropped) {
+      /* Wearing the grade it is being refused for, and wearing none where
+         there is none. A settled card normally arrives already marked
+         (V2-5.14), but a grade given somewhere else since — another tab,
          another of this page's own sessions — is news to the card on screen,
          and a sentence about a grade with no grade under it explains nothing. */
       view.mark(gradeFor(card));
-      onRefuse?.(card, "settled");
+      onRefuse?.(card, dropped);
       return null;
     }
 

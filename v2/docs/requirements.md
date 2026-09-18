@@ -431,6 +431,36 @@ already been answered (V2-13.14), so it is their own "every card" filter (V2-13.
 in front of them — deliberately, having asked for the pool regardless of what the schedule or the day
 says about it.
 
+Refused is not untouchable. The card is dragged exactly as any other is — it follows the finger, the edge
+it is being pushed towards fills, and past the threshold the band names the grade being reached for
+(V2-4.10, V2-5.7a) — and it springs back on release wearing the mark it already had, with the sentence
+over it. Paging and flipping are untouched. What is refused is the answer, not the gesture: a reader has
+to be able to try, or the refusal is indistinguishable from a card that has stopped responding.
+
+**V2-5.17** A notice refuses a grade outright. `refuses(card)` is the host's own veto — a reason to drop
+a grading gesture, or null to let it through — and it exists because the library cannot work this one out
+for itself: V2-5.16 reads "already answered" off a grade the card carries, and a card that can never
+carry one has nothing there to read.
+
+The card that says there is nothing to repeat today (V2-13.12) is the case. It has no key, so nothing a
+reader does to it is written anywhere — and being keyless it is not settled either, since that is exactly
+what keeps the guide's own grading cards answerable (V2-15.5). It therefore took a grade like a guide
+card: the band named it, the card flew off the edge it was pushed towards, and it came back wearing the
+mark and kept it for the rest of the sitting. Nothing was recorded and the progress row correctly stayed
+empty, which is the problem — every visible part of the gesture told the reader their answer had landed,
+and there had been nothing there for it to land on. A guide card's mark is a lesson about what a grade
+does; a notice's is a claim about a word, and there is no word.
+
+So it says so: "Nothing to grade", on the same band, in the reader's own language, and nothing moves. The
+sentence names what is missing rather than what the reader did wrong — the card is a notice and the
+reader has not made a mistake by swiping at it. Everything the card could already do it still does
+(V2-13.12): it flips, it pages, and the drag follows the finger and springs back.
+
+The band takes plain `--fc-line` here rather than the edge's own `--fc-harder`, because a card carrying
+no grade has no edge of its own to follow and an orange band under "Nothing to grade" reads as a verdict
+on a word the app has just declined to judge (V2-5.8's rule about colour never being asked to carry a
+meaning on its own, applied to the one band that names no grade).
+
 ---
 
 ## 6. Storage
@@ -984,7 +1014,8 @@ to. Nor does a deck's own menu (V2-13.9): switching to the dictionary and back i
 visited, so there is nothing here for it to remember.
 
 **V2-13.12** A pool with nothing left for the reader to answer today shows one card saying so, rather
-than an empty screen, a banner, or a card the schedule had put away. It arrives two ways and is the same
+than an empty screen, a banner, or a card the schedule had put away. It is a notice, not material, and
+refuses a grade rather than taking one that goes nowhere (V2-5.17). It arrives two ways and is the same
 card either way: a session that held nothing when it was dealt, and a session the reader has worked all
 the way through (V2-13.15). It carries no `key`, so it is not written to the dictionary
 and keeps no schedule of its own (V2-15.5's rule, which until now only the guide needed); it can be
@@ -1154,8 +1185,8 @@ interface this bare depends absolutely on every action being answered, and the t
 silent were the two places a reader concluded that nothing was there: a gesture with no result, and a
 gesture nobody had mentioned.
 
-**V2-15.2** A grading gesture refused because the card has already been answered today (V2-5.16) is
-answered on the card itself: the grade mark grows into a band deep enough to hold type, says "Already
+**V2-15.2** A grading gesture refused — because the card has already been answered today (V2-5.16), or
+because it is a notice that can never be answered at all (V2-5.17) — is answered on the card itself: the grade mark grows into a band deep enough to hold type, says "Already
 graded today", and shrinks back a few seconds later. This is V2-15.1's rule applied to the one gesture in
 the app with no result of its own to show — nothing about the card moves, and without a sentence the
 reader would be looking at an app that had stopped responding.
@@ -1168,7 +1199,10 @@ words are the host's, like every other word on the page (V2-14.4).
 
 It names the day rather than the card. What has run out is today's answer to this card, not the card
 itself; tomorrow it is ordinary material again, and a sentence that read as a verdict on the word would
-be saying something else entirely.
+be saying something else entirely. A notice's sentence names what is missing for the same reason.
+
+There is one sentence per reason, and the reason is what looks it up, so a reason cannot be added without
+the words that answer it.
 
 **V2-15.9** Whatever the band would otherwise cut in half steps aside while it is up: the category label
 for a band on the top edge, the progress row for one on the bottom. They come back when it goes.

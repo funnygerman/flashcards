@@ -21,14 +21,24 @@
  * Short by necessity, like the refusal below was: the band across a phone-sized
  * card holds about four words.
  *
- * `settled` is what the card says when the reader grades a card they have
- * already answered today (V2-5.16). It is short for the same reason the grade
- * labels are — it goes on the same band, which across a phone-sized card holds
- * about four words — and it names the day rather than the card: what has run
- * out is today's answer to this card, not the card itself, and tomorrow it is
- * ordinary material again. It is met only through the reader's own "every
- * card" filter, a due session having nothing to gain by offering a card
- * nothing can be done with (V2-13.14).
+ * `refusal` is what the card says when a grading gesture is dropped, keyed by
+ * the reason it was dropped so that a reason and its sentence cannot drift
+ * apart. Both are short for the same reason the grade labels are — they go on
+ * the same band, which across a phone-sized card holds about four words.
+ *
+ * `settled` answers a card the reader has already graded today (V2-5.16). It
+ * names the day rather than the card: what has run out is today's answer to
+ * this card, not the card itself, and tomorrow it is ordinary material again.
+ * It is met only through the reader's own "every card" filter, a due session
+ * having nothing to gain by offering a card nothing can be done with
+ * (V2-13.14).
+ *
+ * `nothing` answers the card that says there is nothing to repeat today
+ * (V2-5.17). That card is a notice, not material: it has no box, earns no
+ * star and is written to nothing, so there is no grade for a swipe at it to
+ * land on. It used to take one anyway — the band named a grade, the card flew
+ * off and came back wearing the mark — which told the reader their answer had
+ * been recorded when there had been nothing there to record.
  *
  * `menu` is the words the menu is made of (§16). `open` names the button that
  * opens it. The three groups inside — `side`, `pool`, `scope` — each name a
@@ -56,7 +66,7 @@
 const STRINGS = {
   en: {
     grades: { easier: "Knew it", harder: "Didn't know it" },
-    settled: "Already graded today",
+    refusal: { settled: "Already graded today", nothing: "Nothing to grade" },
     menu: {
       open: "Menu",
       side: { front: "Front first", back: "Back first", random: "Random side" },
@@ -111,7 +121,7 @@ const STRINGS = {
 
   de: {
     grades: { easier: "Gewusst", harder: "Nicht gewusst" },
-    settled: "Heute schon bewertet",
+    refusal: { settled: "Heute schon bewertet", nothing: "Nichts zu bewerten" },
     menu: {
       open: "Menü",
       side: { front: "Vorderseite zuerst", back: "Rückseite zuerst", random: "Zufällige Seite" },
@@ -166,7 +176,7 @@ const STRINGS = {
 
   ru: {
     grades: { easier: "Знал", harder: "Не знал" },
-    settled: "Сегодня уже оценено",
+    refusal: { settled: "Сегодня уже оценено", nothing: "Нечего оценивать" },
     menu: {
       open: "Меню",
       side: { front: "Сначала лицевая", back: "Сначала обратная", random: "Случайная сторона" },

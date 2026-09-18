@@ -747,6 +747,87 @@ describe("openDeck", () => {
     });
   });
 
+  /* The card that says there is nothing left is a notice, not material: there
+     is nothing for a swipe at it to land on, and it must not pretend otherwise
+     (V2-5.17). It used to take a grade like a guide card — band, exit, and the
+     mark still on it when it came back. */
+  describe("swiping at the card that says the day is done", () => {
+    const message = () => document.querySelector(".fc-front").getAttribute("data-message");
+
+    const finished = () => {
+      scheduleAll(30);
+      open();
+      expect(front()).toBe("Nothing to repeat today");
+    };
+
+    it("says there is nothing to grade", () => {
+      finished();
+
+      press("ArrowUp");
+
+      expect(message()).toBe("Nothing to grade");
+    });
+
+    it("leaves no mark on it, in either direction", () => {
+      finished();
+
+      press("ArrowUp");
+      expect(marks()).toBe("");
+
+      press("ArrowDown");
+      expect(marks()).toBe("");
+    });
+
+    it("does not move the card, and writes nothing", () => {
+      finished();
+
+      const before = localStorage.getItem(REVIEW_KEY);
+
+      press("ArrowDown");
+      press("ArrowUp");
+
+      expect(front()).toBe("Nothing to repeat today");
+      expect(localStorage.getItem(REVIEW_KEY)).toBe(before);
+      expect(filled()).toBe(0);
+    });
+
+    it("says it in the reader's own language", () => {
+      scheduleAll(30);
+      open(cards, { lang: "de" });
+
+      press("ArrowUp");
+
+      expect(message()).toBe("Nichts zu bewerten");
+    });
+
+    /* Everything else it could do, it still does (V2-13.12). */
+    it("still flips and still pages", () => {
+      finished();
+
+      press(" ");
+      expect(flipped()).toBe(true);
+
+      press("ArrowRight");
+      expect(front()).toBe("Nothing to repeat today");
+    });
+
+    /* The same card, reached by finishing a session rather than by arriving at
+       one that was already empty. */
+    it("holds the same line for a session worked through", () => {
+      open();
+
+      press("ArrowUp");
+      press("ArrowUp");
+      press("ArrowUp");
+      expect(front()).toBe("Nothing to repeat today");
+
+      press("ArrowUp");
+
+      expect(message()).toBe("Nothing to grade");
+      expect(marks()).toBe("");
+    });
+  });
+
   /* A session worked through does not come back through the menu: switching
      pool and back returns to the session as it now is, not to the one the
      reader finished (V2-13.15). */
