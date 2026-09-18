@@ -253,25 +253,52 @@ html:has(> body > .fc) body {
 }
 
 /* The sheet: a list of the states the reader can be in, hanging under the
-   button and over the card. No shadow and no radius (V2-7.2) — one hairline
-   is all it takes to be a surface, at this size. */
+   button and over the card. Wide enough that none of the three groups' own
+   labels — "Everything you have seen" is the longest — wrap to a second
+   line: a wrapped row reads as two rows even though only one of them can
+   ever be pressed. No shadow and no radius (V2-7.2) — one hairline is all it
+   takes to be a surface, at this size. */
 .fc-menu-sheet {
   position: absolute;
   inset-block-start: calc(100% + 0.3rem);
   inset-inline-end: 0;
-  min-inline-size: 11rem;
-  max-inline-size: min(18rem, 78vw);
+
+  /* An explicit width rather than min/max alone: an absolutely positioned
+     box with no width of its own is free to shrink-to-fit, and a row of text
+     is free to wrap at any word — so a shrink-to-fit sheet settled on
+     whatever its narrowest row could wrap into rather than on the label that
+     needed the room in the first place. */
+  inline-size: clamp(11rem, 84vw, 22rem);
+
   background: var(--fc-bg);
   border: 1px solid var(--fc-muted);
   color: var(--fc-fg);
   font: 0.85rem/1.35 system-ui, sans-serif;
 }
 
+/* Each group's own question, named above its rows: "Front first / Back
+   first / Random side" reads as a sentence with something above it and as
+   three unrelated fragments without. A sibling of `.fc-menu-group` rather
+   than a child of it (§group's own children stay exactly the option rows) —
+   heading and group are tied for a screen reader by `aria-labelledby`
+   instead, so the title is announced once as the group's name rather than
+   twice as a leading row that no key or click ever lands on. */
+.fc-menu-title {
+  padding: 0.5rem 0.7rem 0.15rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--fc-muted);
+}
+
 /* One hairline between two questions, and none above the first or below the
    last: the groups are what keep seven rows from reading as one list of seven
-   unrelated things. */
-.fc-menu-group + .fc-menu-group {
+   unrelated things. The divider now sits above a title rather than above a
+   group directly — every title but the first one follows a group's closing
+   row, which is what this selects instead. */
+.fc-menu-group + .fc-menu-title {
   border-block-start: 1px solid var(--fc-muted);
+  margin-block-start: 0.15rem;
 }
 
 .fc-menu-item {

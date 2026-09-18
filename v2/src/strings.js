@@ -49,9 +49,17 @@
  * than moved: a control that draws the far side of itself has to, because
  * there is nowhere on it to show both.
  *
- * `pool.deck` is only a fallback. A deck page has a title, and its own name is
- * a better word for itself than "this deck" is; this stands in where a page
- * has none (V2-16.9).
+ * `title` names the same three groups again, in words the reader reads above
+ * the rows rather than presses: "Front first / Back first / Random side" is
+ * a sentence with a subject once one of these sits over it, and three unrelated
+ * fragments without.
+ *
+ * `pool.deck` names the reader's own deck in the pool row, opposite
+ * `pool.all`. It used to prefer the page's own title where one existed
+ * ("Everyday German" beside "Everything you have seen") and fall back to
+ * this otherwise (V2-16.9) — dropped in favour of always saying "this deck",
+ * which reads the same in every language this menu is offered in rather than
+ * mixing a translated row with an untranslated page title.
  *
  * `empty` is what a dictionary with nothing in it says (V2-13.8). It is a
  * different card from `done` and has to be: "come back tomorrow" is false
@@ -78,6 +86,7 @@ const STRINGS = {
     refusal: { settled: "Already graded today", nothing: "Nothing to grade" },
     menu: {
       open: "Menu",
+      title: { side: "Card side", pool: "Pool", scope: "Schedule" },
       side: { front: "Front first", back: "Back first", random: "Random side" },
       pool: { deck: "This deck", all: "Everything you have seen" },
       scope: { due: "Due today", every: "Every card" },
@@ -140,6 +149,7 @@ const STRINGS = {
     refusal: { settled: "Heute schon bewertet", nothing: "Nichts zu bewerten" },
     menu: {
       open: "Menü",
+      title: { side: "Kartenseite", pool: "Kartenauswahl", scope: "Zeitplan" },
       side: { front: "Vorderseite zuerst", back: "Rückseite zuerst", random: "Zufällige Seite" },
       pool: { deck: "Dieser Stapel", all: "Alles, was du gesehen hast" },
       scope: { due: "Heute dran", every: "Alle Karten" },
@@ -202,6 +212,7 @@ const STRINGS = {
     refusal: { settled: "Сегодня уже оценено", nothing: "Нечего оценивать" },
     menu: {
       open: "Меню",
+      title: { side: "Сторона карточки", pool: "Набор карточек", scope: "Расписание" },
       side: { front: "Сначала лицевая", back: "Сначала обратная", random: "Случайная сторона" },
       pool: { deck: "Эта колода", all: "Всё, что ты видел" },
       scope: { due: "На сегодня", every: "Все карточки" },
