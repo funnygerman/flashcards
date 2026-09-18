@@ -252,11 +252,14 @@ function menuIcon() {
  * is refreshed by anybody: a sheet that is not on screen has no state worth
  * keeping in step, and the one that is has just been built.
  *
- * Each group is a list of `{ label, chosen, choose }` — the states the reader
- * can be in, with a mark beside the one they are in. Not "press this to get
- * to the other side", which is what a single corner button has to say and
- * what made two of them unreadable as a pair: the reader had to work out from
- * a solid star that they were currently seeing the unsolid one's cards.
+ * Each group is a `{ title, options }` pair: `title` is the question, named
+ * above the rows so that "Front first / Back first / Random side" reads as an
+ * answer to something rather than three unrelated fragments, and `options` is
+ * a list of `{ label, chosen, choose }` — the states the reader can be in,
+ * with a mark beside the one they are in. Not "press this to get to the other
+ * side", which is what a single corner button has to say and what made two of
+ * them unreadable as a pair: the reader had to work out from a solid star that
+ * they were currently seeing the unsolid one's cards.
  *
  * `choose()` reports whether it applied, exactly as `switchTo` does and for
  * the same reason (V2-3.8): a choice refused mid-slide must not move the mark.
@@ -298,12 +301,21 @@ function deckMenu(chrome, strings, groups) {
      rule holds for the page's own furniture too. */
   const draw = (focus) => {
     items = [];
+    let nextId = 0;
 
     sheet.replaceChildren(
-      ...groups().map((options) => {
+      ...groups().flatMap(({ title, options }) => {
+        const headingId = `fc-menu-title-${nextId++}`;
+
+        const heading = document.createElement("div");
+        heading.className = "fc-menu-title";
+        heading.id = headingId;
+        heading.textContent = title;
+
         const group = document.createElement("div");
         group.className = "fc-menu-group";
         group.setAttribute("role", "group");
+        group.setAttribute("aria-labelledby", headingId);
 
         for (const option of options) {
           const item = document.createElement("button");
@@ -327,7 +339,7 @@ function deckMenu(chrome, strings, groups) {
           group.append(item);
         }
 
-        return group;
+        return [heading, group];
       }),
     );
 
@@ -832,27 +844,36 @@ export function openDeck(cards, options = {}) {
    */
   const groups = () => {
     const offered = [
-      SIDES.map((value) => ({
-        label: strings.menu.side[value],
-        chosen: side === value,
-        choose: () => setSide(value),
-      })),
+      {
+        title: strings.menu.title.side,
+        options: SIDES.map((value) => ({
+          label: strings.menu.side[value],
+          chosen: side === value,
+          choose: () => setSide(value),
+        })),
+      },
     ];
 
     if (own && allCards(storage, dictionary).length > 0) {
-      offered.push([
-        /* The deck's own name where the page has one: "Everyday German" says
-           what this side is in a way "This deck" cannot, and the reader has
-           the other side's name in full right beside it. */
-        { label: document.title || strings.menu.pool.deck, chosen: !showingAll, choose: () => show(false, everything) },
-        { label: strings.menu.pool.all, chosen: showingAll, choose: () => show(true, everything) },
-      ]);
+      offered.push({
+        title: strings.menu.title.pool,
+        options: [
+          /* The deck's own name where the page has one: "Everyday German" says
+             what this side is in a way "This deck" cannot, and the reader has
+             the other side's name in full right beside it. */
+          { label: document.title || strings.menu.pool.deck, chosen: !showingAll, choose: () => show(false, everything) },
+          { label: strings.menu.pool.all, chosen: showingAll, choose: () => show(true, everything) },
+        ],
+      });
     }
 
-    offered.push([
-      { label: strings.menu.scope.due, chosen: !everything, choose: () => show(showingAll, false) },
-      { label: strings.menu.scope.every, chosen: everything, choose: () => show(showingAll, true) },
-    ]);
+    offered.push({
+      title: strings.menu.title.scope,
+      options: [
+        { label: strings.menu.scope.due, chosen: !everything, choose: () => show(showingAll, false) },
+        { label: strings.menu.scope.every, chosen: everything, choose: () => show(showingAll, true) },
+      ],
+    });
 
     return offered;
   };
