@@ -157,10 +157,23 @@ function verticalTravel(dy) {
  * V2's own jsdom suite included), or a viewport too small to hold the card at
  * all — has nothing sensible to measure, so the drag is left uncapped rather
  * than frozen in place.
+ *
+ * The two directions are not symmetric when a `.fc-credit` footer (see
+ * flashcards.css) sits at the bottom of the page: it overlays on top of that
+ * room rather than shrinking `root`, so downward travel is capped short of
+ * it while upward travel keeps the full half. Measured against the footer's
+ * actual position rather than a fixed guess, for the same reason `available`
+ * itself is measured rather than assumed.
  */
 function verticalLimit(root, card) {
   const available = (root.clientHeight - card.offsetHeight) / 2;
-  return available > 0 ? available : Infinity;
+  if (!(available > 0)) return { up: Infinity, down: Infinity };
+
+  const footer = root.ownerDocument?.querySelector(".fc-credit");
+  if (!footer) return { up: available, down: available };
+
+  const footerSpace = Math.max(0, root.getBoundingClientRect().bottom - footer.getBoundingClientRect().top);
+  return { up: available, down: Math.max(0, available - footerSpace) };
 }
 
 /**
@@ -394,7 +407,8 @@ export function createView(container, steps, labels, facing = () => "front") {
     slider.classList.add("is-dragging");
 
     const raw = horizontal ? dx : verticalTravel(dy);
-    const limit = verticalLimit(root, card);
+    const { up, down } = verticalLimit(root, card);
+    const limit = raw < 0 ? up : down;
     const travel = horizontal ? raw : Math.sign(raw) * Math.min(Math.abs(raw), limit);
     dragged = horizontal ? { x: travel, y: 0 } : { x: 0, y: travel };
 
