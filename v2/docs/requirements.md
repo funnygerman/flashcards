@@ -65,6 +65,10 @@ move, it is replaced — an empty schedule for a word the reader has known for a
 built left in the dictionary as a duplicate nobody can grade away. `wasKey` is what makes the correction
 a move.
 
+**V2-2.8** A card an author leaves without a `key` does not stay keyless: `openDeck` derives one from
+the card's own text before storage or a schedule ever reads it (V2-6.11), so writing a deck is writing
+pairs of words rather than also naming every one of them.
+
 ---
 
 ## 3. Deck and session
@@ -530,6 +534,23 @@ tool had left under a key of its own was dealt to the reader as a blank card —
 a progress row under it, gradable, and earning a schedule of its own. On a deck page V2-6.5 replaces such
 an entry, because there is a card to replace it with; the dictionary has no deck to repair itself with,
 so what it cannot read it must not deal.
+
+**V2-6.11** A card that reaches `openDeck` without a `key` (V2-2.8) is keyed there, before `migrateKeys`
+or anything else about it is read: `frontText` in full, lowercased and spaced with underscores in place
+of whitespace, joined by a dash to `backText` treated the same way but cut at its first `,` `.` `;` `:`
+`!` `?` or `(` — the clause a reader would call the word's meaning, not the gloss or second translation
+that sometimes follows it.
+
+Derived from content alone and nothing else, so a deck regenerated from the same source words gets back
+the same keys: a key is where a reader's schedule and dictionary entry live (V2-6.1), and one that moved
+because a deck was rebuilt would abandon both exactly as an edited key does when `wasKey` is not there to
+carry them across (V2-2.7). Only a deck's own cards are keyed this way — the dictionary's already carry
+the key they were first stored under, and the guide and the two notices `openDeck` deals are never part
+of the `cards` an author hands it, so they stay keyless on purpose (V2-13.8, V2-13.12, V2-15.5).
+
+Two cards deriving the same key is not resolved here — a made-up suffix would be a key nobody wrote and
+nothing could derive again on the next rebuild — so they share a schedule entry, the same outcome an
+author who typed the same key twice by hand would get.
 
 **V2-6.10** A day that cannot be recorded is not enforced. Where storage keeps nothing (V2-6.4), no card
 settles: grades are taken and shown, the cards come back round, and nothing is ever refused as already

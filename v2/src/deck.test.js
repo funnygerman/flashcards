@@ -108,6 +108,39 @@ describe("openDeck", () => {
     expect(front()).toBe("eins");
   });
 
+  /* An author who left `key` unset (V2-2.8) still gets a schedule entry, just
+     one keyed from the card's own words rather than a name they had to pick. */
+  describe("a card without a key", () => {
+    it("is keyed from its front and back text", () => {
+      open([{ frontText: "eins", backText: "one" }]);
+      press("ArrowUp");
+
+      expect(schedule("eins-one")).toMatchObject({ box: 1 });
+    });
+
+    it("lowercases and underscores multi-word text on both sides", () => {
+      open([{ frontText: "der Arzt", backText: "врач, доктор" }]);
+      press("ArrowUp");
+
+      expect(schedule("der_arzt-врач")).toMatchObject({ box: 1 });
+    });
+
+    it("keeps only the back text up to its first separator", () => {
+      open([{ frontText: "erzählen", backText: "to tell, to narrate" }]);
+      press("ArrowUp");
+
+      expect(schedule("erzählen-to_tell")).toMatchObject({ box: 1 });
+    });
+
+    it("leaves an author-provided key untouched", () => {
+      open([{ key: "custom", frontText: "eins", backText: "one" }]);
+      press("ArrowUp");
+
+      expect(schedule("custom")).toMatchObject({ box: 1 });
+      expect(schedule("eins-one")).toBeUndefined();
+    });
+  });
+
   /* The wiring every deck page used to spell out, now asserted once: a grade
      reaches review.js, and the row of marks follows the box it moved to. */
   /* The band's words are the app's own, so they follow `lang` exactly as the

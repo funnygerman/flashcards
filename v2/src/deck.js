@@ -596,11 +596,35 @@ function dealer(source, storage, dictionary, now, done, empty) {
  * `syncCards` settles a `key` collision across dictionaries the same way it
  * settles any other disagreement about a card: first write wins.
  */
+
+/**
+ * A key for a card whose author left `key` unset (V2-6.11), so writing a deck
+ * is writing words rather than also inventing an identifier for each one.
+ * `frontText` in full, `backText` only up to its first separator — `врач,
+ * доктор` and `to tell, to narrate` carry a gloss or a second translation
+ * after that point, no part of the word itself.
+ *
+ * Deterministic, and content alone, so a deck rebuilt from the same source
+ * words derives the same keys every time: a key is where a reader's schedule
+ * lives (V2-6.1), and one that moved because the deck was regenerated would
+ * abandon it exactly as an edited key does (V2-2.7).
+ */
+function deriveKey(card) {
+  const slug = (text) => text.trim().toLowerCase().replace(/\s+/g, "_");
+  const firstClause = (text) => text.split(/[,.;:!?()]/)[0];
+
+  return `${slug(card.frontText)}-${slug(firstClause(card.backText))}`;
+}
+
 export function openDeck(cards, options = {}) {
   const { element = document.body, storage, random, now, lang, dictionary } = options;
   const strings = stringsFor(lang);
 
   const own = cards.length > 0;
+
+  /* Keyed before anything else touches `cards`, so migrateKeys and every
+     session below see the key a reader's storage will actually use. */
+  const keyed = own ? cards.map((card) => (card.key ? card : { ...card, key: deriveKey(card) })) : cards;
 
   /* A card whose key has changed brings the reader's old entry with it, in the
      dictionary and in the schedule both, before either is read (V2-6.8). Here
@@ -609,7 +633,7 @@ export function openDeck(cards, options = {}) {
      with no schedule at all — due today, box empty, however long the reader has
      actually been studying it. Only a deck's own cards: the dictionary's come
      back out of storage, where the rename has already happened. */
-  const settled = own ? migrateKeys(cards, storage) : cards;
+  const settled = own ? migrateKeys(keyed, storage) : keyed;
   const source = own && dictionary !== undefined ? settled.map((card) => ({ ...card, dictionary })) : settled;
 
   /* Whether this page has anything at all to study: its own cards, or a
