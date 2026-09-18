@@ -80,6 +80,10 @@ describe("openDeck", () => {
   afterEach(() => {
     for (const deck of mounted.splice(0)) deck.destroy();
     document.body.replaceChildren();
+
+    /* The page's own name labels the deck's menu row and the way back to it,
+       so a test that sets one must not leave it set for the next. */
+    document.title = "";
   });
 
   it("mounts the deck it is given", () => {
@@ -319,8 +323,75 @@ describe("openDeck", () => {
     expect(front()).toBe("eins");
   });
 
-  it("refuses a page with no cards and nothing in the dictionary", () => {
-    expect(() => openDeck([], { storage: localStorage })).toThrow(/at least one card/);
+  /* A page with no cards and nothing in the dictionary used to throw and
+     render nothing at all (V2-13.8 as it stood). It says so instead — and says
+     the true thing, which is not the one the deck says when its day is done. */
+  describe("a dictionary with nothing in it", () => {
+    const message = () => document.querySelector(".fc-front").getAttribute("data-message");
+
+    it("says so on a card, rather than rendering nothing", () => {
+      open([]);
+
+      expect(front()).toBe("Nothing here yet");
+      expect(back()).toBe("Open a deck to start");
+    });
+
+    it("does not claim the day is done, which was never true here", () => {
+      open([]);
+
+      expect(front()).not.toBe("Nothing to repeat today");
+    });
+
+    it("says it in the reader's own language", () => {
+      open([], { lang: "de" });
+
+      expect(front()).toBe("Hier ist noch nichts");
+    });
+
+    /* A notice, like the done card: nothing to grade, no star, nothing
+       written anywhere (V2-5.17). */
+    it("is a notice rather than material", () => {
+      open([]);
+
+      press("ArrowUp");
+
+      expect(message()).toBe("Nothing to grade");
+      expect(marks()).toBe("");
+      expect(filled()).toBe(0);
+      expect(localStorage.getItem(REVIEW_KEY)).toBe(null);
+      expect(JSON.parse(localStorage.getItem(CARDS_KEY) ?? "{}")).toEqual({});
+    });
+
+    it("still flips and still pages, like any one-card session", () => {
+      open([]);
+
+      press(" ");
+      expect(flipped()).toBe(true);
+
+      press("ArrowRight");
+      expect(front()).toBe("Nothing here yet");
+    });
+
+    /* There is nowhere to go back to: a reader with an empty dictionary has
+       never opened a deck for this page to name (V2-13.11). It says nothing
+       about a way onward rather than drawing one that leads nowhere. */
+    it("draws no way back, because there is none to draw", () => {
+      open([]);
+
+      expect(corner()).toBe(null);
+    });
+
+    it("is an ordinary dictionary again once a deck has filled it", () => {
+      document.title = "Everyday German"; /* what the way back is labelled with */
+      open(); /* a real deck, which writes its cards to the dictionary */
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
+
+      open([]);
+
+      expect(front()).not.toBe("Nothing here yet");
+      expect(corner()).not.toBe(null);
+    });
   });
 
   /* A key that has to be corrected takes the reader's progress with it (V2-6.8),
@@ -593,11 +664,20 @@ describe("openDeck", () => {
       expect(front()).toBe("eins");
     });
 
-    /* A card-less page with an empty dictionary throws (V2-13.8) before the
-       guide is ever shown — the flag must not say otherwise, or a reader who
-       never saw it has no way to (V2-15.6). */
-    it("does not mark the guide as met when mounting throws before showing it", () => {
-      expect(() => open([])).toThrow(/at least one card/); // nothing was actually mounted
+    /* The guide teaches grading by asking for it, so a page with nothing to
+       study does not get one: five cards leading to "nothing here yet" teach a
+       gesture the reader cannot use and spend the one showing the guide ever
+       gets (V2-15.6a). */
+    it("is not dealt in front of a page with nothing to study", () => {
+      open([]);
+
+      expect(front()).toBe("Nothing here yet");
+    });
+
+    it("is still owed to that reader when they open a real deck", () => {
+      open([]);
+      mounted.splice(0).forEach((deck) => deck.destroy());
+      document.body.replaceChildren();
 
       open(); // a real deck, the reader's actual first visit
       expect(front()).toBe("Tap this card");

@@ -442,7 +442,12 @@ a grading gesture, or null to let it through — and it exists because the libra
 for itself: V2-5.16 reads "already answered" off a grade the card carries, and a card that can never
 carry one has nothing there to read.
 
-The card that says there is nothing to repeat today (V2-13.12) is the case. It has no key, so nothing a
+There are two notices, and a deck page names them both: the card that says there is nothing to repeat
+today (V2-13.12) and the card that says the dictionary is empty (V2-13.8). Being keyless is not what makes
+a card a notice — a guide card is keyless too, and being swiped at is its whole lesson (V2-15.5) — so the
+host names them rather than asking about the key.
+
+The first is the case that found this. It has no key, so nothing a
 reader does to it is written anywhere — and being keyless it is not settled either, since that is exactly
 what keeps the guide's own grading cards answerable (V2-15.5). It therefore took a grade like a guide
 card: the band named it, the card flew off the edge it was pushed towards, and it came back wearing the
@@ -970,13 +975,28 @@ premise only works if the same word is always the same `key` — and `dictionary
 asks the same author to also spell a dictionary's name the same way across their own decks, not to
 coordinate with anyone else's.
 
-**V2-13.8** A dictionary with nothing in it throws from `mount()` (V2-3.6) and renders nothing. That is
-the agreed shape: a pool with nothing due says so (V2-13.12), but a pool with nothing *in* it has nothing
-to say — "you are done for today" is false where there was never anything to be done, and a page nobody
-can have studied from is a page reached by typing its address. V2-6.4 asks a deck to render whether or not
-storage works, and this page cannot, because without storage it has no cards to render. On
-`empty-deck.html`, V2-13.9 keeps a reader from being led there while it would be empty, so what remains
-is a typed address rather than a followed link. From a deck's own menu, the pool rows are withheld
+**V2-13.8** A dictionary with nothing in it says so, on a card of its own.
+
+It used to throw from `mount()` (V2-3.6) and render nothing at all — no card, no menu, no way back, an
+empty page under a credit line. The reasoning was that a pool with nothing *in* it has nothing to say,
+since "you are done for today" is false where there was never anything to be done. That half is right and
+still is: it is not V2-13.12's card, because V2-13.12's card would be a lie here. What did not follow is
+the conclusion. "Nothing here yet" is not a lie, and a page that renders nothing cannot be told apart from
+one that is broken.
+
+The rest of that reasoning does not survive either. "A page nobody can have studied from is a page reached
+by typing its address" assumed the only way in was the address bar. It is not: storage that is blocked, a
+private window, cleared site data, a new profile or a new device all produce an empty dictionary for a
+reader who arrives by any route at all — and a browser that evicts `localStorage` from a site left alone
+for a week does it to a reader who bookmarked the page while it worked. This requirement also conceded
+that V2-6.4 ("a deck must render whether or not storage works") could not be met here. It can, and now is:
+what the page cannot do is *study*, which is a different thing from rendering.
+
+Nothing about the card promises a way onward, because there is none to promise. A reader whose dictionary
+is empty has never opened a deck for V2-13.11 to name, so no corner link is drawn and the card does not
+pretend otherwise — it says what the page is and what would fill it. `switchTo` still refuses an empty
+source (V2-3.8), and V2-13.9 still withholds the pool rows where `allCards` comes back empty, so no menu
+row can reach this state from a deck. From a deck's own menu, the pool rows are withheld
 where `allCards` comes back empty, which keeps `switchTo` (V2-3.8) from ever being asked to open one.
 
 **V2-13.9** A deck with cards of its own offers the choice between them and the dictionary as a menu
@@ -1284,6 +1304,17 @@ from there satisfies "on the last card, going forward" without satisfying what t
 stand for, so it is not enough on its own: the guide also tracks which of its own cards have actually
 been shown, and only hands over once none are missing. Short of that, paging forward off the last card is
 a plain wrap back to the first — the same as any other step that is not the one true completion.
+
+**V2-15.6a** The guide is not dealt in front of a page with nothing to study. It teaches grading by
+asking for it (V2-15.4), and a reader who swipes through five cards to arrive at "nothing here yet" has
+been taught a gesture they cannot use — and has spent the one showing the guide ever gets (V2-15.6). The
+page says what it is instead, and the guide is still owed to that reader the first time they open a deck
+with cards in it.
+
+This used to fall out of V2-13.8 by accident: the page threw before the guide could be shown, and the
+flag was written after `mount()` rather than before it precisely so that a reader who never saw the guide
+was not marked as having. That ordering still stands; it is no longer the only thing standing between
+this reader and a wasted guide.
 
 **V2-15.6** Whether the guide has been dealt is one flag in storage, `flashcards.hints`, written as it
 is dealt rather than when it is finished: a reader who reloads part-way through has met the guide, and

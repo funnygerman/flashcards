@@ -426,10 +426,11 @@ function cornerLink(storage) {
  * deck's own cards are written to it by mount() (V2-6.1), so a pool read
  * before mounting would be missing exactly the cards the reader is looking at.
  *
- * A pool with nothing due deals the one card that says so (V2-13.12). A pool
- * with nothing *in* it deals nothing at all, which is what mount() refuses
- * (V2-13.8) — "you are done for today" is false where there was never
- * anything to be done.
+ * A pool with nothing due deals the one card that says so (V2-13.12), and a
+ * pool with nothing *in* it deals the card that says *that* (V2-13.8). Two
+ * cards rather than one: "come back tomorrow" is false where there was never
+ * anything to come back to, and that falseness is why this page used to render
+ * nothing at all rather than say the wrong thing.
  *
  * A session is selected afresh every time it is asked for, and kept only where
  * the answer has not changed (V2-13.16). Keeping it outright was the first
@@ -464,7 +465,7 @@ function cornerLink(storage) {
  * back to them: having been through it once, it too asks only for what is
  * left.
  */
-function dealer(source, storage, dictionary, now, done) {
+function dealer(source, storage, dictionary, now, done, empty) {
   const dealt = new Map();
   const spent = new Set();
 
@@ -473,8 +474,9 @@ function dealer(source, storage, dictionary, now, done) {
   const select = (all, everything, onlyUnanswered) => {
     const cards = pool(all);
     const chosen = chooseSession(cards, { now, storage, onlyDue: !everything, onlyUnanswered });
+    if (chosen.length > 0) return chosen;
 
-    return chosen.length === 0 && cards.length > 0 ? [done] : chosen;
+    return [cards.length > 0 ? done : empty];
   };
 
   /* Two selections are the same session when they hold the same cards. By key,
@@ -577,14 +579,24 @@ export function openDeck(cards, options = {}) {
   const settled = own ? migrateKeys(cards, storage) : cards;
   const source = own && dictionary !== undefined ? settled.map((card) => ({ ...card, dictionary })) : settled;
 
-  /* Dealt in front of the session on a first run — remembered only once
-     mount() actually succeeds, below, rather than here: a card-less page with
-     an empty dictionary throws (V2-13.8) before ever showing the guide, and a
+  /* Whether this page has anything at all to study: its own cards, or a
+     dictionary with something in it. The dictionary is read before mount()
+     rather than after, which is the one moment it can be asked honestly — a
+     page with cards of its own writes them there on mounting (V2-6.1). */
+  const anything = own || allCards(storage, dictionary).length > 0;
+
+  /* Dealt in front of the session on a first run — but never in front of a
+     page with nothing to study (V2-15.6a). The guide teaches grading by asking
+     for it, and a reader who swipes through five cards to arrive at "nothing
+     here yet" has been taught a gesture they cannot use and has spent the one
+     showing the guide ever gets.
+
+     Remembered only once mount() actually succeeds, below, rather than here: a
      reader who never saw it must not be marked as having, with no way to
-     replay it (V2-15.6). A reload part-way through is a reader who has
-     already met it, not one who needs it again from the top, which is what
-     makes remembering it at all worthwhile. */
-  const guide = firstRun(storage) ? strings.guide : [];
+     replay it (V2-15.6). A reload part-way through is a reader who has already
+     met it, not one who needs it again from the top, which is what makes
+     remembering it at all worthwhile. */
+  const guide = firstRun(storage) && anything ? strings.guide : [];
 
   /* Only a real deck is somewhere to come back to; the dictionary is not. */
   if (own) rememberDeck(storage);
@@ -609,12 +621,24 @@ export function openDeck(cards, options = {}) {
      from a guide card. */
   const done = { ...strings.done };
 
+  /* And the card a dictionary with nothing in it shows (V2-13.8). Copied for
+     the same reason `done` is, and kept apart from it because the two say
+     different things: one is a day finished, the other a dictionary never
+     started. */
+  const empty = { ...strings.empty };
+
+  /* Neither is material: no key, no box, nothing to record, and nothing for a
+     grading gesture to land on (V2-5.17). The guide's cards are keyless too
+     and are *not* notices — being swiped at is their whole lesson — so this
+     names the two rather than asking about the key. */
+  const notice = (card) => card === done || card === empty;
+
   /* A deck and the dictionary both study what is due, out of their own pool —
      a deck's own cards, the dictionary everything (V2-13.4). Whether this page
      brought cards of its own decides only which pool it draws from, not
      whether the schedule filters it; the reader's own menu decides that
      (V2-13.13), for whichever pool they are on. */
-  const { deal, redeal } = dealer(source, storage, dictionary, now, done);
+  const { deal, redeal } = dealer(source, storage, dictionary, now, done, empty);
 
   let showingAll = !own;
   let everything = false;
@@ -647,7 +671,7 @@ export function openDeck(cards, options = {}) {
        swiped at and marked — that is the point of it — the grade itself goes
        nowhere, even while the row above reacts to it. */
     onGrade: (card, level) => {
-      if (card === done) return; /* not material, and not teaching the row either */
+      if (notice(card)) return; /* not material, and not teaching the row either */
 
       if (!card.key) {
         guideBox = nextBox(level, guideBox);
@@ -672,7 +696,7 @@ export function openDeck(cards, options = {}) {
        it took a grade like one of them, naming it on the band and coming back
        wearing the mark, which said the answer had landed when there was
        nothing there for it to land on (V2-5.17). */
-    refuses: (card) => (card === done ? "nothing" : null),
+    refuses: (card) => (notice(card) ? "nothing" : null),
 
     /* A grading gesture dropped. The card cannot show this itself — nothing
        about it moves — so the page says it in words, on the card, which is the
@@ -705,7 +729,7 @@ export function openDeck(cards, options = {}) {
         /* The done card is not a card the reader is learning, so it earns
            nothing however it is swiped at; the guide's own box is the guide's
            (V2-15.4a). */
-        return card === done ? 0 : guideBox;
+        return notice(card) ? 0 : guideBox;
       },
     },
   });

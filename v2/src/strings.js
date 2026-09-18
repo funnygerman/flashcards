@@ -53,6 +53,15 @@
  * a better word for itself than "this deck" is; this stands in where a page
  * has none (V2-16.9).
  *
+ * `empty` is what a dictionary with nothing in it says (V2-13.8). It is a
+ * different card from `done` and has to be: "come back tomorrow" is false
+ * where there was never anything to come back to, and that falseness is why
+ * the page used to render nothing at all rather than reuse it. This one says
+ * what is actually true — the page is every card the reader has seen, and they
+ * have not seen any yet — and it promises no way onward, because a reader with
+ * an empty dictionary has never opened a deck for the page to lead back to
+ * (V2-13.11).
+ *
  * `done` is the one card a page has when its own schedule says there is
  * nothing to repeat today (V2-13.12). It is written as a card, in the guide's
  * own register — short lines, no full stops, the gesture named where there is
@@ -72,6 +81,13 @@ const STRINGS = {
       side: { front: "Front first", back: "Back first", random: "Random side" },
       pool: { deck: "This deck", all: "Everything you have seen" },
       scope: { due: "Due today", every: "Every card" },
+    },
+    empty: {
+      category: "empty",
+      frontText: "Nothing here yet",
+      frontDetails: "Tap this card",
+      backText: "Open a deck to start",
+      backDetails: "the cards you study appear here",
     },
     done: {
       category: "done",
@@ -128,6 +144,13 @@ const STRINGS = {
       pool: { deck: "Dieser Stapel", all: "Alles, was du gesehen hast" },
       scope: { due: "Heute dran", every: "Alle Karten" },
     },
+    empty: {
+      category: "leer",
+      frontText: "Hier ist noch nichts",
+      frontDetails: "Tippe auf diese Karte",
+      backText: "Öffne einen Stapel",
+      backDetails: "die Karten, die du lernst, erscheinen hier",
+    },
     done: {
       category: "geschafft",
       frontText: "Heute nichts zu wiederholen",
@@ -182,6 +205,13 @@ const STRINGS = {
       side: { front: "Сначала лицевая", back: "Сначала обратная", random: "Случайная сторона" },
       pool: { deck: "Эта колода", all: "Всё, что ты видел" },
       scope: { due: "На сегодня", every: "Все карточки" },
+    },
+    empty: {
+      category: "пусто",
+      frontText: "Здесь пока ничего нет",
+      frontDetails: "Нажми на эту карточку",
+      backText: "Открой колоду",
+      backDetails: "карточки, которые ты учишь, появятся здесь",
     },
     done: {
       category: "готово",
