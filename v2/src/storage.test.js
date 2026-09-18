@@ -77,3 +77,40 @@ describe("writeMap", () => {
     expect(() => writeMap(null, "k", { a: 1 })).not.toThrow();
   });
 });
+
+/* Every module reading one of these maps guards its lookups with
+   `Object.hasOwn`, against a card keyed `constructor` or `toString`. The
+   writes were plain indexing, and `map.__proto__ = entry` on an ordinary
+   object sets the prototype rather than storing anything (V2-6.9). */
+describe("readMap, a key that is a prototype's own business", () => {
+  const AWKWARD = ["__proto__", "constructor", "toString", "hasOwnProperty", "valueOf"];
+
+  it("hands back a map nothing is inherited through", () => {
+    expect(Object.getPrototypeOf(readMap(memoryStorage(), "k"))).toBe(null);
+    expect(Object.getPrototypeOf(readMap(memoryStorage('{"a":1}'), "k"))).toBe(null);
+  });
+
+  it.each(AWKWARD)("stores and reads back an entry keyed %s", (key) => {
+    const storage = memoryStorage();
+    const map = readMap(storage, "k");
+
+    map[key] = { box: 3 };
+    writeMap(storage, "k", map);
+
+    const read = readMap(storage, "k");
+
+    expect(Object.hasOwn(read, key)).toBe(true);
+    expect(read[key]).toEqual({ box: 3 });
+  });
+
+  it.each(AWKWARD)("keeps the rest of the map when %s is in it", (key) => {
+    const storage = memoryStorage();
+    const map = readMap(storage, "k");
+
+    map[key] = { box: 1 };
+    map.ordinary = { box: 2 };
+    writeMap(storage, "k", map);
+
+    expect(Object.keys(readMap(storage, "k")).sort()).toEqual([key, "ordinary"].sort());
+  });
+});

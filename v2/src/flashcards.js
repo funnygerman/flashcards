@@ -35,15 +35,43 @@ import { createView } from "./view.js";
  *                  `gradeOf(card)` is the host's answer to "what has this card
  *                  already been graded?" — a grade the reader gave it before
  *                  this deck was mounted, e.g. review.js's `gradedToday`. Such
- *                  a card arrives wearing its mark, and the reader may disagree
- *                  with it exactly as they may with one given a moment ago.
+ *                  a card arrives wearing its mark, and where the host settles
+ *                  it (`settles`) that mark is the last word on it today.
  *                  `facing(card)` is the host's answer to "which side does this
  *                  card arrive on?" — "front" or "back" (V2-16.4). Asked once
  *                  per arrival, so a host answering "a random one" (V2-16.5)
  *                  rolls per card; omit it and every card arrives front first.
+ *                  `settles(card)` is the host's answer to "is a grade on this
+ *                  card the last word on it?" — true for material a host keeps
+ *                  a schedule for, false for a card whose grade goes nowhere
+ *                  (V2-5.16). A settled card leaves the session for good the
+ *                  moment it is graded (V2-3.9) and refuses a second grade
+ *                  (`onRefuse`); omit it and no card settles, which is the bare
+ *                  deck that wraps for ever.
+ *                  `onRefuse(card, reason)` is a grading gesture dropped —
+ *                  `"settled"` is the only reason there is. The library has no
+ *                  sentence of its own for it (V2-1.2); the host says what it
+ *                  means, through `say()` or otherwise (V2-15.2).
+ *                  `onEmpty()` is asked what to study when settling has taken
+ *                  the last card out of the session, and answers with another
+ *                  list of cards — the card that says there is nothing left
+ *                  today, or the next of a pool too big for one sitting
+ *                  (V2-13.15). A host with no answer keeps the card it has.
  */
 export function mount(element, cards, options = {}) {
-  const { storage, random = Math.random, onGrade, progress, gradeOf, labels, lead = [], facing } = options;
+  const {
+    storage,
+    random = Math.random,
+    onGrade,
+    progress,
+    gradeOf,
+    labels,
+    lead = [],
+    facing,
+    settles,
+    onRefuse,
+    onEmpty,
+  } = options;
 
   if (!Array.isArray(cards) || cards.length === 0) {
     throw new Error("flashcards: mount needs at least one card");
@@ -110,24 +138,21 @@ export function mount(element, cards, options = {}) {
      the reader had no way of telling what they had already said about it.
      A card's grade, once given, holds until it is actually changed.
 
-     Nothing here is locked. A grade takes the card away now (V2-8.4), so the
-     gesture that gives one and the gesture that leaves the card are the same
-     gesture, and a rule that settled a grade on leaving would settle every
-     grade the instant it was given — making the reader's own last swipe the
-     one thing they could not take back. Paging back to a card therefore
-     re-opens it: the mark it is still wearing (V2-5.6) is the affordance, and
-     `previous` is the undo. What stops that being a way to inflate a host's
-     own data is the host's own rule, not a lock here — review.js counts one
-     grade per card per day against the box the day found it in (V2-11.10), so
-     a reader who changes their mind ends up exactly where saying it once would
-     have left them, however many times they say it. */
+     What a grade settles is the host's to say (`settles`). Material it keeps a
+     schedule for is answered once and is then done for the day (V2-5.16): the
+     card leaves the session outright (V2-3.9), so there is no paging back to
+     it, and a copy of it reached from some other selection wears its mark and
+     refuses a second grade. A card the host does not settle — a guide card,
+     whose grade goes nowhere at all (V2-15.5) — is re-gradable as often as the
+     reader likes, because there is nothing there for a second answer to
+     corrupt. */
   const grades = new Map();
 
   /* A card's grade, asking the host once about a card neither this deck nor
      the reader has seen graded yet. A card the host answers for arrives
-     wearing its mark and is no more settled than any other: the reader may
-     disagree with a grade they gave before a reload exactly as they may
-     disagree with one they gave a moment ago. */
+     wearing its mark, and — where the host settles that card — wearing it for
+     good: a grade given before this mount is exactly as final as one given a
+     moment ago (V2-5.14). */
   const gradeFor = (card) => {
     if (!grades.has(card)) {
       const given = gradeOf?.(card) ?? null;
@@ -137,6 +162,12 @@ export function mount(element, cards, options = {}) {
 
     return grades.get(card)?.level ?? null;
   };
+
+  /* Whether this card has had its answer. Both halves are the host's: which
+     cards are answered once and for all, and whether this one already has
+     been — a grade from `gradeOf` and one given here are the same fact
+     (V2-5.16). */
+  const isSettled = (card) => Boolean(settles?.(card)) && gradeFor(card) !== null;
 
   view.show(deck.current(), gradeFor(deck.current()));
   showProgress();
@@ -174,8 +205,53 @@ export function mount(element, cards, options = {}) {
      same. The alternative is a gesture with no result at all, which is the one
      thing an interface with no chrome cannot afford (V2-15.1), and the reader
      agreeing with a mark they can see is not an error to be corrected. */
+  /* Where a grade leaves the reader.
+   *
+   * A card the host settles is taken out of the sequence rather than paged
+   * past (V2-3.9): the session is what is left to answer, so answering a card
+   * shortens it, and `previous` can no longer reach what has been answered.
+   * Everything else — a guide card, a card on a page that keeps no schedule —
+   * is a plain step forward over a ring that never shortens.
+   *
+   * Running out is not an error and not an empty screen: the host is asked
+   * what to study instead (V2-13.15) and the answer is adopted as this mount's
+   * source, exactly as `switchTo` would adopt it, in the same off-screen frame
+   * the arriving card lands in. A host with no answer keeps the card it has —
+   * `retire` leaves the last card of a ring standing for precisely that case,
+   * since a deck with no card at all is the one thing `mount` refuses
+   * outright (V2-3.6). */
+  const advance = (card) => {
+    if (!isSettled(card)) return deck.next();
+
+    const remaining = deck.retire();
+    if (remaining) return remaining;
+
+    const after = onEmpty?.();
+
+    if (Array.isArray(after) && after.length > 0) {
+      deck = orderFor(after);
+      return deck.current();
+    }
+
+    return deck.current();
+  };
+
   const grade = (level) => {
     const card = deck.current();
+
+    /* A card already answered today is not the reader's to answer again
+       (V2-5.16). Nothing moves, nothing is stored, and the host is told so it
+       can say why — which is the visible result V2-15.1 asks of every gesture,
+       and the one case where the card itself has none to give. */
+    if (isSettled(card)) {
+      /* Wearing the grade it is being refused for. It normally arrives already
+         marked (V2-5.14), but a grade given somewhere else since — another tab,
+         another of this page's own sessions — is news to the card on screen,
+         and a sentence about a grade with no grade under it explains nothing. */
+      view.mark(gradeFor(card));
+      onRefuse?.(card, "settled");
+      return null;
+    }
 
     if (grades.get(card)?.level !== level) {
       grades.set(card, { level });
@@ -189,7 +265,7 @@ export function mount(element, cards, options = {}) {
        also reported as one paged past ungraded (V2-5.11). */
     leave(card);
 
-    const arriving = deck.next();
+    const arriving = advance(card);
     return view.gradeSlide(level === "easier", arriving, gradeFor(arriving), swapped);
   };
 

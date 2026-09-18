@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { SESSION_LIMIT, chooseSession } from "./session.js";
-import { STORAGE_KEY } from "./review.js";
+import { STORAGE_KEY, recordGrade } from "./review.js";
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-01-01T12:00:00Z");
@@ -173,5 +173,61 @@ describe("chooseSession, every card in the pool", () => {
 
   it("gives back nothing for nothing", () => {
     expect(chooseSession([], { now: NOW, storage })).toEqual([]);
+  });
+});
+
+/* The day's own filter, beside the schedule's. A card the reader has answered
+   today cannot be answered again (V2-5.16), so a session that has to offer
+   something to do leaves it out (V2-13.14) — and `harder`, which files a card
+   in box 0 due immediately, is exactly the case the schedule alone gets wrong.
+*/
+describe("chooseSession, only what has not been answered today", () => {
+  let storage;
+
+  beforeEach(() => {
+    storage = memoryStorage();
+  });
+
+  const deck = [card("a"), card("b"), card("c")];
+
+  it("drops a card answered today, whatever its grade", () => {
+    recordGrade("a", "easier", storage, NOW);
+    recordGrade("b", "harder", storage, NOW);
+
+    expect(keys(chooseSession(deck, { now: NOW, storage, onlyUnanswered: true }))).toEqual(["c"]);
+  });
+
+  it("keeps a card whose answer was yesterday's", () => {
+    recordGrade("a", "harder", storage, NOW - DAY);
+
+    expect(keys(chooseSession(deck, { now: NOW, storage, onlyUnanswered: true }))).toEqual(["a", "b", "c"]);
+  });
+
+  /* Left off, the pool comes back whole — which is what the reader's own
+     "every card" filter asks for, marks, refusals and all (V2-13.13). */
+  it("keeps today's answered cards when it is not asked to", () => {
+    recordGrade("a", "easier", storage, NOW);
+
+    expect(keys(chooseSession(deck, { now: NOW, storage }))).toHaveLength(3);
+  });
+
+  it("selects nothing at all once every card has had its answer", () => {
+    for (const c of deck) recordGrade(c.key, "easier", storage, NOW);
+
+    expect(chooseSession(deck, { now: NOW, storage, onlyUnanswered: true })).toEqual([]);
+  });
+
+  /* The two filters are independent questions, and a due session asks both:
+     `harder` says the schedule wants the card back immediately and the day
+     says the reader has already answered it. The day wins. */
+  it("drops a card the schedule would have offered again today", () => {
+    recordGrade("a", "harder", storage, NOW);
+
+    expect(keys(chooseSession(deck, { now: NOW, storage, onlyDue: true }))).toEqual(["a", "b", "c"]);
+    expect(keys(chooseSession(deck, { now: NOW, storage, onlyDue: true, onlyUnanswered: true }))).toEqual(["b", "c"]);
+  });
+
+  it("ignores a card with no key, which has no day to have answered", () => {
+    expect(chooseSession([{ frontText: "guide" }], { now: NOW, storage, onlyUnanswered: true })).toHaveLength(1);
   });
 });

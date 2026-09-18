@@ -124,7 +124,9 @@ over the card for a host's own controls, which the library draws nothing in (§ 
 
 `next` exits to the left and the next card arrives from the right — the card drags away in the direction
 swiped, and `→` follows the same motion, arriving from ahead the way paging forward usually looks.
-`previous` mirrors it. The deck wraps in both directions, so it never runs out.
+`previous` mirrors it. The deck wraps in both directions — but over what is *left* to answer: grading a
+card takes it out of the session, so the ring gets shorter as you work, and answering the last of it ends
+the sitting rather than dealing the deck again from the top.
 
 **The card answers a gesture while you are making it.** Drag sideways and it goes with your finger, and
 the page turn carries on from wherever you let go rather than snapping back first. Drag up or down and it
@@ -164,16 +166,30 @@ same thing: they swiped up, and the card came back. A swipe is a gesture that mo
 a card means being done with it, and charging two gestures for one answer made the second of them — a
 swipe left, on a card already answered — carry no information at all.
 
-**Paging back is the undo.** Nothing is settled: page back to a card and it is still wearing its mark,
-and swiping again replaces the grade and counts. That has to be true now that a grade takes the card away
-immediately, or a swipe in the wrong direction would be unfixable. What stops it being a way to inflate a
-schedule is the schedule's own rule rather than the library's: `review.js` counts one grade per card per
-day, applied to the box the day found the card in (§ Review scheduling), so changing your mind five times
-lands exactly where saying it once would have. Repeating the grade a card already carries reports nothing
-new, but the card still leaves — a gesture that does nothing at all is the one thing an interface with no
-chrome can't afford. `gradeOf(card)` is the other half: hand the library a grade a card already carries —
-from a deck's own storage, from before a page reload — and it arrives wearing its mark, still open to
-being changed.
+**An answered card is done for the day.** Grading it doesn't page past it, it takes it out: the session
+is one card shorter, and neither `→` nor `←` reaches it again. Work a deck to its end and you get the
+card that says there's nothing left, not the deck dealt back to you from the top.
+
+Paging back *was* the undo for a while — nothing was settled, and swiping again replaced the grade. On
+paper that was safe, because `review.js` counts one grade per card per day against the box the day found
+the card in (§ Review scheduling), so changing your mind five times landed where saying it once would
+have. In practice it was unreadable: readers who finished a deck were returned to its first card with no
+way to tell what they'd already answered, every answer still live, and the same swipe that answered a
+card the first time now quietly rewriting it. An undo nobody asked for, in an interface with no chrome to
+announce it, reads as an app that doesn't remember.
+
+So a grade on material is the last word on it today, and a second grading gesture is refused rather than
+applied — the card says *Already graded today* (§ Saying what the card cannot show). The undo that's left
+is the one that was always safest: a drag short of the threshold commits to nothing, so you can feel the
+card give and let go. Repeating the grade a card already carries within a session still reports nothing
+new and still takes the card away — a gesture that does nothing at all is the one thing an interface with
+no chrome can't afford. `gradeOf(card)` is the other half: hand the library a grade a card already
+carries — from a deck's own storage, from before a page reload — and it arrives wearing its mark, and,
+for a card the host settles, wearing it until tomorrow.
+
+Only material settles. `settles(card)` is the host's call, and a card whose grade goes nowhere — a guide
+card — never settles: there's nothing there for a second answer to corrupt, and two of the guide's own
+cards exist to be swiped at.
 
 A card left ungraded when the reader pages past it is still reported, once, as `onGrade(card, "neutral")`
 — so a card the reader simply forgot to grade isn't silently indistinguishable from one they never saw.
@@ -273,18 +289,21 @@ today's answer already recorded — was dropped, and the screen was left exactly
 same nothing a reader sees who never swiped at all. With no chrome to fall back on, that silence read as
 "this gesture does not exist".
 
-The card answered it on the mark: **the grade mark grew into a band** on the edge it already marked, read
-*Already rated today*, and shrank back a couple of seconds later. That case no longer exists. Nothing is
-settled now (§ Interactions): every grading gesture is accepted, and every one takes the card away, so
-there is no dropped gesture left to explain and the sentence has gone, along with `onRefuse` and the
-`settled` string in all three languages.
+The card answers it on the mark: **the grade mark grows into a band** on the edge it already marks, reads
+*Already graded today*, and shrinks back a couple of seconds later. The case went away for a while — when
+nothing was settled there was no gesture left to drop — and came back with the refusal (§ Interactions),
+along with `onRefuse` and the `settled` string in all three languages.
 
-The band itself stays, and so does `say(text)` — one place on the card for a host to put a sentence and
-no sentence of its own. What the band got right was never the wording: a message on the mark reads as the
-card's own reply, where a floating line under the card reads as a notification about the page — the same
-difference as between a card that responds to your finger and a card with instructions printed beside it.
-Whatever the band would cut in half steps aside while it's up: the category label above, the star row
-below. Nothing in this repository has a sentence for it at the moment.
+The band itself never went, and neither did `say(text)` — one place on the card for a host to put a
+sentence, the library having none of its own. What the band got right was never the wording: a message on
+the mark reads as the card's own reply, where a floating line under the card reads as a notification
+about the page — the same difference as between a card that responds to your finger and a card with
+instructions printed beside it. Whatever the band would cut in half steps aside while it's up: the
+category label above, the star row below.
+
+The sentence names the day, not the card. What's run out is today's answer to this word; tomorrow it's
+ordinary material again. And you only ever meet it through your own *Every card* row — a due session
+holds nothing you've already answered (§ The dictionary), so there's no card in it to be refused.
 
 ### The first session
 
@@ -321,8 +340,11 @@ The two grades used to share one card, up on its front and down on its back. The
 on that front delivers the next card rather than the same card's other side, so the back would never be
 read. One grade per card, and the advance your own swipe causes is what turns the page to the other one
 — which is the guide's own idea reaching a gesture it couldn't reach before, not a concession. That's the
-fifth card. The `harder` card's back is where *swipe right takes it back* is taught, because a grade that
-leaves immediately needs an undo that can be found.
+fifth card. The `harder` card's back is where *it comes back tomorrow* is taught, because that's the one
+consequence of grading you can't read off the gesture: a card leaving looks the same whether it's due
+again in a minute or not until the morning. It taught *swipe right takes it back* while there was an undo
+to teach, and stopped when there wasn't one — a guide that teaches a gesture the app doesn't have is
+worse than a guide that says nothing.
 
 "Swipe left for the next one — or press →" is spelled out once, on the first card, since that's the only
 time that form needs saying; the rest just say "swipe left". The two grading cards name their own arrow
@@ -411,10 +433,12 @@ card in box 3 in box 4, exactly where saying `easier` once would have left it. C
 to be destructive (that sequence landed the card in box 1, *below* where it started), and grading,
 reloading the page and grading again used to promote twice with no recall in between. `gradedToday(key)`
 is what closes the loop in the other direction: pass it as `gradeOf` and a card graded before the reload
-comes back wearing its mark rather than looking untouched. This rule is also what lets the library settle
-nothing (§ Interactions) — a reader can change their mind as often as they like, and the day's answer is
-still worth one step from where the day found the card. The day is
-the reader's own calendar day, in their own time zone. `neutral` doesn't spend it.
+comes back wearing its mark rather than looking untouched — and, since a deck page settles its own cards,
+that mark refuses a second answer (§ Interactions) rather than inviting one. `gradedToday` is also what
+keeps an answered card out of the next session in the first place (§ The dictionary), which is why the
+mark is a rarity rather than the normal case. This rule is what holds where the refusal can't reach: a
+`neutral`, a key that moved under a card, a host that settles nothing. The day is the reader's own
+calendar day, in their own time zone. `neutral` doesn't spend it.
 
 `neutral` never moves a card's due date *later* than it already is. Renewing gives a card a schedule
 where it had none; it must not buy a card time. Since a session studies what is due (§ The dictionary),
@@ -467,10 +491,10 @@ mount(document.body, chooseSession(source, { onlyDue: true }), { onGrade, gradeO
 A deck with cards of its own selects its dictionary session with exactly those lines too, the moment the
 menu row is pressed — `deck.js` computes it once and hands it to the mounted deck's `switchTo` (§ next),
 rather than opening a second page. One rule either way, not a special page or a second implementation to
-keep in step: one grade per card per day and *paging away settles it* mean the same thing on both sides
-of the switch, because underneath it is the same `mount()` and the same wiring. Grade a card in the
-deck, switch to the dictionary, and the card is already there wearing its mark and refusing another
-grade today.
+keep in step: one grade per card per day means the same thing on both sides of the switch, because
+underneath it is the same `mount()` and the same wiring. Grade a card in the deck, switch to the
+dictionary under *Every card*, and it is already there wearing its mark and refusing another grade
+today — and under *Due today* it isn't there at all, which is the same rule seen from the other side.
 
 A deck and the dictionary ask for the same thing out of different pools: **what's due today**, up to
 fifty, out of this deck's own cards or out of everything you've ever opened. "All of it" isn't a session
@@ -601,8 +625,23 @@ Two things still take a group out, and neither is about the schedule. `empty-dec
 group — it *is* the dictionary, so "this deck" would name nothing — and neither does a pool `switchTo`
 would refuse, which is an empty dictionary. Those are rows that couldn't act even in principle.
 
-A pool with nothing due is still worth knowing about: you'll be looking at the "Nothing to repeat today"
-card, whose back says to open the menu.
+A pool with nothing left to answer is still worth knowing about: you'll be looking at the "Nothing to
+repeat today" card, whose back says to open the menu. You get there two ways and it's the same card
+either way — a session that was empty when it was dealt, and a session you've worked all the way through.
+
+A session is a sitting's worth (50), not the whole pool, so running one out isn't by itself being done
+for the day: the page deals the next lot out of what you can still answer, and only when there's nothing
+left does the done card arrive. What it deals replaces what the page was holding for that session, so
+switching pool and back doesn't walk you into a spent one.
+
+The four sessions a page can deal — two pools × two scopes — overlap, so each one is **selected afresh
+every time you ask for it** and kept only where the answer hasn't changed. Grading shortens the sequence
+you're on; it can't reach the three you're not, and holding those as first dealt meant a card you'd
+answered under *Every card* came back under *Due today* and refused you. Re-selecting reads the schedule,
+which is where the answer lives, so every session agrees with it — and with whatever another tab has been
+doing. "Unchanged" is the same cards, in any order (`neutral` moves a card's `dueAt` just by your paging
+past it), and an unchanged session comes back as the same array, which is what keeps you on the card you
+left.
 
 The done card is a card, not a screen: no `key`, so it's never written to the dictionary and keeps no
 schedule, it earns no star however you swipe at it, and it wraps to itself like any one-card session. A

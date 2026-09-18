@@ -186,3 +186,89 @@ describe("createOrder", () => {
     expect([order.next(), order.previous()]).toEqual(["only", "only"]);
   });
 });
+
+/* A card the reader has answered is out of the sequence, not merely paged past
+   (V2-3.9): the ring is one shorter and nothing walks back into it. */
+describe("createOrder, retiring a card", () => {
+  const cards = ["a", "b", "c"];
+  const unshuffled = () => 0.999;
+
+  it("stands on what followed the card it took out", () => {
+    const order = createOrder(cards, unshuffled);
+
+    expect(order.retire()).toBe("b");
+    expect(order.current()).toBe("b");
+    expect(order.size).toBe(2);
+  });
+
+  it("puts the card beyond reach in either direction", () => {
+    const order = createOrder(cards, unshuffled);
+
+    order.retire(); /* a */
+
+    expect([order.next(), order.next()]).toEqual(["c", "b"]);
+    expect([order.previous(), order.previous()]).toEqual(["c", "b"]);
+  });
+
+  it("wraps to the front when the last card of the ring is the one taken out", () => {
+    const order = createOrder(cards, unshuffled);
+
+    order.next();
+    order.next(); /* c, the last */
+
+    expect(order.retire()).toBe("a");
+  });
+
+  it("leaves the caller's own array alone", () => {
+    const input = ["a", "b", "c"];
+    const order = createOrder(input, unshuffled);
+
+    order.retire();
+
+    expect(input).toEqual(["a", "b", "c"]);
+  });
+
+  /* The last card of a ring stays put and is reported as null: what follows a
+     sequence that has run out is the caller's question, and an order with no
+     card at all could not answer it either way. */
+  it("reports a ring it cannot shorten rather than emptying itself", () => {
+    const order = createOrder(["only"], unshuffled);
+
+    expect(order.retire()).toBe(null);
+    expect(order.current()).toBe("only");
+  });
+
+  it("empties a ring one card at a time, down to the last", () => {
+    const order = createOrder(cards, unshuffled);
+
+    expect(order.retire()).toBe("b");
+    expect(order.retire()).toBe("c");
+    expect(order.retire()).toBe(null);
+    expect(order.current()).toBe("c");
+  });
+});
+
+/* A lead card is shown, not studied (V2-3.3): its grade goes nowhere, so there
+   is nothing about it to be finished with and this is a plain step forward. */
+describe("createOrder, retiring inside a lead", () => {
+  const lead = [{ id: "guide 1" }, { id: "guide 2" }];
+  const cards = [{ id: "a" }, { id: "b" }];
+
+  it("steps forward instead of shortening the lead", () => {
+    const order = createOrder(cards, () => 0, lead);
+
+    expect(order.retire()).toBe(lead[1]);
+    expect(order.size).toBe(2);
+    expect(order.previous()).toBe(lead[0]);
+  });
+
+  it("leaves the caller's lead array alone", () => {
+    const own = [{ id: "guide 1" }, { id: "guide 2" }];
+    const order = createOrder(cards, () => 0, own);
+
+    order.retire();
+    order.retire();
+
+    expect(own).toHaveLength(2);
+  });
+});
